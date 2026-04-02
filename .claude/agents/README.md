@@ -10,6 +10,7 @@ Specialized agent definitions for DriftSentinel implementation.
 | `sdlc-technical-writer.md` | Canonical SDLC documentation and traceability maintenance |
 | `test-automator.md` | Test strategy, validation, and evidence-oriented QA |
 | `python-pro.md` | Typed Python construction, packaging, uv workflows, and PySpark integration |
+| `ux-delight-specialist.md` | Gradio dashboard UI polish, layout, data presentation, and empty states |
 
 ## Notes
 

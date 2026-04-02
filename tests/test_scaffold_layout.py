@@ -110,13 +110,14 @@ def test_command_count() -> None:
     assert len(commands) == 21, f"Expected 21 commands, found {len(commands)}"
 
 
-# --- Claude agents (4 expected) ---
+# --- Claude agents (5 expected) ---
 
 EXPECTED_AGENTS = [
     "lead-software-engineer",
     "sdlc-technical-writer",
     "test-automator",
     "python-pro",
+    "ux-delight-specialist",
 ]
 
 

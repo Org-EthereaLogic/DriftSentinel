@@ -34,7 +34,7 @@ driftsentinel/
 
 - `specs/` — canonical SDLC contract
 - `.claude/commands/` — 21 reusable task prompts
-- `.claude/agents/` — 4 specialized subagent definitions
+- `.claude/agents/` — 5 specialized subagent definitions
 - `.claude/hooks/` — Claude Code hook handlers
 - `CLAUDE.md` — quick-reference operational guide
 - `adws/` — reserved for AI Developer Workflows

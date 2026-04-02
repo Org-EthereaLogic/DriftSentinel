@@ -12,6 +12,8 @@ from __future__ import annotations
 
 import json
 import os
+import warnings
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -20,6 +22,86 @@ from driftsentinel.evidence.writer import list_evidence, load_evidence
 
 REGISTRY_PATH = os.environ.get("REGISTRY_PATH", "/tmp/driftsentinel_registry.json")
 EVIDENCE_DIR = os.environ.get("EVIDENCE_DIR", "/tmp/driftsentinel_evidence")
+
+# ---------------------------------------------------------------------------
+# Brand palette
+# ---------------------------------------------------------------------------
+
+_MIDNIGHT = "#071824"
+_DEEP_SLATE = "#0B2233"
+_CLOUD = "#E6F1F6"
+_SENTINEL_CYAN = "#20CFE0"
+_TRUST_TEAL = "#22C7A0"
+_DRIFT_AMBER = "#F59E0B"
+_ALERT_CORAL = "#F97316"
+_GATE_SLATE = "#8AA3B6"
+
+_ASSETS = Path(__file__).parent.parent / "assets" / "driftsentinel-brand-system"
+_LOGO_PATH = str(_ASSETS / "variants" / "logo-dark.png")
+_FAVICON_PATH = str(_ASSETS / "favicons" / "favicon-32x32.png")
+
+# ---------------------------------------------------------------------------
+# Formatting helpers
+# ---------------------------------------------------------------------------
+
+
+def _fmt_timestamp(raw: str) -> str:
+    """Convert ISO 8601 to compact human-readable form: 'Apr 02, 14:40 UTC'."""
+    if not raw:
+        return ""
+    try:
+        dt = datetime.fromisoformat(raw).astimezone(timezone.utc)
+        return dt.strftime("%b %d, %H:%M UTC")
+    except (ValueError, TypeError):
+        return raw
+
+
+def _fmt_run_id(run_id: str) -> str:
+    """Truncate run ID to first 8 characters."""
+    return run_id[:8] if len(run_id) > 8 else run_id
+
+
+def _build_summary_line(rows: list[list[str]]) -> str:
+    """Build a Markdown summary with total count and verdict breakdown."""
+    if not rows or (len(rows) == 1 and "no artifacts" in rows[0][0]):
+        return ""
+    total = len(rows)
+    counts: dict[str, int] = {"PASS": 0, "FAIL": 0, "WARN": 0}
+    other = 0
+    for row in rows:
+        v = (row[4].strip().upper() if len(row) > 4 else "")
+        if v in counts:
+            counts[v] += 1
+        else:
+            other += 1
+    parts = [f"**{total} artifact{'s' if total != 1 else ''}**"]
+    if counts["PASS"]:
+        parts.append(f"PASS: {counts['PASS']}")
+    if counts["WARN"]:
+        parts.append(f"WARN: {counts['WARN']}")
+    if counts["FAIL"]:
+        parts.append(f"FAIL: {counts['FAIL']}")
+    if other:
+        parts.append(f"other: {other}")
+    return "  |  ".join(parts)
+
+
+def _extract_artifact_meta(data: dict[str, Any]) -> dict[str, str]:
+    """Extract key metadata fields from an evidence artifact for the preview line."""
+    payload = data.get("payload", {})
+    verdict = (
+        str(payload.get("overall_verdict", ""))
+        or (payload.get("drift", {}) or {}).get("overall_verdict", "")
+        or (payload.get("benchmark", {}) or {}).get("overall_verdict", "")
+    )
+    run_id = data.get("run_id", "") or ""
+    return {
+        "dataset_id": data.get("dataset_id", "") or "",
+        "run_kind": data.get("run_kind", "") or "",
+        "run_id": run_id[:8] if len(run_id) > 8 else run_id,
+        "generated_at": _fmt_timestamp(data.get("generated_at", "") or ""),
+        "verdict": verdict,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -45,14 +127,26 @@ def load_registry_table(registry_path: str) -> list[list[str]]:
         ver = entry["contract_version"]
         contract = reg.get(did, ver)
         ds = contract.get("dataset", {})
-        rows.append([
-            did,
-            ver,
-            ds.get("catalog", ""),
-            ds.get("schema", ""),
-            ds.get("table", ""),
-        ])
+        rows.append([did, ver, ds.get("catalog", ""), ds.get("schema", ""), ds.get("table", "")])
     return rows
+
+
+def _registry_status_text(rows: list[list[str]]) -> str:
+    """Return a Markdown status line for the registry result."""
+    if not rows:
+        return ""
+    first = rows[0][0]
+    if "no registry" in first:
+        return (
+            "No registry file found at the path above. "
+            "Run `DatasetRegistry` in your intake notebook to create one, then reload."
+        )
+    if "no datasets" in first:
+        return "Registry loaded but contains no datasets. Register a dataset contract and reload."
+    if first.startswith("(error"):
+        return f"Registry could not be parsed. Check file contents. Detail: `{first}`"
+    count = len(rows)
+    return f"**{count} dataset{'s' if count != 1 else ''} registered**"
 
 
 # ---------------------------------------------------------------------------
@@ -107,9 +201,9 @@ def query_evidence(
             Path(r["file"]).name,
             r.get("dataset_id", "") or "",
             r.get("run_kind", "") or "",
-            r.get("generated_at", "") or "",
+            _fmt_timestamp(r.get("generated_at", "") or ""),
             verdict,
-            r.get("run_id", "") or "",
+            _fmt_run_id(r.get("run_id", "") or ""),
         ])
     return rows
 
@@ -121,7 +215,6 @@ def load_artifact_detail(evidence_dir: str, filename: str) -> str:
         return "(select an artifact filename)"
     path = Path(edir) / filename.strip()
     if not path.is_file():
-        # filename might be a full path from the table
         path = Path(filename.strip())
     if not path.is_file():
         return f"(file not found: {filename})"
@@ -130,6 +223,96 @@ def load_artifact_detail(evidence_dir: str, filename: str) -> str:
         return json.dumps(data, indent=2, default=str)
     except (FileNotFoundError, ValueError) as exc:
         return f"(error: {exc})"
+
+
+def load_artifact_meta(evidence_dir: str, filename: str) -> str:
+    """Return a Markdown one-line metadata summary for an evidence artifact."""
+    edir = evidence_dir.strip() or EVIDENCE_DIR
+    if not filename.strip():
+        return "_Enter an artifact filename above and click Load Artifact._"
+    path = Path(edir) / filename.strip()
+    if not path.is_file():
+        path = Path(filename.strip())
+    if not path.is_file():
+        return f"_File not found: `{filename}`_"
+    try:
+        meta = _extract_artifact_meta(load_evidence(path))
+        verdict = meta["verdict"] or "—"
+        return (
+            f"**Dataset:** `{meta['dataset_id'] or '—'}`  "
+            f"**Kind:** `{meta['run_kind'] or '—'}`  "
+            f"**Run ID:** `{meta['run_id'] or '—'}`  "
+            f"**Generated:** {meta['generated_at'] or '—'}  "
+            f"**Verdict:** {verdict}"
+        )
+    except (FileNotFoundError, ValueError) as exc:
+        return f"_Error reading artifact: {exc}_"
+
+
+# ---------------------------------------------------------------------------
+# Gradio theme builder
+# ---------------------------------------------------------------------------
+
+
+def _build_theme():  # type: ignore[no-untyped-def]
+    """Return a DriftSentinel-branded gr.themes.Base theme."""
+    import gradio as gr
+
+    cyan_hue = gr.themes.Color(
+        c50="#E6F1F6", c100="#C0DDE8", c200="#8ABCCE", c300="#4F9AB8", c400="#2080A3",
+        c500=_SENTINEL_CYAN, c600="#1AB8C7", c700="#14A0AD", c800="#0F8A96",
+        c900="#0B7480", c950=_MIDNIGHT,
+    )
+    slate_hue = gr.themes.Color(
+        c50="#F4F8FA", c100="#E6F1F6", c200="#C8D9E4", c300=_GATE_SLATE, c400="#6B8A9F",
+        c500="#4A6C80", c600="#2E4F62", c700="#1A3A4A", c800=_DEEP_SLATE,
+        c900=_MIDNIGHT, c950="#030E13",
+    )
+    return gr.themes.Base(
+        primary_hue=cyan_hue,
+        neutral_hue=slate_hue,
+        font=[gr.themes.GoogleFont("Inter"), "ui-sans-serif", "system-ui", "sans-serif"],
+        font_mono=[gr.themes.GoogleFont("JetBrains Mono"), "ui-monospace", "monospace"],
+    ).set(
+        body_background_fill=_MIDNIGHT,
+        body_background_fill_dark=_MIDNIGHT,
+        body_text_color=_CLOUD,
+        body_text_color_dark=_CLOUD,
+        block_background_fill=_DEEP_SLATE,
+        block_background_fill_dark=_DEEP_SLATE,
+        block_border_color="#1A3A4A",
+        block_border_color_dark="#1A3A4A",
+        block_label_text_color=_GATE_SLATE,
+        block_label_text_color_dark=_GATE_SLATE,
+        input_background_fill="#0F2D3D",
+        input_background_fill_dark="#0F2D3D",
+        input_border_color="#1A3A4A",
+        input_border_color_dark="#1A3A4A",
+        button_primary_background_fill=_SENTINEL_CYAN,
+        button_primary_background_fill_dark=_SENTINEL_CYAN,
+        button_primary_text_color=_MIDNIGHT,
+        button_primary_text_color_dark=_MIDNIGHT,
+        button_primary_background_fill_hover="#1AB8C7",
+        button_primary_background_fill_hover_dark="#1AB8C7",
+        table_even_background_fill=_DEEP_SLATE,
+        table_even_background_fill_dark=_DEEP_SLATE,
+        table_odd_background_fill="#0F2D3D",
+        table_odd_background_fill_dark="#0F2D3D",
+        table_border_color="#1A3A4A",
+        table_border_color_dark="#1A3A4A",
+        border_color_primary=_SENTINEL_CYAN,
+        border_color_primary_dark=_SENTINEL_CYAN,
+        link_text_color=_SENTINEL_CYAN,
+        link_text_color_dark=_SENTINEL_CYAN,
+        code_background_fill="#030E13",
+        code_background_fill_dark="#030E13",
+    )
+
+
+_DS_CSS = """
+    .ds-summary { color: #8AA3B6; font-size: 0.88em; margin-top: 4px; }
+    .ds-tab-desc { color: #8AA3B6; font-size: 0.9em; margin-bottom: 12px; }
+"""
 
 
 # ---------------------------------------------------------------------------
@@ -141,68 +324,133 @@ def build_app():  # type: ignore[no-untyped-def]
     """Construct the Gradio Blocks app with three tabs."""
     import gradio as gr
 
-    with gr.Blocks(title="DriftSentinel") as app:
-        gr.Markdown("# DriftSentinel Operator Dashboard")
-        gr.Markdown(
-            "Read-only view of registered datasets, recent control runs, "
-            "and evidence artifacts."
-        )
+    blocks_kwargs: dict[str, Any] = {
+        "title": "DriftSentinel",
+        "theme": _build_theme(),
+        "css": _DS_CSS,
+    }
 
-        # --- Registry View ---
-        with gr.Tab("Registry"):
-            reg_path = gr.Textbox(
-                label="Registry Path",
-                value=REGISTRY_PATH,
-                interactive=True,
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", UserWarning)
+        ctx = gr.Blocks(**blocks_kwargs)  # type: ignore[arg-type]
+
+    with ctx as app:
+        # ---- Header ----
+        logo_exists = Path(_LOGO_PATH).is_file()
+        with gr.Row():
+            if logo_exists:
+                gr.Image(
+                    value=_LOGO_PATH, show_label=False, height=44, width=None,
+                    container=False, buttons=[],
+                )
+            gr.Markdown(
+                "## DriftSentinel\n"
+                f"<span style='color:{_GATE_SLATE};font-size:0.85em;'>"
+                "Read-only operator dashboard — intake, drift, benchmark</span>",
             )
-            reg_btn = gr.Button("Load Registry")
+
+        # ---- Registry View ----
+        with gr.Tab("Registry"):
+            gr.Markdown(
+                "Browse all datasets registered in the contract registry. "
+                "Each row shows the dataset ID, contract version, and Unity Catalog location.",
+                elem_classes=["ds-tab-desc"],
+            )
+            with gr.Row():
+                reg_path = gr.Textbox(label="Registry Path", value=REGISTRY_PATH, scale=4)
+                reg_btn = gr.Button("Load Registry", variant="primary", scale=1)
+            reg_status = gr.Markdown(
+                "_Click Load Registry to fetch the current dataset registry._",
+                elem_classes=["ds-summary"],
+            )
             reg_table = gr.Dataframe(
                 headers=["Dataset ID", "Version", "Catalog", "Schema", "Table"],
-                interactive=False,
-            )
-            reg_btn.click(
-                fn=load_registry_table,
-                inputs=[reg_path],
-                outputs=[reg_table],
+                interactive=False, wrap=False,
             )
 
-        # --- Run Status ---
+            def _load_registry_with_status(rp: str) -> tuple[list[list[str]], str]:
+                rows = load_registry_table(rp)
+                return rows, _registry_status_text(rows)
+
+            reg_btn.click(fn=_load_registry_with_status, inputs=[reg_path],
+                          outputs=[reg_table, reg_status])
+
+        # ---- Run Status ----
         with gr.Tab("Run Status"):
+            gr.Markdown(
+                "Filter and inspect recent control run evidence. "
+                "Each row is one artifact from an intake, drift, benchmark, or pipeline run.",
+                elem_classes=["ds-tab-desc"],
+            )
             with gr.Row():
-                ev_dir = gr.Textbox(label="Evidence Dir", value=EVIDENCE_DIR)
-                ds_filter = gr.Textbox(label="Dataset ID", value="")
-                kind_filter = gr.Dropdown(
-                    label="Run Kind",
-                    choices=["", "intake", "drift", "benchmark", "pipeline"],
-                    value="",
-                )
-            with gr.Row():
-                rid_filter = gr.Textbox(label="Run ID", value="")
-                from_filter = gr.Textbox(label="Date From (ISO)", value="")
-                to_filter = gr.Textbox(label="Date To (ISO)", value="")
-            query_btn = gr.Button("Query")
+                ev_dir = gr.Textbox(label="Evidence Directory", value=EVIDENCE_DIR, scale=4)
+                query_btn = gr.Button("Query", variant="primary", scale=1)
+            with gr.Accordion("Filters", open=True):
+                with gr.Row():
+                    ds_filter = gr.Textbox(label="Dataset ID", value="",
+                                           placeholder="e.g. customer_profiles")
+                    kind_filter = gr.Dropdown(
+                        label="Run Kind",
+                        choices=["", "intake", "drift", "benchmark", "pipeline"], value="",
+                    )
+                    rid_filter = gr.Textbox(label="Run ID prefix", value="",
+                                            placeholder="first 8+ characters")
+                with gr.Row():
+                    from_filter = gr.Textbox(label="Date From", value="", placeholder="YYYY-MM-DD")
+                    to_filter = gr.Textbox(label="Date To", value="", placeholder="YYYY-MM-DD")
+            run_summary = gr.Markdown("_Click Query to load evidence artifacts._",
+                                      elem_classes=["ds-summary"])
             status_table = gr.Dataframe(
                 headers=["File", "Dataset", "Kind", "Timestamp", "Verdict", "Run ID"],
-                interactive=False,
-            )
-            query_btn.click(
-                fn=query_evidence,
-                inputs=[ev_dir, ds_filter, kind_filter, rid_filter, from_filter, to_filter],
-                outputs=[status_table],
+                interactive=False, wrap=False,
             )
 
-        # --- Evidence Explorer ---
-        with gr.Tab("Evidence Explorer"):
-            with gr.Row():
-                exp_dir = gr.Textbox(label="Evidence Dir", value=EVIDENCE_DIR)
-                exp_file = gr.Textbox(label="Artifact Filename", value="")
-            exp_btn = gr.Button("Load Artifact")
-            exp_json = gr.Code(label="Artifact JSON", language="json", interactive=False)
-            exp_btn.click(
-                fn=load_artifact_detail,
-                inputs=[exp_dir, exp_file],
-                outputs=[exp_json],
+            def _query_with_summary(
+                ed: str, ds: str, rk: str, ri: str, df: str, dt: str,
+            ) -> tuple[list[list[str]], str]:
+                rows = query_evidence(ed, ds, rk, ri, df, dt)
+                is_empty = len(rows) == 1 and "no artifacts" in rows[0][0]
+                if is_empty:
+                    summary = (
+                        "No artifacts found matching the current filters. "
+                        "Confirm the evidence directory path is correct and that "
+                        "at least one control run has completed."
+                    )
+                else:
+                    summary = _build_summary_line(rows)
+                return rows, summary
+
+            query_btn.click(
+                fn=_query_with_summary,
+                inputs=[ev_dir, ds_filter, kind_filter, rid_filter, from_filter, to_filter],
+                outputs=[status_table, run_summary],
             )
+
+        # ---- Evidence Explorer ----
+        with gr.Tab("Evidence Explorer"):
+            gr.Markdown(
+                "Inspect the full JSON payload of a single evidence artifact. "
+                "Enter the filename from the Run Status table, then click Load Artifact.",
+                elem_classes=["ds-tab-desc"],
+            )
+            with gr.Row():
+                exp_dir = gr.Textbox(label="Evidence Directory", value=EVIDENCE_DIR, scale=3)
+                exp_file = gr.Textbox(
+                    label="Artifact Filename", value="",
+                    placeholder="e.g. 2026-04-02T14-40-20Z_intake_ds_a.json", scale=3,
+                )
+                exp_btn = gr.Button("Load Artifact", variant="primary", scale=1)
+            exp_meta = gr.Markdown(
+                "_Enter an artifact filename above and click Load Artifact._",
+                elem_classes=["ds-summary"],
+            )
+            exp_json = gr.Code(label="Artifact JSON", language="json", interactive=False)
+
+            def _load_with_meta(ed: str, fn: str) -> tuple[str, str]:
+                return load_artifact_detail(ed, fn), load_artifact_meta(ed, fn)
+
+            exp_btn.click(fn=_load_with_meta, inputs=[exp_dir, exp_file],
+                          outputs=[exp_json, exp_meta])
 
     return app
 
