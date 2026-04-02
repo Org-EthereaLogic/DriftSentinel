@@ -58,6 +58,7 @@ Read these files before making policy, product, or reporting claims:
 - `CONSTITUTION.md`
 - `DIRECTIVES.md`
 - the relevant canonical `specs/*.md` files
+- the `README.md` in the directory you are about to modify
 
 ## Source Precedence
 

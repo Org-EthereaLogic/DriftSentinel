@@ -72,15 +72,25 @@ When prior repository patterns conflict, use this precedence:
 
 ## File Map
 
+Every directory contains a `README.md` describing its contents.
+
 | Path | Purpose |
 | --- | --- |
 | `specs/` | Canonical SDLC documents |
 | `docs/` | Explanatory docs, deployment guide, Notion sync policy |
+| `.claude/` | Claude Code configuration root |
 | `.claude/commands/` | 21 reusable command prompts |
 | `.claude/agents/` | 4 specialized subagent definitions |
 | `.claude/hooks/` | Claude Code hook handlers and session logging |
 | `.claude/settings.json` | Claude Code plugin configuration |
+| `src/` | Top-level source directory (src-layout) |
 | `src/driftsentinel/` | First-party product code |
+| `src/driftsentinel/intake/` | Schema drift detection, contract validation (Chapter 1) |
+| `src/driftsentinel/drift/` | Distribution drift detection and gate logic (Chapter 2) |
+| `src/driftsentinel/benchmark/` | Control effectiveness benchmarking (Chapter 3) |
+| `src/driftsentinel/evidence/` | Append-only evidence artifact writing |
+| `src/driftsentinel/orchestration/` | Workflow sequencing for the control pipeline |
+| `src/driftsentinel/config/` | Dataset contract and policy configuration |
 | `notebooks/` | Databricks onboarding, execution, and review notebooks |
 | `resources/` | Databricks Asset Bundle pipeline and job definitions |
 | `templates/` | Dataset contract, drift policy, and benchmark policy templates |

@@ -4,8 +4,10 @@
 
 1. Read `CLAUDE.md`, `AGENTS.md`, `CONSTITUTION.md`, and `DIRECTIVES.md`.
 2. Read the relevant `specs/DS-*.md` documents for the area you plan to change.
-3. Run `/prime` to orient to the repository.
-4. Run `/start` to verify your local environment is functional.
+3. Read the `README.md` in the directory you plan to work in — every directory
+   contains one describing its contents and current state.
+4. Run `/prime` to orient to the repository.
+5. Run `/start` to verify your local environment is functional.
 
 ## Workflow
 

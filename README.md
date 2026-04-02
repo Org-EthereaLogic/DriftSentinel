@@ -21,8 +21,14 @@ Databricks workflows and evidence-producing execution.
 | `resources/` | Databricks Asset Bundle pipeline and job definitions |
 | `templates/` | Dataset contract, drift policy, and benchmark policy templates |
 | `specs/` | Canonical SDLC documents governing the product |
+| `docs/` | Explanatory docs, deployment guide, and Notion sync policy |
+| `tests/` | Product test suite (scaffold layout and governance guards) |
 | `.claude/` | Agent, command, hook, and configuration surfaces for agentic development |
 | `report/` | Append-only evidence artifacts from verification and control runs |
+| `adws/` | Reserved for AI Developer Workflows |
+
+Every directory listed above contains a `README.md` describing its contents,
+including each submodule under `src/driftsentinel/`.
 
 ## Quickstart
 
