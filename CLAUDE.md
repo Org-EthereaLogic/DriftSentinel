@@ -82,7 +82,7 @@ Every directory contains a `README.md` describing its contents.
 | `docs/` | Explanatory docs, deployment guide, Notion sync policy |
 | `.claude/` | Claude Code configuration root |
 | `.claude/commands/` | 21 reusable command prompts |
-| `.claude/agents/` | 4 specialized subagent definitions |
+| `.claude/agents/` | 5 specialized subagent definitions |
 | `.claude/hooks/` | Claude Code hook handlers and session logging |
 | `.claude/settings.json` | Claude Code plugin configuration |
 | `src/` | Top-level source directory (src-layout) |
@@ -93,6 +93,7 @@ Every directory contains a `README.md` describing its contents.
 | `src/driftsentinel/evidence/` | Append-only evidence artifact writing |
 | `src/driftsentinel/orchestration/` | Workflow sequencing for the control pipeline |
 | `src/driftsentinel/config/` | Dataset contract and policy configuration |
+| `app/` | Databricks App UI (Gradio) — operator dashboard for registry, run status, evidence |
 | `assets/` | Project brand assets — source SVGs, favicons, icons, and social previews |
 | `notebooks/` | Databricks onboarding, execution, and review notebooks |
 | `resources/` | Databricks Asset Bundle pipeline and job definitions |
