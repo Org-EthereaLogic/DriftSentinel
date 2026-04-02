@@ -99,6 +99,7 @@ def build_plotly_bar(verdict_rows: list[list[Any]]) -> Any:
                 marker_color=[colors.get(label, "#8AA3B6") for label in labels],
                 text=values,
                 textposition="outside",
+                cliponaxis=False,
                 hovertemplate="%{x}: %{y}<extra></extra>",
             )
         ]
@@ -108,12 +109,12 @@ def build_plotly_bar(verdict_rows: list[list[Any]]) -> Any:
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
         font=dict(color="#E6F1F6"),
-        margin=dict(l=40, r=20, t=50, b=30),
+        margin=dict(l=40, r=20, t=60, b=30),
         showlegend=False,
         height=320,
     )
     fig.update_xaxes(color="#8AA3B6", gridcolor="rgba(0,0,0,0)")
-    fig.update_yaxes(color="#8AA3B6", gridcolor="#1A3A4A", rangemode="tozero")
+    fig.update_yaxes(color="#8AA3B6", gridcolor="#1A3A4A", rangemode="tozero", automargin=True)
     return fig
 
 

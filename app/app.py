@@ -18,6 +18,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+try:
+    import gradio as gr
+except ImportError:  # allow test imports without gradio installed
+    gr = None  # type: ignore[assignment]
+
 from driftsentinel.config.loader import DatasetRegistry, RegistryError
 from driftsentinel.evidence.writer import list_evidence, load_evidence
 
@@ -181,15 +186,24 @@ def query_evidence(
         ])
     return rows
 
+def _resolve_artifact_path(evidence_dir: str, filename: str) -> Path | None:
+    """Resolve an artifact filename to a concrete path, or None if not found."""
+    fname = filename.strip()
+    if not fname:
+        return None
+    path = Path((evidence_dir.strip() or EVIDENCE_DIR)) / fname
+    if path.is_file():
+        return path
+    path = Path(fname)
+    return path if path.is_file() else None
+
+
 def load_artifact_detail(evidence_dir: str, filename: str) -> str:
     """Load and return the full JSON of an evidence artifact."""
-    edir = evidence_dir.strip() or EVIDENCE_DIR
     if not filename.strip():
         return "(select an artifact filename)"
-    path = Path(edir) / filename.strip()
-    if not path.is_file():
-        path = Path(filename.strip())
-    if not path.is_file():
+    path = _resolve_artifact_path(evidence_dir, filename)
+    if path is None:
         return f"(file not found: {filename})"
     try:
         data = load_evidence(path)
@@ -199,17 +213,13 @@ def load_artifact_detail(evidence_dir: str, filename: str) -> str:
 
 def load_artifact_meta(evidence_dir: str, filename: str) -> str:
     """Return a Markdown one-line metadata summary for an evidence artifact."""
-    edir = evidence_dir.strip() or EVIDENCE_DIR
     if not filename.strip():
         return "_Enter an artifact filename above and click Load Artifact._"
-    path = Path(edir) / filename.strip()
-    if not path.is_file():
-        path = Path(filename.strip())
-    if not path.is_file():
+    path = _resolve_artifact_path(evidence_dir, filename)
+    if path is None:
         return f"_File not found: `{filename}`_"
     try:
         meta = _extract_artifact_meta(load_evidence(path))
-        _VERDICT_CIRCLES = {"PASS": "🟢 PASS", "FAIL": "🔴 FAIL", "WARN": "🟡 WARN"}
         raw_verdict = meta["verdict"] or ""
         verdict = _VERDICT_CIRCLES.get(raw_verdict.strip().upper(), raw_verdict) or "—"
         return (
@@ -224,7 +234,6 @@ def load_artifact_meta(evidence_dir: str, filename: str) -> str:
 
 def _build_theme():  # type: ignore[no-untyped-def]
     """Return a DriftSentinel-branded gr.themes.Base theme."""
-    import gradio as gr
 
     cyan_hue = gr.themes.Color(
         c50="#E6F1F6", c100="#C0DDE8", c200="#8ABCCE", c300="#4F9AB8", c400="#2080A3",
@@ -268,9 +277,6 @@ _DS_CSS = """
 
 def build_app():  # type: ignore[no-untyped-def]
     """Construct the Gradio Blocks app with four tabs."""
-    import gradio as gr
-    globals()["gr"] = gr
-
     blocks_kwargs: dict[str, Any] = {
         "title": "DriftSentinel",
         "theme": _build_theme(),
@@ -410,7 +416,7 @@ def build_app():  # type: ignore[no-untyped-def]
 
                 ev_dir.change(fn=_sync_evidence_dir, inputs=[ev_dir], outputs=[exp_dir])
 
-                def _on_status_select(current_dir: str, evt: "gr.SelectData"):
+                def _on_status_select(current_dir: str, evt: gr.SelectData):
                     filename = ""
                     if isinstance(evt.row_value, list) and evt.row_value:
                         filename = str(evt.row_value[0])
@@ -504,12 +510,10 @@ def _get_app():  # type: ignore[no-untyped-def]
 
 # Databricks Apps runtime calls `gradio app.py` which expects a module-level `app`.
 # Guarded so tests can import helpers without requiring gradio.
-try:
-    import gradio as _gr  # noqa: F401
-
+if gr is not None:
     app = _get_app()
     demo = app
-except ImportError:
+else:
     app = None  # type: ignore[assignment]
     demo = None  # type: ignore[assignment]
 

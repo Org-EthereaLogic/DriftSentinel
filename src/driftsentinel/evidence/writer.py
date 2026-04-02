@@ -257,23 +257,27 @@ def list_evidence(
     if not d.is_dir():
         return []
 
+    has_filters = any(v is not None for v in (dataset_id, run_kind, run_id, date_from, date_to))
+
     results: list[dict[str, Any]] = []
     for p in sorted(d.glob("*.json")):
         try:
             with open(p, encoding="utf-8") as f:
                 data = json.load(f)
         except (json.JSONDecodeError, OSError):
-            results.append({
-                "file": str(p),
-                "parse_error": True,
-            })
+            if not has_filters:
+                results.append({
+                    "file": str(p),
+                    "parse_error": True,
+                })
             continue
 
         if not isinstance(data, dict) or "meta" not in data:
-            results.append({
-                "file": str(p),
-                "parse_error": True,
-            })
+            if not has_filters:
+                results.append({
+                    "file": str(p),
+                    "parse_error": True,
+                })
             continue
 
         meta = data["meta"]
