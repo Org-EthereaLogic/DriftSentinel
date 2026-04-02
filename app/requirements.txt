@@ -1,3 +1,4 @@
 # Local app development installs the repository package from the parent dir.
 -e ..
 gradio>=6.10.0,<7
+plotly>=5.0,<6

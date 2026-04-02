@@ -1,9 +1,10 @@
 """DriftSentinel Databricks App — read-only operator dashboard.
 
-Provides three views over existing DriftSentinel package surfaces:
+Provides four views over existing DriftSentinel package surfaces:
 1. Registry View — browse registered datasets and policy compatibility
 2. Run Status — filter and summarize recent control runs
 3. Evidence Explorer — inspect full evidence artifact detail
+4. Analytics — verdict distribution, run-kind breakdown, and run timeline
 
 This app never writes evidence, modifies the registry, or executes controls.
 """
@@ -23,10 +24,6 @@ from driftsentinel.evidence.writer import list_evidence, load_evidence
 REGISTRY_PATH = os.environ.get("REGISTRY_PATH", "/tmp/driftsentinel_registry.json")
 EVIDENCE_DIR = os.environ.get("EVIDENCE_DIR", "/tmp/driftsentinel_evidence")
 
-# ---------------------------------------------------------------------------
-# Brand palette
-# ---------------------------------------------------------------------------
-
 _MIDNIGHT = "#071824"
 _DEEP_SLATE = "#0B2233"
 _CLOUD = "#E6F1F6"
@@ -40,7 +37,6 @@ _ASSETS = Path(__file__).parent.parent / "assets" / "driftsentinel-brand-system"
 _LOGO_PATH = _ASSETS / "variants" / "logo-dark.png"
 _FAVICON_PATH = str(_ASSETS / "favicons" / "favicon-32x32.png")
 
-
 def _logo_data_uri() -> str | None:
     """Encode the brand logo as a base64 data URI for inline HTML display."""
     import base64
@@ -50,11 +46,6 @@ def _logo_data_uri() -> str | None:
     data = _LOGO_PATH.read_bytes()
     b64 = base64.b64encode(data).decode("ascii")
     return f"data:image/png;base64,{b64}"
-
-# ---------------------------------------------------------------------------
-# Formatting helpers
-# ---------------------------------------------------------------------------
-
 
 def _fmt_timestamp(raw: str) -> str:
     """Convert ISO 8601 to compact human-readable form: 'Apr 02, 14:40 UTC'."""
@@ -66,11 +57,9 @@ def _fmt_timestamp(raw: str) -> str:
     except (ValueError, TypeError):
         return raw
 
-
 def _fmt_run_id(run_id: str) -> str:
     """Truncate run ID to first 8 characters."""
     return run_id[:8] if len(run_id) > 8 else run_id
-
 
 def _build_summary_line(rows: list[list[str]]) -> str:
     """Build a Markdown summary with total count and verdict breakdown."""
@@ -98,7 +87,6 @@ def _build_summary_line(rows: list[list[str]]) -> str:
         parts.append(f"other: {other}")
     return "  |  ".join(parts)
 
-
 def _extract_artifact_meta(data: dict[str, Any]) -> dict[str, str]:
     """Extract key metadata fields from an evidence artifact for the preview line."""
     meta = data.get("meta", {}) or {}
@@ -116,12 +104,6 @@ def _extract_artifact_meta(data: dict[str, Any]) -> dict[str, str]:
         "generated_at": _fmt_timestamp(meta.get("generated_at", "") or data.get("generated_at", "") or ""),
         "verdict": verdict,
     }
-
-
-# ---------------------------------------------------------------------------
-# Registry View helpers
-# ---------------------------------------------------------------------------
-
 
 def load_registry_table(registry_path: str) -> list[list[str]]:
     """Load the registry and return rows for the Gradio table."""
@@ -144,7 +126,6 @@ def load_registry_table(registry_path: str) -> list[list[str]]:
         rows.append([did, ver, ds.get("catalog", ""), ds.get("schema", ""), ds.get("table", "")])
     return rows
 
-
 def _registry_status_text(rows: list[list[str]]) -> str:
     """Return a Markdown status line for the registry result."""
     if not rows:
@@ -162,12 +143,6 @@ def _registry_status_text(rows: list[list[str]]) -> str:
     count = len(rows)
     return f"**{count} dataset{'s' if count != 1 else ''} registered**"
 
-
-# ---------------------------------------------------------------------------
-# Evidence helpers
-# ---------------------------------------------------------------------------
-
-
 def _extract_verdict(artifact: dict[str, Any]) -> str:
     """Best-effort extraction of an overall verdict from an evidence payload."""
     payload = artifact.get("payload", {})
@@ -178,7 +153,6 @@ def _extract_verdict(artifact: dict[str, Any]) -> str:
     if "benchmark" in payload and isinstance(payload["benchmark"], dict):
         return payload["benchmark"].get("overall_verdict", "")
     return ""
-
 
 def query_evidence(
     evidence_dir: str,
@@ -223,7 +197,6 @@ def query_evidence(
         ])
     return rows
 
-
 def load_artifact_detail(evidence_dir: str, filename: str) -> str:
     """Load and return the full JSON of an evidence artifact."""
     edir = evidence_dir.strip() or EVIDENCE_DIR
@@ -239,7 +212,6 @@ def load_artifact_detail(evidence_dir: str, filename: str) -> str:
         return json.dumps(data, indent=2, default=str)
     except (FileNotFoundError, ValueError) as exc:
         return f"(error: {exc})"
-
 
 def load_artifact_meta(evidence_dir: str, filename: str) -> str:
     """Return a Markdown one-line metadata summary for an evidence artifact."""
@@ -266,12 +238,6 @@ def load_artifact_meta(evidence_dir: str, filename: str) -> str:
     except (FileNotFoundError, ValueError) as exc:
         return f"_Error reading artifact: {exc}_"
 
-
-# ---------------------------------------------------------------------------
-# Gradio theme builder
-# ---------------------------------------------------------------------------
-
-
 def _build_theme():  # type: ignore[no-untyped-def]
     """Return a DriftSentinel-branded gr.themes.Base theme."""
     import gradio as gr
@@ -286,58 +252,35 @@ def _build_theme():  # type: ignore[no-untyped-def]
         c500="#4A6C80", c600="#2E4F62", c700="#1A3A4A", c800=_DEEP_SLATE,
         c900=_MIDNIGHT, c950="#030E13",
     )
+    # Build theme with both light and dark variants set to the same dark values.
+    pairs = {
+        "body_background_fill": _MIDNIGHT, "body_text_color": _CLOUD,
+        "block_background_fill": _DEEP_SLATE, "block_border_color": "#1A3A4A",
+        "block_label_text_color": _GATE_SLATE,
+        "input_background_fill": "#0F2D3D", "input_border_color": "#1A3A4A",
+        "button_primary_background_fill": _SENTINEL_CYAN,
+        "button_primary_text_color": _MIDNIGHT,
+        "button_primary_background_fill_hover": "#1AB8C7",
+        "table_even_background_fill": _DEEP_SLATE,
+        "table_odd_background_fill": "#0F2D3D", "table_border_color": "#1A3A4A",
+        "border_color_primary": _SENTINEL_CYAN, "link_text_color": _SENTINEL_CYAN,
+        "code_background_fill": "#030E13",
+    }
+    theme_args: dict[str, str] = {}
+    for k, v in pairs.items():
+        theme_args[k] = v
+        theme_args[f"{k}_dark"] = v
     return gr.themes.Base(
-        primary_hue=cyan_hue,
-        neutral_hue=slate_hue,
+        primary_hue=cyan_hue, neutral_hue=slate_hue,
         font=[gr.themes.GoogleFont("Inter"), "ui-sans-serif", "system-ui", "sans-serif"],
         font_mono=[gr.themes.GoogleFont("JetBrains Mono"), "ui-monospace", "monospace"],
-    ).set(
-        body_background_fill=_MIDNIGHT,
-        body_background_fill_dark=_MIDNIGHT,
-        body_text_color=_CLOUD,
-        body_text_color_dark=_CLOUD,
-        block_background_fill=_DEEP_SLATE,
-        block_background_fill_dark=_DEEP_SLATE,
-        block_border_color="#1A3A4A",
-        block_border_color_dark="#1A3A4A",
-        block_label_text_color=_GATE_SLATE,
-        block_label_text_color_dark=_GATE_SLATE,
-        input_background_fill="#0F2D3D",
-        input_background_fill_dark="#0F2D3D",
-        input_border_color="#1A3A4A",
-        input_border_color_dark="#1A3A4A",
-        button_primary_background_fill=_SENTINEL_CYAN,
-        button_primary_background_fill_dark=_SENTINEL_CYAN,
-        button_primary_text_color=_MIDNIGHT,
-        button_primary_text_color_dark=_MIDNIGHT,
-        button_primary_background_fill_hover="#1AB8C7",
-        button_primary_background_fill_hover_dark="#1AB8C7",
-        table_even_background_fill=_DEEP_SLATE,
-        table_even_background_fill_dark=_DEEP_SLATE,
-        table_odd_background_fill="#0F2D3D",
-        table_odd_background_fill_dark="#0F2D3D",
-        table_border_color="#1A3A4A",
-        table_border_color_dark="#1A3A4A",
-        border_color_primary=_SENTINEL_CYAN,
-        border_color_primary_dark=_SENTINEL_CYAN,
-        link_text_color=_SENTINEL_CYAN,
-        link_text_color_dark=_SENTINEL_CYAN,
-        code_background_fill="#030E13",
-        code_background_fill_dark="#030E13",
-    )
-
+    ).set(**theme_args)
 
 _DS_CSS = """
     .ds-summary { color: #8AA3B6; font-size: 0.88em; margin-top: 4px; }
     .ds-tab-desc { color: #8AA3B6; font-size: 0.9em; margin-bottom: 12px; }
     .ds-empty-state { text-align: center; padding: 24px 16px; font-size: 0.95em; color: #8AA3B6; }
 """
-
-
-# ---------------------------------------------------------------------------
-# Gradio App
-# ---------------------------------------------------------------------------
-
 
 def build_app():  # type: ignore[no-untyped-def]
     """Construct the Gradio Blocks app with three tabs."""
@@ -476,13 +419,78 @@ def build_app():  # type: ignore[no-untyped-def]
             exp_btn.click(fn=_load_with_meta, inputs=[exp_dir, exp_file],
                           outputs=[exp_json, exp_meta])
 
-    return app
+        # ---- Analytics ----
+        with gr.Tab("Analytics"):
+            import pandas as pd
 
+            try:
+                from app.analytics import (
+                    build_analytics_data,
+                    build_plotly_pie,
+                    kind_pie_data,
+                    timeline_data,
+                    verdict_bar_data,
+                )
+            except (ImportError, ModuleNotFoundError):
+                from analytics import (  # type: ignore[no-redef]
+                    build_analytics_data,
+                    build_plotly_pie,
+                    kind_pie_data,
+                    timeline_data,
+                    verdict_bar_data,
+                )
+
+            gr.Markdown(
+                "Visual breakdown of control run evidence. Click Refresh to "
+                "scan the evidence directory and update all charts.",
+                elem_classes=["ds-tab-desc"],
+            )
+            with gr.Row():
+                ana_dir = gr.Textbox(label="Evidence Directory", value=EVIDENCE_DIR, scale=4)
+                ana_btn = gr.Button("Refresh", variant="primary", scale=1)
+            ana_status = gr.Markdown(
+                "_Click Refresh to load analytics._",
+                elem_classes=["ds-summary", "ds-empty-state"],
+            )
+
+            with gr.Row():
+                verdict_plot = gr.BarPlot(
+                    x="Verdict", y="Count", title="Verdict Distribution",
+                    color="Verdict",
+                    color_map={"PASS": _TRUST_TEAL, "FAIL": _ALERT_CORAL, "WARN": _DRIFT_AMBER},
+                    height=320,
+                )
+                kind_plot = gr.Plot(label="Runs by Kind")
+            timeline_plot = gr.LinePlot(
+                x="Date", y="Runs", title="Run Timeline",
+                height=280,
+            )
+
+            def _refresh_analytics(edir: str):  # type: ignore[no-untyped-def]
+                records = build_analytics_data(edir.strip() or EVIDENCE_DIR)
+                if not records:
+                    empty = pd.DataFrame({"Verdict": [], "Count": []})
+                    empty_t = pd.DataFrame({"Date": [], "Runs": []})
+                    return empty, None, empty_t, "No evidence artifacts found."
+                vrows = verdict_bar_data(records)
+                v_df = pd.DataFrame(vrows, columns=["Verdict", "Count"])
+                krows = kind_pie_data(records)
+                pie_fig = build_plotly_pie(krows)
+                trows = timeline_data(records)
+                t_df = pd.DataFrame(trows, columns=["Date", "Runs"])
+                total = len(records)
+                return v_df, pie_fig, t_df, f"**{total} artifacts** analyzed"
+
+            ana_btn.click(
+                fn=_refresh_analytics, inputs=[ana_dir],
+                outputs=[verdict_plot, kind_plot, timeline_plot, ana_status],
+            )
+
+    return app
 
 def _get_app():  # type: ignore[no-untyped-def]
     """Lazy app builder for module-level access."""
     return build_app()
-
 
 # Databricks Apps runtime calls `gradio app.py` which expects a module-level `app`.
 # Guarded so tests can import helpers without requiring gradio.
