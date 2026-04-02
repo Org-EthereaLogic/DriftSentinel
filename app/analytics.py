@@ -34,6 +34,12 @@ def build_analytics_data(evidence_dir: str) -> list[dict[str, str]]:
     records: list[dict[str, str]] = []
     for r in results:
         if r.get("parse_error"):
+            records.append({
+                "dataset_id": r.get("dataset_id") or "untagged",
+                "run_kind": r.get("run_kind") or "unknown",
+                "generated_at": r.get("generated_at", ""),
+                "verdict": "UNKNOWN",
+            })
             continue
         verdict = ""
         try:

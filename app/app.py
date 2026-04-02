@@ -285,6 +285,9 @@ _DS_CSS = """
 def build_app():  # type: ignore[no-untyped-def]
     """Construct the Gradio Blocks app with three tabs."""
     import gradio as gr
+    import pandas as pd
+    globals()["gr"] = gr
+    globals()["pd"] = pd
 
     blocks_kwargs: dict[str, Any] = {
         "title": "DriftSentinel",
@@ -316,175 +319,207 @@ def build_app():  # type: ignore[no-untyped-def]
             )
 
         # ---- Registry View ----
-        with gr.Tab("Registry"):
-            gr.Markdown(
-                "Browse all datasets registered in the contract registry. "
-                "Each row shows the dataset ID, contract version, and Unity Catalog location.",
-                elem_classes=["ds-tab-desc"],
-            )
-            with gr.Row():
-                reg_path = gr.Textbox(label="Registry Path", value=REGISTRY_PATH, scale=4)
-                reg_btn = gr.Button("Load Registry", variant="primary", scale=1)
-            reg_status = gr.Markdown(
-                "_Click Load Registry to fetch the current dataset registry._",
-                elem_classes=["ds-summary", "ds-empty-state"],
-            )
-            reg_table = gr.Dataframe(
-                headers=["Dataset ID", "Version", "Catalog", "Schema", "Table"],
-                interactive=False, wrap=False,
-            )
-
-            def _load_registry_with_status(rp: str) -> tuple[list[list[str]], str]:
-                rows = load_registry_table(rp)
-                return rows, _registry_status_text(rows)
-
-            reg_btn.click(fn=_load_registry_with_status, inputs=[reg_path],
-                          outputs=[reg_table, reg_status])
-
-        # ---- Run Status ----
-        with gr.Tab("Run Status"):
-            gr.Markdown(
-                "Filter and inspect recent control run evidence. "
-                "Each row is one artifact from an intake, drift, benchmark, or pipeline run.",
-                elem_classes=["ds-tab-desc"],
-            )
-            with gr.Row():
-                ev_dir = gr.Textbox(label="Evidence Directory", value=EVIDENCE_DIR, scale=4)
-                query_btn = gr.Button("Query", variant="primary", scale=1)
-            with gr.Accordion("Filters", open=True):
+        with gr.Tabs(elem_id="tabs") as tabs:
+            with gr.Tab("Registry", id="registry"):
+                gr.Markdown(
+                    "Browse all datasets registered in the contract registry. "
+                    "Each row shows the dataset ID, contract version, and Unity Catalog location.",
+                    elem_classes=["ds-tab-desc"],
+                )
                 with gr.Row():
-                    ds_filter = gr.Textbox(label="Dataset ID", value="",
-                                           placeholder="e.g. customer_profiles")
-                    kind_filter = gr.Dropdown(
-                        label="Run Kind",
-                        choices=["", "intake", "drift", "benchmark", "pipeline"], value="",
-                    )
-                    rid_filter = gr.Textbox(label="Run ID prefix", value="",
-                                            placeholder="first 8+ characters")
+                    reg_path = gr.Textbox(label="Registry Path", value=REGISTRY_PATH, scale=4)
+                    reg_btn = gr.Button("Load Registry", variant="primary", scale=1)
+                reg_status = gr.Markdown(
+                    "_Click Load Registry to fetch the current dataset registry._",
+                    elem_classes=["ds-summary", "ds-empty-state"],
+                )
+                reg_table = gr.Dataframe(
+                    headers=["Dataset ID", "Version", "Catalog", "Schema", "Table"],
+                    interactive=False, wrap=False,
+                )
+
+                def _load_registry_with_status(rp: str) -> tuple[list[list[str]], str]:
+                    rows = load_registry_table(rp)
+                    return rows, _registry_status_text(rows)
+
+                reg_btn.click(fn=_load_registry_with_status, inputs=[reg_path],
+                              outputs=[reg_table, reg_status])
+
+            # ---- Run Status ----
+            with gr.Tab("Run Status", id="run_status"):
+                gr.Markdown(
+                    "Filter and inspect recent control run evidence. "
+                    "Each row is one artifact from an intake, drift, benchmark, or pipeline run.",
+                    elem_classes=["ds-tab-desc"],
+                )
                 with gr.Row():
-                    from_filter = gr.Textbox(label="Date From", value="", placeholder="YYYY-MM-DD")
-                    to_filter = gr.Textbox(label="Date To", value="", placeholder="YYYY-MM-DD")
-            run_summary = gr.Markdown("_Click Query to load evidence artifacts._",
-                                      elem_classes=["ds-summary", "ds-empty-state"])
-            status_table = gr.Dataframe(
-                headers=["File", "Dataset", "Kind", "Timestamp", "Verdict", "Run ID"],
-                column_count=6,
-                interactive=False, wrap=True,
-            )
+                    ev_dir = gr.Textbox(label="Evidence Directory", value=EVIDENCE_DIR, scale=4)
+                    query_btn = gr.Button("Query", variant="primary", scale=1)
+                with gr.Accordion("Filters", open=False):
+                    with gr.Row():
+                        ds_filter = gr.Textbox(label="Dataset ID", value="",
+                                               placeholder="e.g. customer_profiles")
+                        kind_filter = gr.Dropdown(
+                            label="Run Kind",
+                            choices=["", "intake", "drift", "benchmark", "pipeline"], value="",
+                        )
+                        rid_filter = gr.Textbox(label="Run ID prefix", value="",
+                                                placeholder="first 8+ characters")
+                    with gr.Row():
+                        from_filter = gr.Textbox(label="Date From", value="", placeholder="YYYY-MM-DD")
+                        to_filter = gr.Textbox(label="Date To", value="", placeholder="YYYY-MM-DD")
+                run_summary = gr.Markdown("_Click Query to load evidence artifacts._",
+                                          elem_classes=["ds-summary", "ds-empty-state"])
+                status_table = gr.Dataframe(
+                    headers=["File", "Dataset", "Kind", "Timestamp", "Verdict", "Run ID"],
+                    column_count=6,
+                    interactive=False, wrap=True,
+                )
 
-            def _query_with_summary(
-                ed: str, ds: str, rk: str, ri: str, df: str, dt: str,
-            ) -> tuple[list[list[str]], str]:
-                rows = query_evidence(ed, ds, rk, ri, df, dt)
-                is_empty = len(rows) == 1 and "no artifacts" in rows[0][0]
-                if is_empty:
-                    summary = (
-                        "No artifacts found matching the current filters. "
-                        "Confirm the evidence directory path is correct and that "
-                        "at least one control run has completed."
+                def _query_with_summary(
+                    ed: str, ds: str, rk: str, ri: str, df: str, dt: str,
+                ) -> tuple[list[list[str]], str]:
+                    rows = query_evidence(ed, ds, rk, ri, df, dt)
+                    is_empty = len(rows) == 1 and "no artifacts" in rows[0][0]
+                    if is_empty:
+                        summary = (
+                            "No artifacts found matching the current filters. "
+                            "Confirm the evidence directory path is correct and that "
+                            "at least one control run has completed."
+                        )
+                    else:
+                        summary = _build_summary_line(rows)
+                    return rows, summary
+
+                query_btn.click(
+                    fn=_query_with_summary,
+                    inputs=[ev_dir, ds_filter, kind_filter, rid_filter, from_filter, to_filter],
+                    outputs=[status_table, run_summary],
+                )
+
+            # ---- Evidence Explorer ----
+            with gr.Tab("Evidence Explorer", id="evidence_explorer"):
+                gr.Markdown(
+                    "Inspect the full JSON payload of a single evidence artifact. "
+                    "Enter the filename from the Run Status table, then click Load Artifact.",
+                    elem_classes=["ds-tab-desc"],
+                )
+                with gr.Row():
+                    exp_dir = gr.Textbox(label="Evidence Directory", value=EVIDENCE_DIR, scale=3)
+                    exp_file = gr.Textbox(
+                        label="Artifact Filename", value="",
+                        placeholder="e.g. 2026-04-02T14-40-20Z_intake_ds_a.json", scale=3,
                     )
-                else:
-                    summary = _build_summary_line(rows)
-                return rows, summary
-
-            query_btn.click(
-                fn=_query_with_summary,
-                inputs=[ev_dir, ds_filter, kind_filter, rid_filter, from_filter, to_filter],
-                outputs=[status_table, run_summary],
-            )
-
-        # ---- Evidence Explorer ----
-        with gr.Tab("Evidence Explorer"):
-            gr.Markdown(
-                "Inspect the full JSON payload of a single evidence artifact. "
-                "Enter the filename from the Run Status table, then click Load Artifact.",
-                elem_classes=["ds-tab-desc"],
-            )
-            with gr.Row():
-                exp_dir = gr.Textbox(label="Evidence Directory", value=EVIDENCE_DIR, scale=3)
-                exp_file = gr.Textbox(
-                    label="Artifact Filename", value="",
-                    placeholder="e.g. 2026-04-02T14-40-20Z_intake_ds_a.json", scale=3,
+                    exp_btn = gr.Button("Load Artifact", variant="primary", scale=1)
+                exp_meta = gr.Markdown(
+                    "_Enter an artifact filename above and click Load Artifact._",
+                    elem_classes=["ds-summary", "ds-empty-state"],
                 )
-                exp_btn = gr.Button("Load Artifact", variant="primary", scale=1)
-            exp_meta = gr.Markdown(
-                "_Enter an artifact filename above and click Load Artifact._",
-                elem_classes=["ds-summary", "ds-empty-state"],
-            )
-            exp_json = gr.Code(label="Artifact JSON", language="json", interactive=False)
+                exp_json = gr.Code(label="Artifact JSON", language="json", interactive=False)
 
-            def _load_with_meta(ed: str, fn: str) -> tuple[str, str]:
-                return load_artifact_detail(ed, fn), load_artifact_meta(ed, fn)
+                def _load_with_meta(ed: str, fn: str) -> tuple[str, str]:
+                    return load_artifact_detail(ed, fn), load_artifact_meta(ed, fn)
 
-            exp_btn.click(fn=_load_with_meta, inputs=[exp_dir, exp_file],
-                          outputs=[exp_json, exp_meta])
+                exp_btn.click(fn=_load_with_meta, inputs=[exp_dir, exp_file],
+                              outputs=[exp_json, exp_meta])
 
-        # ---- Analytics ----
-        with gr.Tab("Analytics"):
-            import pandas as pd
+                def _on_status_select(evt: "gr.SelectData", current_data: "pd.DataFrame"):
+                    # We use a string type hint "gr.SelectData" here because of standard typing evaluation
+                    # But the globals()["gr"] trick ensures it evaluates without Error.
+                    row_idx = evt.index[0]
+                    if hasattr(current_data, 'iloc'):
+                        filename = current_data.iloc[row_idx, 0]
+                    else:
+                        filename = current_data[row_idx][0]
+                    detail, meta = _load_with_meta(EVIDENCE_DIR, filename) # Fetch using env dir
+                    return filename, detail, meta, gr.Tabs(selected="evidence_explorer")
 
-            try:
-                from app.analytics import (
-                    build_analytics_data,
-                    build_plotly_pie,
-                    kind_pie_data,
-                    timeline_data,
-                    verdict_bar_data,
-                )
-            except (ImportError, ModuleNotFoundError):
-                from analytics import (  # type: ignore[no-redef]
-                    build_analytics_data,
-                    build_plotly_pie,
-                    kind_pie_data,
-                    timeline_data,
-                    verdict_bar_data,
+                status_table.select(
+                    fn=_on_status_select,
+                    inputs=[status_table],
+                    outputs=[exp_file, exp_json, exp_meta, tabs]
                 )
 
-            gr.Markdown(
-                "Visual breakdown of control run evidence. Click Refresh to "
-                "scan the evidence directory and update all charts.",
-                elem_classes=["ds-tab-desc"],
-            )
-            with gr.Row():
-                ana_dir = gr.Textbox(label="Evidence Directory", value=EVIDENCE_DIR, scale=4)
-                ana_btn = gr.Button("Refresh", variant="primary", scale=1)
-            ana_status = gr.Markdown(
-                "_Click Refresh to load analytics._",
-                elem_classes=["ds-summary", "ds-empty-state"],
-            )
+            # ---- Analytics ----
+            with gr.Tab("Analytics", id="analytics"):
+                import pandas as pd
 
-            with gr.Row():
-                verdict_plot = gr.BarPlot(
-                    x="Verdict", y="Count", title="Verdict Distribution",
-                    color="Verdict",
-                    color_map={"PASS": _TRUST_TEAL, "FAIL": _ALERT_CORAL, "WARN": _DRIFT_AMBER},
-                    height=320,
+                try:
+                    from app.analytics import (
+                        build_analytics_data,
+                        build_plotly_pie,
+                        kind_pie_data,
+                        timeline_data,
+                        verdict_bar_data,
+                    )
+                except (ImportError, ModuleNotFoundError):
+                    from analytics import (  # type: ignore[no-redef]
+                        build_analytics_data,
+                        build_plotly_pie,
+                        kind_pie_data,
+                        timeline_data,
+                        verdict_bar_data,
+                    )
+
+                gr.Markdown(
+                    "Visual breakdown of control run evidence. Click Refresh to "
+                    "scan the evidence directory and update all charts.",
+                    elem_classes=["ds-tab-desc"],
                 )
-                kind_plot = gr.Plot(label="Runs by Kind")
-            timeline_plot = gr.LinePlot(
-                x="Date", y="Runs", title="Run Timeline",
-                height=280,
-            )
+                with gr.Row():
+                    ana_dir = gr.Textbox(label="Evidence Directory", value=EVIDENCE_DIR, scale=4)
+                    ana_btn = gr.Button("Refresh", variant="primary", scale=1)
+                ana_status = gr.Markdown(
+                    "_Click Refresh to load analytics._",
+                    elem_classes=["ds-summary", "ds-empty-state"],
+                )
 
-            def _refresh_analytics(edir: str):  # type: ignore[no-untyped-def]
-                records = build_analytics_data(edir.strip() or EVIDENCE_DIR)
-                if not records:
-                    empty = pd.DataFrame({"Verdict": [], "Count": []})
-                    empty_t = pd.DataFrame({"Date": [], "Runs": []})
-                    return empty, None, empty_t, "No evidence artifacts found."
-                vrows = verdict_bar_data(records)
-                v_df = pd.DataFrame(vrows, columns=["Verdict", "Count"])
-                krows = kind_pie_data(records)
-                pie_fig = build_plotly_pie(krows)
-                trows = timeline_data(records)
-                t_df = pd.DataFrame(trows, columns=["Date", "Runs"])
-                total = len(records)
-                return v_df, pie_fig, t_df, f"**{total} artifacts** analyzed"
+                with gr.Row():
+                    verdict_plot = gr.BarPlot(
+                        x="Verdict", y="Count", title="Verdict Distribution",
+                        color="Verdict",
+                        color_map={"PASS": _TRUST_TEAL, "FAIL": _ALERT_CORAL, "WARN": _DRIFT_AMBER},
+                        height=320,
+                    )
+                    kind_plot = gr.Plot(label="Runs by Kind")
+                timeline_plot = gr.LinePlot(
+                    x="Date", y="Runs", title="Run Timeline",
+                    height=280,
+                )
+
+                def _refresh_analytics(edir: str):  # type: ignore[no-untyped-def]
+                    records = build_analytics_data(edir.strip() or EVIDENCE_DIR)
+                    if not records:
+                        empty = pd.DataFrame({"Verdict": [], "Count": []})
+                        empty_t = pd.DataFrame({"Date": [], "Runs": []})
+                        return empty, None, empty_t, "No evidence artifacts found."
+                    vrows = verdict_bar_data(records)
+                    v_df = pd.DataFrame(vrows, columns=["Verdict", "Count"])
+                    krows = kind_pie_data(records)
+                    pie_fig = build_plotly_pie(krows)
+                    trows = timeline_data(records)
+                    t_df = pd.DataFrame(trows, columns=["Date", "Runs"])
+                    total = len(records)
+                    return v_df, pie_fig, t_df, f"**{total} artifacts** analyzed"
 
             ana_btn.click(
                 fn=_refresh_analytics, inputs=[ana_dir],
                 outputs=[verdict_plot, kind_plot, timeline_plot, ana_status],
             )
+
+        app.load(
+            fn=_load_registry_with_status, inputs=[reg_path],
+            outputs=[reg_table, reg_status],
+        )
+        app.load(
+            fn=_query_with_summary,
+            inputs=[ev_dir, ds_filter, kind_filter, rid_filter, from_filter, to_filter],
+            outputs=[status_table, run_summary],
+        )
+        app.load(
+            fn=_refresh_analytics, inputs=[ana_dir],
+            outputs=[verdict_plot, kind_plot, timeline_plot, ana_status],
+        )
 
     return app
 
