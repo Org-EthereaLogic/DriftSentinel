@@ -1,0 +1,23 @@
+# DriftSentinel Drift Policy Template
+#
+# Copy this file and customize for each dataset's drift monitoring.
+
+drift_policy:
+  name: example_drift_policy
+  dataset: example_dataset
+
+  monitored_columns:
+    - column_name: amount
+      method: shannon_entropy
+    - column_name: category
+      method: shannon_entropy
+
+  baseline:
+    source: trusted_load
+    min_rows: 100
+
+  gates:
+    health_score_threshold: 0.70
+    max_columns_failed: 2
+
+  verdict_on_fail: block  # block | warn | log

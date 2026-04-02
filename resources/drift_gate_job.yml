@@ -1,0 +1,7 @@
+# DriftSentinel Drift Gate Job
+# Databricks Asset Bundle resource definition
+#
+# This job runs distribution stability measurement against a stored baseline
+# and emits explicit gate verdicts before Gold publication.
+#
+# Placeholder — populate during Phase 2 (Databricks MVP Packaging).

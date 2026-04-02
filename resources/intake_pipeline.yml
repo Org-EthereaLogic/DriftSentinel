@@ -1,0 +1,7 @@
+# DriftSentinel Intake Pipeline
+# Databricks Asset Bundle resource definition
+#
+# This pipeline runs intake certification: schema drift detection,
+# duplicate replay blocking, contract validation, and quarantine routing.
+#
+# Placeholder — populate during Phase 2 (Databricks MVP Packaging).

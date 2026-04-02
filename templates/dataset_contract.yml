@@ -1,0 +1,29 @@
+# DriftSentinel Dataset Contract Template
+#
+# Copy this file and customize for each dataset you want to monitor.
+
+dataset:
+  name: example_dataset
+  description: Replace with your dataset description
+  catalog: driftsentinel
+  schema: default
+  table: example_table
+
+source:
+  system: example_source
+  format: csv  # csv, parquet, json, delta
+  landing_path: /Volumes/driftsentinel/default/landing/example/
+
+contract:
+  required_columns:
+    - column_name: id
+      type: long
+      nullable: false
+    - column_name: event_date
+      type: date
+      nullable: false
+    - column_name: amount
+      type: double
+      nullable: false
+  business_key: [id]
+  batch_identifier: batch_id

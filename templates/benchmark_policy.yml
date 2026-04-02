@@ -1,0 +1,27 @@
+# DriftSentinel Benchmark Policy Template
+#
+# Copy this file and customize for control effectiveness evaluation.
+
+benchmark_policy:
+  name: example_benchmark_policy
+  dataset: example_dataset
+  seed: 42
+
+  quality_faults:
+    - type: null_injection
+      columns: [amount]
+      rate: 0.10
+    - type: duplicate_inflation
+      rate: 0.05
+    - type: type_corruption
+      columns: [event_date]
+
+  drift_patterns:
+    - type: sudden_shift
+      columns: [category]
+    - type: gradual_decay
+      columns: [amount]
+
+  gates:
+    min_recall: 0.80
+    max_false_positive_rate: 0.10

@@ -1,0 +1,25 @@
+# DriftSentinel Databricks Asset Bundle
+# See: https://docs.databricks.com/dev-tools/bundles/
+
+bundle:
+  name: driftsentinel
+
+workspace:
+  host: ${var.databricks_host}
+
+variables:
+  databricks_host:
+    description: Databricks workspace URL
+  catalog:
+    description: Unity Catalog catalog name
+    default: driftsentinel
+  schema:
+    description: Unity Catalog schema name
+    default: default
+
+targets:
+  dev:
+    default: true
+    mode: development
+  prod:
+    mode: production
