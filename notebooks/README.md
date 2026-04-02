@@ -12,6 +12,9 @@ Databricks notebooks for onboarding, execution, and evidence review.
 | `05_run_control_benchmark.py` | Run dual-track control effectiveness benchmark |
 | `06_review_evidence.py` | List and inspect evidence artifacts from prior runs |
 
-Each notebook installs DriftSentinel via `%pip install` and calls into the
-`driftsentinel` package. Notebook logic is intentionally thin -- domain
-logic lives in `src/driftsentinel/`.
+Each notebook installs DriftSentinel via `%pip install`, preferring the
+deployed bundle files when available and falling back to GitHub for standalone
+imports. The package includes bundled example templates for bootstrap runs,
+and the dataset registration plus benchmark notebooks also accept optional
+workspace YAML paths for customized policies. Notebook logic is intentionally
+thin -- domain logic lives in `src/driftsentinel/`.

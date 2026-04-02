@@ -34,24 +34,35 @@ Authenticate the Databricks CLI through `.databrickscfg`,
 run:
 
 ```bash
-databricks bundle validate
-DATABRICKS_CONFIG_PROFILE=<profile> databricks bundle validate
+databricks bundle validate --target dev --var="catalog=<existing_uc_catalog>"
+DATABRICKS_CONFIG_PROFILE=<profile> databricks bundle validate --target dev --var="catalog=<existing_uc_catalog>"
 ```
 
-Expected result during Phase 0/1: the bundle scaffold validates and loads the
-reserved `resources/*.yml` surfaces. Operational jobs and pipelines are added
-in DS-IP-001 Phase 2.
+Expected result in Phase 2: the bundle validates, resolves `resources/*.yml`,
+and requires an explicit existing Unity Catalog catalog instead of relying on
+an unsafe hard-coded default.
 
 ## 4. Deployment Activation
 
-Operational deploy/run commands apply after DS-IP-001 Phase 2 lands and the
-bundle resources become runnable.
+Deploy and run with the same catalog selection:
+
+```bash
+DATABRICKS_CONFIG_PROFILE=<profile> databricks bundle deploy --target dev --var="catalog=<existing_uc_catalog>"
+DATABRICKS_CONFIG_PROFILE=<profile> databricks bundle run benchmark_job --target dev --var="catalog=<existing_uc_catalog>"
+```
+
+Expected result: the bundle deploys Databricks jobs and pipelines into the
+workspace and the benchmark job terminates successfully when the package and
+catalog inputs are valid.
 
 ## 5. Manual Workspace Import
 
-Upload the `notebooks/` directory to a Databricks workspace to review the
-planned operator surfaces. The current scaffold notebooks fail closed until
-DS-IP-001 Phase 2 is implemented.
+Upload the `notebooks/` directory to a Databricks workspace to run the package
+from the deployed bundle files when available, falling back to GitHub for
+standalone imports. The notebooks include packaged example templates for the
+bootstrap path, and `01_register_dataset.py` plus
+`05_run_control_benchmark.py` also accept optional workspace YAML paths for
+customized dataset and benchmark policies.
 
 ## 6. Governance Guard Check
 

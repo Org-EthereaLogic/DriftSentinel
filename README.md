@@ -7,10 +7,10 @@ Built by Anthony Johnson | EthereaLogic LLC
 ---
 
 DriftSentinel establishes the standalone repository, governance layer, and
-Databricks scaffold that will unify the three Enterprise Data Trust control
-patterns into one application. Phase 0/1 validates repository integrity,
-bundle surfaces, and notebook entry points; DS-IP-001 Phase 2 adds runnable
-Databricks workflows and evidence-producing execution.
+Databricks delivery surfaces that unify the three Enterprise Data Trust
+control patterns into one application. DS-IP-001 Phase 2 is implemented:
+the repo ships runnable Databricks bundle resources, notebook entry points,
+and benchmark evidence-producing execution.
 
 ## What this repository contains
 
@@ -22,7 +22,7 @@ Databricks workflows and evidence-producing execution.
 | `templates/` | Dataset contract, drift policy, and benchmark policy templates |
 | `specs/` | Canonical SDLC documents governing the product |
 | `docs/` | Explanatory docs, deployment guide, and Notion sync policy |
-| `tests/` | Product test suite (scaffold layout and governance guards) |
+| `tests/` | Product test suite for domain logic, packaging, and governance |
 | `.claude/` | Agent, command, hook, and configuration surfaces for agentic development |
 | `report/` | Append-only evidence artifacts from verification and control runs |
 | `adws/` | Reserved for AI Developer Workflows |
@@ -40,25 +40,31 @@ make sync   # installs runtime + dev dependencies via uv
 make test   # runs the pytest suite
 ```
 
-### Databricks scaffold validation
+### Databricks Bundle Validation
 
 ```bash
-# If your Databricks CLI default profile is already configured:
-databricks bundle validate
-
-# Or choose a specific Databricks CLI profile explicitly:
-DATABRICKS_CONFIG_PROFILE=<profile> databricks bundle validate
+# The bundle requires an existing Unity Catalog catalog.
+DATABRICKS_CONFIG_PROFILE=<profile> \
+  databricks bundle validate --target dev --var="catalog=my_catalog"
 ```
 
-Phase 0/1 validates the bundle scaffold only. The repository does not yet ship
-operational Databricks jobs or pipelines; Phase 2 adds runnable bundle
-resources.
+Deploy and run with the same catalog selection:
+
+```bash
+DATABRICKS_CONFIG_PROFILE=<profile> \
+  databricks bundle deploy --target dev --var="catalog=my_catalog"
+
+DATABRICKS_CONFIG_PROFILE=<profile> \
+  databricks bundle run benchmark_job --target dev --var="catalog=my_catalog"
+```
 
 ### Manual workspace import
 
-Upload the `notebooks/` directory to your Databricks workspace to inspect the
-planned entry points. The current scaffold notebooks fail closed with an
-explicit DS-IP-001 Phase 2 runtime error until implementation lands.
+Import the `notebooks/` directory into your Databricks workspace to run the
+package either from the deployed bundle files or, when run standalone, from
+GitHub. The notebooks ship with bundled example templates, and
+`01_register_dataset.py` plus `05_run_control_benchmark.py` also accept
+optional workspace YAML paths if you import customized files from `templates/`.
 
 ## Part of a series
 

@@ -11,3 +11,4 @@ resources:
               schema: "${var.schema}"
               seed: "42"
               n_rows: "1000"
+              evidence_dir: "/tmp/driftsentinel_evidence"

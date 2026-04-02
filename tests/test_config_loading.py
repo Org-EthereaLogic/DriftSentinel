@@ -12,6 +12,9 @@ from driftsentinel.config.loader import (
     load_benchmark_policy,
     load_dataset_contract,
     load_drift_policy,
+    load_packaged_benchmark_policy,
+    load_packaged_dataset_contract,
+    load_packaged_drift_policy,
     normalize_benchmark_gates,
 )
 
@@ -29,6 +32,13 @@ def test_load_dataset_contract_from_template() -> None:
     assert "required_columns" in data["contract"]
     assert "business_key" in data["contract"]
     assert "batch_identifier" in data["contract"]
+
+
+def test_load_packaged_dataset_contract() -> None:
+    data = load_packaged_dataset_contract()
+    assert "dataset" in data
+    assert "contract" in data
+    assert data["dataset"]["catalog"] == "example_catalog"
 
 
 def test_load_dataset_contract_missing_dataset(tmp_path: Path) -> None:
@@ -57,6 +67,12 @@ def test_load_drift_policy_from_template() -> None:
     assert "gates" in policy
 
 
+def test_load_packaged_drift_policy() -> None:
+    data = load_packaged_drift_policy()
+    assert "drift_policy" in data
+    assert data["drift_policy"]["name"] == "example_drift_policy"
+
+
 def test_load_drift_policy_missing_required(tmp_path: Path) -> None:
     bad = tmp_path / "bad.yml"
     bad.write_text(yaml.dump({"drift_policy": {"name": "x"}}))
@@ -75,6 +91,12 @@ def test_load_benchmark_policy_from_template() -> None:
     assert "gates" in policy
     assert isinstance(policy["gates"], list)
     assert len(policy["gates"]) == 10
+
+
+def test_load_packaged_benchmark_policy() -> None:
+    data = load_packaged_benchmark_policy()
+    assert "benchmark_policy" in data
+    assert len(data["benchmark_policy"]["gates"]) == 10
 
 
 def test_normalize_benchmark_gates_from_template() -> None:

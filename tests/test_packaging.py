@@ -6,6 +6,8 @@ definitions, and the benchmark policy normalizes into gate dicts.
 
 from __future__ import annotations
 
+import subprocess
+import zipfile
 from pathlib import Path
 
 import yaml
@@ -16,6 +18,7 @@ ROOT = Path(__file__).resolve().parent.parent
 NOTEBOOKS = ROOT / "notebooks"
 RESOURCES = ROOT / "resources"
 TEMPLATES = ROOT / "templates"
+BUNDLE_CONFIG = ROOT / "databricks.yml"
 
 NOTEBOOK_FILES = [
     "00_quickstart_setup.py",
@@ -63,6 +66,14 @@ def test_all_notebooks_have_pip_install() -> None:
     for name in NOTEBOOK_FILES:
         text = (NOTEBOOKS / name).read_text(encoding="utf-8")
         assert "%pip install" in text, f"{name} missing %pip install cell"
+
+
+def test_all_notebooks_support_bundle_local_bootstrap() -> None:
+    """Bundle-deployed notebooks should install the uploaded bundle before GitHub."""
+    for name in NOTEBOOK_FILES:
+        text = (NOTEBOOKS / name).read_text(encoding="utf-8")
+        assert "driftsentinel-bootstrap.txt" in text, f"{name} missing bootstrap requirements file"
+        assert 'Path("/Workspace")' in text, f"{name} missing workspace bundle bootstrap logic"
 
 
 def test_all_notebooks_have_command_separators() -> None:
@@ -118,6 +129,15 @@ def test_benchmark_job_resource_structure() -> None:
     params = job["tasks"][0]["notebook_task"]["base_parameters"]
     assert "seed" in params
     assert "n_rows" in params
+    assert params["evidence_dir"] == "/tmp/driftsentinel_evidence"
+
+
+def test_bundle_requires_explicit_catalog_var() -> None:
+    with open(BUNDLE_CONFIG, encoding="utf-8") as f:
+        data = yaml.safe_load(f)
+    catalog = data["variables"]["catalog"]
+    assert "default" not in catalog
+    assert data["variables"]["schema"]["default"] == "default"
 
 
 # --- Benchmark policy normalization ---
@@ -135,3 +155,28 @@ def test_benchmark_policy_loads_and_normalizes() -> None:
         assert gate["type"] in ("FAIL", "WARN")
         assert gate["operator"] in (">=", "<=")
         assert isinstance(gate["threshold"], float)
+
+
+def test_notebooks_expose_template_override_and_evidence_widgets() -> None:
+    register_text = (NOTEBOOKS / "01_register_dataset.py").read_text(encoding="utf-8")
+    benchmark_text = (NOTEBOOKS / "05_run_control_benchmark.py").read_text(encoding="utf-8")
+    assert 'dbutils.widgets.text("contract_path", "",' in register_text
+    assert 'dbutils.widgets.text("policy_path", "",' in benchmark_text
+    assert 'dbutils.widgets.text("evidence_dir", "/tmp/driftsentinel_evidence",' in benchmark_text
+
+
+def test_built_wheel_includes_packaged_templates(tmp_path: Path) -> None:
+    subprocess.run(
+        ["uv", "build", "--wheel", "--out-dir", str(tmp_path)],
+        check=True,
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+    )
+    wheels = list(tmp_path.glob("*.whl"))
+    assert len(wheels) == 1
+    with zipfile.ZipFile(wheels[0]) as zf:
+        names = set(zf.namelist())
+    assert "driftsentinel/templates/dataset_contract.yml" in names
+    assert "driftsentinel/templates/drift_policy.yml" in names
+    assert "driftsentinel/templates/benchmark_policy.yml" in names

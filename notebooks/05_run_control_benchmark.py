@@ -7,22 +7,60 @@
 
 # COMMAND ----------
 
-# MAGIC %pip install git+https://github.com/Org-EthereaLogic/DriftSentinel.git
+# Resolve the bundle workspace root when this notebook is deployed through
+# Databricks Asset Bundles, then fall back to GitHub for manual imports.
+from pathlib import Path
+
+
+def _resolve_install_target() -> str:
+    try:
+        notebook_path = (
+            dbutils.notebook.entry_point.getDbutils()
+            .notebook()
+            .getContext()
+            .notebookPath()
+            .get()
+        )
+        workspace_path = Path("/Workspace") / notebook_path.lstrip("/")
+        for parent in workspace_path.parents:
+            if (parent / "pyproject.toml").exists() and (parent / "src" / "driftsentinel").exists():
+                return str(parent)
+    except Exception:
+        pass
+    return "git+https://github.com/Org-EthereaLogic/DriftSentinel.git"
+
+
+install_target = _resolve_install_target()
+with open("/tmp/driftsentinel-bootstrap.txt", "w", encoding="utf-8") as fh:
+    fh.write(f"{install_target}\n")
+print(f"Installing DriftSentinel from: {install_target}")
+
+# COMMAND ----------
+
+# MAGIC %pip install -r /tmp/driftsentinel-bootstrap.txt
 # MAGIC dbutils.library.restartPython()
 
 # COMMAND ----------
 
 dbutils.widgets.text("seed", "42", "Random seed for reproducibility")
 dbutils.widgets.text("n_rows", "1000", "Number of synthetic rows")
-dbutils.widgets.text("catalog", "driftsentinel", "Unity Catalog name")
+dbutils.widgets.text("catalog", "", "Unity Catalog name")
 dbutils.widgets.text("schema", "default", "Schema name")
+dbutils.widgets.text("policy_path", "", "Optional workspace path to benchmark policy YAML")
+dbutils.widgets.text("evidence_dir", "/tmp/driftsentinel_evidence", "Directory for benchmark evidence JSON")
 
 # COMMAND ----------
 
 seed = int(dbutils.widgets.get("seed"))
 n_rows = int(dbutils.widgets.get("n_rows"))
-catalog = dbutils.widgets.get("catalog")
-schema = dbutils.widgets.get("schema")
+catalog = dbutils.widgets.get("catalog").strip()
+schema = dbutils.widgets.get("schema").strip()
+policy_path = dbutils.widgets.get("policy_path").strip()
+evidence_dir = dbutils.widgets.get("evidence_dir").strip()
+if not catalog:
+    raise ValueError("Set the catalog widget to an existing Unity Catalog catalog before running this notebook.")
+if not schema:
+    raise ValueError("Set the schema widget to an existing schema before running this notebook.")
 print(f"Benchmark config: seed={seed}, n_rows={n_rows}, target={catalog}.{schema}")
 
 # COMMAND ----------
@@ -34,7 +72,12 @@ print(f"Benchmark config: seed={seed}, n_rows={n_rows}, target={catalog}.{schema
 
 from driftsentinel.benchmark.orchestrator import run_benchmark
 
-result = run_benchmark(seed=seed, n_rows=n_rows)
+result = run_benchmark(
+    seed=seed,
+    n_rows=n_rows,
+    evidence_dir=evidence_dir,
+    policy_path=policy_path or None,
+)
 
 # COMMAND ----------
 
@@ -66,3 +109,4 @@ for gr in result["gate_results"]:
 # COMMAND ----------
 
 print(f"Overall verdict: {result['overall_verdict'].value}")
+print(f"Evidence path: {result['evidence_path']}")

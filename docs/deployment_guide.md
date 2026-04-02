@@ -3,7 +3,8 @@
 ## Prerequisites
 
 - Databricks workspace with Unity Catalog enabled
-- A catalog and schema for DriftSentinel tables (e.g. `driftsentinel.default`)
+- An existing Unity Catalog catalog and schema for DriftSentinel tables
+  (for example `adb_dev.default`)
 - Compute cluster with Python 3.11+
 - Databricks CLI installed and authenticated through `.databrickscfg`,
   `DATABRICKS_CONFIG_PROFILE`, or `DATABRICKS_*` environment variables
@@ -19,37 +20,37 @@ defines an intake pipeline, drift gate job, and benchmark job.
 git clone https://github.com/Org-EthereaLogic/DriftSentinel.git
 cd DriftSentinel
 
-databricks bundle validate
+databricks bundle validate --target dev --var="catalog=my_catalog"
 ```
 
 ### Deploy
 
 ```bash
 # Deploy to the dev target (default)
-databricks bundle deploy --target dev
+databricks bundle deploy --target dev --var="catalog=my_catalog"
 
 # Deploy to production
-databricks bundle deploy --target prod
+databricks bundle deploy --target prod --var="catalog=my_catalog,schema=my_schema"
 ```
 
 ### Run
 
 ```bash
 # Run the intake pipeline
-databricks bundle run intake_pipeline
+databricks bundle run intake_pipeline --target dev --var="catalog=my_catalog"
 
 # Run the drift gate job
-databricks bundle run drift_gate_job
+databricks bundle run drift_gate_job --target dev --var="catalog=my_catalog"
 
 # Run the benchmark job
-databricks bundle run benchmark_job
+databricks bundle run benchmark_job --target dev --var="catalog=my_catalog"
 ```
 
 ### Bundle Variables
 
 | Variable | Description | Default |
 | --- | --- | --- |
-| `catalog` | Unity Catalog catalog name | `driftsentinel` |
+| `catalog` | Existing Unity Catalog catalog name | Required |
 | `schema` | Unity Catalog schema name | `default` |
 
 Override at deploy time:
@@ -65,13 +66,17 @@ installs DriftSentinel from GitHub on first run.
 
 1. Clone or download the repository.
 2. Import the `notebooks/` directory into your Databricks workspace.
-3. Import the `templates/` directory to a workspace volume for dataset
-   configuration.
+3. Optionally import the `templates/` directory to a workspace volume if you
+   want to customize dataset or benchmark YAML files.
 4. Open `00_quickstart_setup.py` to verify installation and run a health check.
 5. Follow notebooks in order: register dataset, seed baseline, run controls.
 
 Each notebook includes a `%pip install` cell that pulls the package directly
-from the GitHub repository. No prior installation is required on the cluster.
+from the deployed bundle files when available and falls back to the GitHub
+repository for standalone imports. No prior installation is required on the
+cluster. The package includes read-only example templates for the notebook
+bootstrap path, while `01_register_dataset.py` and
+`05_run_control_benchmark.py` also accept optional workspace YAML paths.
 
 ## Notebook Sequence
 
@@ -99,3 +104,12 @@ from the GitHub repository. No prior installation is required on the cluster.
 - Python 3.11+ (included in DBR 14.3+)
 - Single-node cluster sufficient for evaluation
 - Unity Catalog access for the configured catalog and schema
+
+## Evidence Path Notes
+
+- `05_run_control_benchmark.py` writes JSON evidence bundles to the
+  `evidence_dir` widget path.
+- The default `/tmp/driftsentinel_evidence` path is cluster-local and suitable
+  for a single-cluster evaluation flow.
+- For evidence that must persist across job clusters or separate review
+  sessions, point `evidence_dir` at a Unity Catalog volume path.

@@ -9,8 +9,7 @@ include:
 
 variables:
   catalog:
-    description: Unity Catalog catalog name
-    default: driftsentinel
+    description: Existing Unity Catalog catalog name
   schema:
     description: Unity Catalog schema name
     default: default

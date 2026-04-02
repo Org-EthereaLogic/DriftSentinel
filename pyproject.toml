@@ -36,6 +36,9 @@ docs = [
 [tool.hatch.build.targets.wheel]
 packages = ["src/driftsentinel"]
 
+[tool.hatch.build.targets.wheel.force-include]
+"templates" = "driftsentinel/templates"
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]

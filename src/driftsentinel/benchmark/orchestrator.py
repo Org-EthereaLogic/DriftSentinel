@@ -13,7 +13,11 @@ from driftsentinel.benchmark.gates import evaluate_gates_from_dicts
 from driftsentinel.benchmark.quality_detectors import baseline_quality_check, challenger_quality_check
 from driftsentinel.benchmark.scoring import score_drift, score_quality
 from driftsentinel.benchmark.synthetic import generate_dataset
-from driftsentinel.config.loader import load_benchmark_policy, normalize_benchmark_gates
+from driftsentinel.config.loader import (
+    load_benchmark_policy,
+    load_packaged_benchmark_policy,
+    normalize_benchmark_gates,
+)
 from driftsentinel.evidence.writer import write_benchmark_bundle
 
 _MONITORED_COLUMNS = [
@@ -24,12 +28,9 @@ _EXPECTED_COLUMNS = [
     "product_category", "status", "priority", "amount",
 ]
 
-_DEFAULT_POLICY_PATH = Path(__file__).resolve().parent.parent.parent.parent / "templates" / "benchmark_policy.yml"
-
-
 def _load_default_gates() -> list[dict[str, Any]]:
-    """Load gates from the default benchmark policy template."""
-    policy = load_benchmark_policy(_DEFAULT_POLICY_PATH)
+    """Load gates from the packaged default benchmark policy template."""
+    policy = load_packaged_benchmark_policy()
     return normalize_benchmark_gates(policy)
 
 

@@ -5,14 +5,14 @@
 dataset:
   name: example_dataset
   description: Replace with your dataset description
-  catalog: driftsentinel
+  catalog: example_catalog
   schema: default
   table: example_table
 
 source:
   system: example_source
   format: csv  # csv, parquet, json, delta
-  landing_path: /Volumes/driftsentinel/default/landing/example/
+  landing_path: /Volumes/example_catalog/default/landing/example/
 
 contract:
   required_columns:

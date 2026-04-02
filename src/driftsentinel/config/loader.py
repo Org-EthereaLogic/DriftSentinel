@@ -7,6 +7,8 @@ instead of maintaining separate config parsers.
 
 from __future__ import annotations
 
+from importlib import resources
+from importlib.resources.abc import Traversable
 from pathlib import Path
 from typing import Any
 
@@ -17,12 +19,13 @@ class ConfigError(Exception):
     """Raised when a configuration file is missing required fields."""
 
 
-def _load_yaml(path: Path) -> dict[str, Any]:
-    """Load and parse a YAML file."""
-    with open(path, encoding="utf-8") as f:
+def _load_yaml(source: Path | Traversable, *, source_name: str | None = None) -> dict[str, Any]:
+    """Load and parse a YAML file from disk or packaged resources."""
+    with source.open(encoding="utf-8") as f:
         data = yaml.safe_load(f)
+    label = source_name or getattr(source, "name", str(source))
     if not isinstance(data, dict):
-        raise ConfigError(f"Expected a YAML mapping in {path}, got {type(data).__name__}")
+        raise ConfigError(f"Expected a YAML mapping in {label}, got {type(data).__name__}")
     return data
 
 
@@ -33,6 +36,29 @@ def _require_keys(data: dict[str, Any], keys: list[str], context: str) -> None:
         raise ConfigError(f"Missing required keys in {context}: {', '.join(missing)}")
 
 
+def _packaged_template(template_name: str) -> Traversable:
+    """Return a packaged template resource, falling back to the source tree."""
+    template = resources.files("driftsentinel").joinpath("templates").joinpath(template_name)
+    if template.is_file():
+        return template
+
+    source_template = Path(__file__).resolve().parents[3] / "templates" / template_name
+    if source_template.is_file():
+        return source_template
+
+    raise ConfigError(f"Packaged template not found: {template_name}")
+
+
+def _validate_dataset_contract(data: dict[str, Any], context: str) -> dict[str, Any]:
+    _require_keys(data, ["dataset", "contract"], context)
+    _require_keys(
+        data["contract"],
+        ["required_columns", "business_key", "batch_identifier"],
+        f"contract section ({context})",
+    )
+    return data
+
+
 def load_dataset_contract(path: str | Path) -> dict[str, Any]:
     """Load a dataset contract YAML and validate required fields.
 
@@ -41,11 +67,22 @@ def load_dataset_contract(path: str | Path) -> dict[str, Any]:
     """
     p = Path(path)
     data = _load_yaml(p)
-    _require_keys(data, ["dataset", "contract"], f"dataset contract ({p.name})")
+    return _validate_dataset_contract(data, f"dataset contract ({p.name})")
+
+
+def load_packaged_dataset_contract(template_name: str = "dataset_contract.yml") -> dict[str, Any]:
+    """Load the example dataset contract packaged with DriftSentinel."""
+    template = _packaged_template(template_name)
+    data = _load_yaml(template, source_name=template_name)
+    return _validate_dataset_contract(data, f"dataset contract ({template_name})")
+
+
+def _validate_drift_policy(data: dict[str, Any], context: str) -> dict[str, Any]:
+    _require_keys(data, ["drift_policy"], context)
     _require_keys(
-        data["contract"],
-        ["required_columns", "business_key", "batch_identifier"],
-        f"contract section ({p.name})",
+        data["drift_policy"],
+        ["name", "dataset", "monitored_columns", "gates"],
+        f"drift_policy section ({context})",
     )
     return data
 
@@ -58,11 +95,22 @@ def load_drift_policy(path: str | Path) -> dict[str, Any]:
     """
     p = Path(path)
     data = _load_yaml(p)
-    _require_keys(data, ["drift_policy"], f"drift policy ({p.name})")
+    return _validate_drift_policy(data, f"drift policy ({p.name})")
+
+
+def load_packaged_drift_policy(template_name: str = "drift_policy.yml") -> dict[str, Any]:
+    """Load the example drift policy packaged with DriftSentinel."""
+    template = _packaged_template(template_name)
+    data = _load_yaml(template, source_name=template_name)
+    return _validate_drift_policy(data, f"drift policy ({template_name})")
+
+
+def _validate_benchmark_policy(data: dict[str, Any], context: str) -> dict[str, Any]:
+    _require_keys(data, ["benchmark_policy"], context)
     _require_keys(
-        data["drift_policy"],
-        ["name", "dataset", "monitored_columns", "gates"],
-        f"drift_policy section ({p.name})",
+        data["benchmark_policy"],
+        ["name", "dataset", "seed", "gates"],
+        f"benchmark_policy section ({context})",
     )
     return data
 
@@ -75,13 +123,14 @@ def load_benchmark_policy(path: str | Path) -> dict[str, Any]:
     """
     p = Path(path)
     data = _load_yaml(p)
-    _require_keys(data, ["benchmark_policy"], f"benchmark policy ({p.name})")
-    _require_keys(
-        data["benchmark_policy"],
-        ["name", "dataset", "seed", "gates"],
-        f"benchmark_policy section ({p.name})",
-    )
-    return data
+    return _validate_benchmark_policy(data, f"benchmark policy ({p.name})")
+
+
+def load_packaged_benchmark_policy(template_name: str = "benchmark_policy.yml") -> dict[str, Any]:
+    """Load the example benchmark policy packaged with DriftSentinel."""
+    template = _packaged_template(template_name)
+    data = _load_yaml(template, source_name=template_name)
+    return _validate_benchmark_policy(data, f"benchmark policy ({template_name})")
 
 
 _GATE_REQUIRED_KEYS = ["name", "type", "operator", "threshold"]

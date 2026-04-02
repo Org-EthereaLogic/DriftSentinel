@@ -2,34 +2,40 @@
 
 ## Current Stage
 
-DriftSentinel is currently in scaffold mode. The repository does not yet ship
-operational intake, drift, or benchmark workloads. DS-IP-001 Phase 2 adds the
-runtime implementations for those flows.
+DriftSentinel is in the DS-IP-001 Phase 2 packaging stage. The repository
+ships runnable bundle resources, operational notebook entry points, and local
+validation surfaces.
 
 ## What You Can Operate Today
 
 1. Run local repository validation (`make lint`, `make typecheck`,
    `make test`).
-2. Validate the Databricks bundle scaffold with authenticated CLI settings.
-3. Review templates, notebooks, and bundle surfaces before Phase 2
-   implementation lands.
+2. Validate, deploy, and run the Databricks bundle with an explicit existing
+   Unity Catalog catalog.
+3. Run the notebooks directly from GitHub using bundled example templates or
+   optional workspace YAML paths, with bundle-deployed notebooks preferring
+   the uploaded bundle files.
 
 ## Troubleshooting
 
 - **`databricks bundle validate` cannot authenticate**: configure a
   `.databrickscfg` profile, set `DATABRICKS_CONFIG_PROFILE`, or provide the
   required `DATABRICKS_*` environment variables.
-- **Notebook stops immediately with a DS-IP-001 Phase 2 error**: expected
-  scaffold behavior. The notebook surfaces are intentionally non-operational
-  until Phase 2.
-- **Need runnable jobs, pipelines, or evidence outputs**: out of scope for the
-  current scaffold stage. Activate the operational flow in DS-IP-001 Phase 2.
+- **Bundle validation or deploy fails for `catalog`**: pass an existing Unity
+  Catalog catalog through `--var="catalog=<catalog>"`, `BUNDLE_VAR_catalog`,
+  or `.databricks/bundle/<target>/variable-overrides.json`.
+- **Notebook run fails before execution**: set the `catalog` widget to an
+  existing Unity Catalog catalog. The notebooks now fail closed when the
+  target catalog is blank.
+- **Evidence is missing in `06_review_evidence.py` after a job run**: the
+  default `/tmp/driftsentinel_evidence` path is cluster-local. Use a volume
+  path in the `evidence_dir` widget if you need persistence across clusters.
 
 ## Evidence Review
 
-Evidence artifacts are append-only. Current evidence in `report/` covers
-repository validation and sync history; control-run evidence starts when Phase
-2 adds runnable workflows.
+Evidence artifacts are append-only. Repository evidence in `report/` covers
+verification and sync history. Benchmark notebook and job runs write
+machine-readable JSON bundles to the configured `evidence_dir`.
 
 ## Updating Policies
 
