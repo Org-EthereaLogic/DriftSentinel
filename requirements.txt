@@ -1,3 +1,4 @@
-# Runtime dependencies — see pyproject.toml for the canonical list
-pyyaml>=6.0
-pandas>=2.0
+# Deployment dependencies for surfaces that install from requirements.txt.
+# `-e .` ensures Databricks Apps installs this repository's local package.
+-e .
+gradio>=4.0,<6

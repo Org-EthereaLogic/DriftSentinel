@@ -8,21 +8,24 @@ Built by Anthony Johnson | EthereaLogic LLC
 
 DriftSentinel establishes the standalone repository, governance layer, and
 Databricks delivery surfaces that unify the three Enterprise Data Trust
-control patterns into one application. DS-IP-001 Phase 3 is implemented:
-the repo ships a multi-dataset registry, version-aware policy binding,
-queryable evidence lookup, dataset-aware orchestration, and Databricks
-bundle resources with notebook entry points.
+control patterns into one application. DS-IP-001 Phase 4 is implemented: the
+repo ships a multi-dataset registry, version-aware policy binding, queryable
+evidence lookup, dataset-aware orchestration, Databricks bundle resources with
+notebook entry points, and a Gradio-based Databricks App for read-only
+operator review.
 
 ## What this repository contains
 
 | Surface | Purpose |
 | ------- | ------- |
 | `src/driftsentinel/` | First-party product code for intake, drift, benchmark, evidence, and orchestration |
+| `app/` | Databricks App UI (Gradio) for operator dashboard — registry, run status, evidence explorer |
 | `notebooks/` | Onboarding, execution, and evidence-review notebooks for Databricks |
-| `resources/` | Databricks Asset Bundle pipeline and job definitions |
+| `resources/` | Databricks Asset Bundle pipeline, job, and app definitions |
 | `templates/` | Dataset contract, drift policy, and benchmark policy templates |
 | `specs/` | Canonical SDLC documents governing the product |
 | `docs/` | Explanatory docs, deployment guide, and Notion sync policy |
+| `scripts/` | Operational helper scripts, including the Databricks App deploy helper |
 | `tests/` | Product test suite for domain logic, packaging, and governance |
 | `.claude/` | Agent, command, hook, and configuration surfaces for agentic development |
 | `report/` | Append-only evidence artifacts from verification and control runs |
@@ -49,6 +52,9 @@ make bundle-catalog-check CATALOG=my_catalog PROFILE=<profile>
 
 # Then validate bundle wiring against that catalog.
 make bundle-validate CATALOG=my_catalog PROFILE=<profile>
+
+# Deploy and run the Databricks App from the repo root.
+make app-deploy CATALOG=my_catalog PROFILE=<profile>
 ```
 
 Direct CLI equivalents:
@@ -56,10 +62,17 @@ Direct CLI equivalents:
 ```bash
 databricks catalogs get my_catalog -p <profile>
 databricks bundle validate -p <profile> --target dev --var="catalog=my_catalog"
+databricks bundle deploy -p <profile> --target dev --var="catalog=my_catalog"
+databricks apps start driftsentinel -p <profile>
+databricks apps deploy -p <profile> --target dev --var="catalog=my_catalog"
+databricks apps get driftsentinel -p <profile> -o json
 ```
 
 `bundle validate` proves bundle/auth/resource resolution. It does not by itself
-prove the catalog exists or that deploy/run succeeded.
+prove the catalog exists or that deploy/run succeeded. `bundle deploy` creates
+the app resource, but the Databricks App source is deployed and started through
+`make app-deploy`. The raw CLI path is a sequence, not a single command, and
+`databricks apps get` is the proof surface for `SUCCEEDED` plus `RUNNING`.
 
 Deploy and run with the same catalog selection to prove the deployment path:
 

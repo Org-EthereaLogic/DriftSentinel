@@ -170,6 +170,7 @@ def test_report_readme_exists() -> None:
     "intake_pipeline.yml",
     "drift_gate_job.yml",
     "benchmark_job.yml",
+    "driftsentinel_app.yml",
 ])
 def test_resource_exists(resource: str) -> None:
     assert (ROOT / "resources" / resource).is_file(), f"Missing resource: {resource}"
@@ -218,3 +219,22 @@ def test_root_package_init() -> None:
 
 def test_tests_init() -> None:
     assert (ROOT / "tests" / "__init__.py").is_file()
+
+
+@pytest.mark.parametrize("path", [
+    "app/README.md",
+    "app/__init__.py",
+    "app/app.py",
+    "app/app.yaml",
+    "app/requirements.txt",
+])
+def test_app_surface_exists(path: str) -> None:
+    assert (ROOT / path).is_file(), f"Missing app surface: {path}"
+
+
+@pytest.mark.parametrize("path", [
+    "scripts/README.md",
+    "scripts/deploy_databricks_app.py",
+])
+def test_scripts_surface_exists(path: str) -> None:
+    assert (ROOT / path).is_file(), f"Missing scripts surface: {path}"

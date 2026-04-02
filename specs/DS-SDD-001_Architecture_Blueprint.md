@@ -19,6 +19,8 @@ driftsentinel/
   adws/
   report/
   databricks.yml
+  app/
+  scripts/
   resources/
   notebooks/
   templates/
@@ -46,6 +48,8 @@ driftsentinel/
 - `src/driftsentinel/evidence/` — append-only artifact writing
 - `src/driftsentinel/orchestration/` — workflow sequencing
 - `src/driftsentinel/config/` — dataset and policy configuration
+- `app/` — Databricks App UI for read-only operator review
+- `scripts/` — operational helpers for bundle-backed app deployment
 - `resources/` — bundle pipeline and job definitions
 - `notebooks/` — onboarding and review surfaces
 - `templates/` — dataset and policy templates
@@ -58,7 +62,7 @@ driftsentinel/
 4. Run drift gates before publication
 5. Run control benchmark when requested
 6. Write append-only evidence
-7. Review outcomes through notebooks
+7. Review outcomes through notebooks and the Databricks App
 
 ## 4. Methodology Precedence
 

@@ -1,0 +1,15 @@
+resources:
+  apps:
+    driftsentinel_app:
+      name: driftsentinel
+      description: DriftSentinel operator dashboard for dataset registry and evidence review
+      source_code_path: ..
+      config:
+        command:
+          - gradio
+          - app/app.py
+        env:
+          - name: REGISTRY_PATH
+            value: /tmp/driftsentinel_registry.json
+          - name: EVIDENCE_DIR
+            value: /tmp/driftsentinel_evidence

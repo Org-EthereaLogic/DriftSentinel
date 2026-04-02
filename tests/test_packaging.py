@@ -36,6 +36,7 @@ RESOURCE_FILES = [
     "intake_pipeline.yml",
     "drift_gate_job.yml",
     "benchmark_job.yml",
+    "driftsentinel_app.yml",
 ]
 
 COMMAND_DOC_FILES = [
@@ -162,6 +163,19 @@ def test_makefile_exposes_catalog_check_and_profile_override() -> None:
     assert (
         expected_validate in text
     )
+    expected_app_deploy = (
+        '$(UV) run python scripts/deploy_databricks_app.py '
+        '$(if $(PROFILE),--profile $(PROFILE),) --target dev '
+        '--catalog "$${BUNDLE_VAR_catalog:-$${CATALOG:?Set CATALOG or '
+        'BUNDLE_VAR_catalog}}"'
+    )
+    assert expected_app_deploy in text
+
+
+def test_root_requirements_install_local_package_for_app_deploy() -> None:
+    text = (ROOT / "requirements.txt").read_text(encoding="utf-8")
+    assert "-e ." in text
+    assert "gradio" in text
 
 
 def test_command_docs_do_not_use_bare_bundle_validate() -> None:
@@ -196,6 +210,29 @@ def test_bundle_docs_distinguish_catalog_check_validate_and_deploy() -> None:
         assert "does not" in text and "prove" in text, (
             f"{path.name} should distinguish validate from deploy proof"
         )
+
+
+def test_app_deploy_docs_distinguish_resource_creation_from_app_runtime_deploy() -> None:
+    doc_paths = [
+        ROOT / "README.md",
+        ROOT / "docs" / "deployment_guide.md",
+        ROOT / "docs" / "operations_guide.md",
+    ]
+    for path in doc_paths:
+        text = path.read_text(encoding="utf-8")
+        assert "app-deploy" in text or "databricks apps deploy" in text, (
+            f"{path.name} should document the app deployment step"
+        )
+        assert "bundle deploy" in text, f"{path.name} should still reference bundle deploy"
+        assert "databricks apps get" in text, (
+            f"{path.name} should document the app status proof surface"
+        )
+
+    spec_text = (ROOT / "specs" / "DS-IP-001-P4_Phase_4_App_UI_Plan.md").read_text(
+        encoding="utf-8"
+    )
+    assert "make app-deploy" in spec_text
+    assert "bundle deploy" in spec_text
 
 
 # --- Benchmark policy normalization ---

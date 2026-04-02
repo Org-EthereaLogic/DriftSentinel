@@ -2,10 +2,11 @@
 
 ## Current Stage
 
-DriftSentinel is at the DS-IP-001 Phase 3 multi-dataset hardening stage. The
+DriftSentinel is at the DS-IP-001 Phase 4 Databricks App UI stage. The
 repository ships a multi-dataset registry, version-aware policy binding,
 queryable evidence lookup, dataset-aware orchestration, runnable bundle
-resources, and operational notebook entry points.
+resources, operational notebook entry points, and a Gradio-based Databricks
+App for operator dashboard access without editing notebooks.
 
 ## What You Can Operate Today
 
@@ -14,14 +15,16 @@ resources, and operational notebook entry points.
 2. Prove a Unity Catalog catalog exists with `make bundle-catalog-check
    CATALOG=<catalog> PROFILE=<profile>`.
 3. Validate, deploy, and run the Databricks bundle with that catalog.
-4. Run the notebooks directly from GitHub using bundled example templates or
+4. Deploy and start the Databricks App with `make app-deploy
+   CATALOG=<catalog> PROFILE=<profile>`.
+5. Run the notebooks directly from GitHub using bundled example templates or
    optional workspace YAML paths, with bundle-deployed notebooks preferring
    the uploaded bundle files.
-5. Register multiple datasets via `01_register_dataset.py` with a serializable
+6. Register multiple datasets via `01_register_dataset.py` with a serializable
    JSON registry.
-6. Execute intake, drift, and benchmark runs for a selected dataset using the
+7. Execute intake, drift, and benchmark runs for a selected dataset using the
    `dataset_id` widget in notebooks 03-05.
-7. Review historical evidence filtered by dataset, date range, or run ID in
+8. Review historical evidence filtered by dataset, date range, or run ID in
    `06_review_evidence.py`.
 
 ## Troubleshooting
@@ -36,6 +39,16 @@ resources, and operational notebook entry points.
 - **Bundle validation or deploy fails for `catalog`**: pass an existing Unity
   Catalog catalog through `--var="catalog=<catalog>"`, `BUNDLE_VAR_catalog`,
   or `.databricks/bundle/<target>/variable-overrides.json`.
+- **The Databricks App URL exists but the app is still unavailable**:
+  `databricks bundle deploy` creates the app resource only. Run
+  `make app-deploy CATALOG=<catalog> PROFILE=<profile>` so Databricks Apps
+  creates a new deployment and starts the app source. Verify the final state
+  with `databricks apps get driftsentinel -p <profile> -o json`; `bundle
+  summary` is not the proof surface for current app runtime state.
+- **Databricks App deployment fails during package installation**: the repo root
+  is the supported app deployment source because it installs the local
+  `driftsentinel` package from this repository. Deploy from the repo root, not
+  from the `app/` directory alone.
 - **Notebook run fails before execution**: set the `catalog` widget to an
   existing Unity Catalog catalog. The notebooks now fail closed when the
   target catalog is blank.

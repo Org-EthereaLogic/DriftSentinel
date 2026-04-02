@@ -46,7 +46,7 @@ databricks bundle validate -p <profile> --target dev --var="catalog=my_catalog"
 
 Expected result: `Validation OK!`. This confirms bundle/auth/resource
 resolution only. It does not replace the catalog check above, and it does not
-prove deploy or job execution.
+prove deploy, job execution, or Databricks App source deployment.
 
 ### Deploy
 
@@ -57,6 +57,10 @@ databricks bundle deploy -p <profile> --target dev --var="catalog=my_catalog"
 # Deploy to production
 databricks bundle deploy -p <profile> --target prod --var="catalog=my_catalog,schema=my_schema"
 ```
+
+`databricks bundle deploy` creates or updates the Databricks resources in the
+bundle, including the app resource definition. It does not by itself create a
+Databricks App deployment from the uploaded source code.
 
 ### Run
 
@@ -117,11 +121,49 @@ bootstrap path, while `01_register_dataset.py` and
 
 ## Bundle Resources
 
-| Resource | Type | Notebook |
+| Resource | Type | Surface |
 | --- | --- | --- |
 | `intake_pipeline` | Pipeline (DLT) | `03_run_intake_controls.py` |
 | `drift_gate_job` | Job | `04_run_drift_gate.py` |
 | `benchmark_job` | Job | `05_run_control_benchmark.py` |
+| `driftsentinel_app` | App (Gradio) | `app/` |
+
+## Databricks App
+
+The `driftsentinel_app` resource defines a Gradio-based operator dashboard.
+It provides read-only views of the dataset registry, recent control run
+status, and evidence artifacts. The App requires a Premium workspace.
+
+Deploy the app from the repository root so Databricks Apps installs the local
+`driftsentinel` package from this repository and starts the app runtime:
+
+```bash
+make app-deploy CATALOG=my_catalog PROFILE=<profile>
+```
+
+`make app-deploy` wraps the reliable sequence for this repository:
+`databricks bundle deploy`, `databricks apps start`, `databricks apps deploy`,
+and a final `databricks apps get` status check.
+
+Raw CLI sequence:
+
+```bash
+databricks bundle deploy -p <profile> --target dev --var="catalog=my_catalog"
+databricks apps start driftsentinel -p <profile>
+databricks apps deploy -p <profile> --target dev --var="catalog=my_catalog"
+databricks apps get driftsentinel -p <profile> -o json
+```
+
+Expected result: the CLI reaches `SUCCEEDED`, and
+`databricks apps get driftsentinel -p <profile> -o json` reports
+`"state":"SUCCEEDED"` for the active deployment and `"state":"RUNNING"` for the
+app. `databricks bundle summary` is not the proof surface for current app
+runtime state.
+
+The App reads from the same first-party package surfaces that notebooks use
+(`DatasetRegistry.load()`, `list_evidence()`, `load_evidence()`). It never
+writes evidence, modifies the registry, or executes controls. `bundle destroy`
+removes the app resource after proof.
 
 ## Compute Requirements
 

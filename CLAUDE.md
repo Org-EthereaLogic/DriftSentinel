@@ -95,6 +95,7 @@ Every directory contains a `README.md` describing its contents.
 | `notebooks/` | Databricks onboarding, execution, and review notebooks |
 | `resources/` | Databricks Asset Bundle pipeline and job definitions |
 | `templates/` | Dataset contract, drift policy, and benchmark policy templates |
+| `scripts/` | Operational helper scripts, including Databricks App deployment |
 | `tests/` | Product test suite |
 | `adws/` | Reserved for AI Developer Workflows |
 | `report/` | Append-only evidence artifacts |

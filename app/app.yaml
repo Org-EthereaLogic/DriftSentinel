@@ -1,0 +1,9 @@
+command:
+  - gradio
+  - app.py
+
+env:
+  - name: REGISTRY_PATH
+    value: /tmp/driftsentinel_registry.json
+  - name: EVIDENCE_DIR
+    value: /tmp/driftsentinel_evidence
