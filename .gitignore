@@ -36,8 +36,8 @@ Thumbs.db
 logs/
 
 # Agent runtime artifacts
-agents/
-trees/
+/agents/
+/trees/
 
 
 #Ignore insiders AI rules
