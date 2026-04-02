@@ -62,6 +62,7 @@ When prior repository patterns conflict, use this precedence:
 | `sdlc-technical-writer` | Canonical SDLC documentation and traceability |
 | `test-automator` | Test strategy, validation, and evidence QA |
 | `python-pro` | Typed Python, packaging, uv workflows, PySpark integration |
+| `ux-delight-specialist` | Gradio dashboard UI polish, layout, data presentation, empty states |
 
 ## External Coordination
 
@@ -92,6 +93,7 @@ Every directory contains a `README.md` describing its contents.
 | `src/driftsentinel/evidence/` | Append-only evidence artifact writing |
 | `src/driftsentinel/orchestration/` | Workflow sequencing for the control pipeline |
 | `src/driftsentinel/config/` | Dataset contract and policy configuration |
+| `assets/` | Project brand assets — source SVGs, favicons, icons, and social previews |
 | `notebooks/` | Databricks onboarding, execution, and review notebooks |
 | `resources/` | Databricks Asset Bundle pipeline and job definitions |
 | `templates/` | Dataset contract, drift policy, and benchmark policy templates |

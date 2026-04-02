@@ -20,6 +20,7 @@ operator review.
 | ------- | ------- |
 | `src/driftsentinel/` | First-party product code for intake, drift, benchmark, evidence, and orchestration |
 | `app/` | Databricks App UI (Gradio) for operator dashboard — registry, run status, evidence explorer |
+| `assets/` | Project brand assets — SVG sources, exported icons, favicons, and social preview images |
 | `notebooks/` | Onboarding, execution, and evidence-review notebooks for Databricks |
 | `resources/` | Databricks Asset Bundle pipeline, job, and app definitions |
 | `templates/` | Dataset contract, drift policy, and benchmark policy templates |
