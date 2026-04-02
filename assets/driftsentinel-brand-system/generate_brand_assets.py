@@ -357,41 +357,49 @@ def write_svg_sources() -> None:
 
 def save_png(image: Image.Image, path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    image.save(path)
+    image.save(path, optimize=True)
 
 
-def write_icons() -> None:
-    for size in (128, 256, 512):
+def write_icons_variants_favicons() -> None:
+    # Render each unique (size, mode) combination once and reuse across directories.
+    badge_512_dark = render_badge(512, "dark")
+    badge_512_light = render_badge(512, "light")
+    badge_512_transparent = render_badge(512, "transparent")
+    logo_dark = render_logo(1200, 320, "dark")
+    logo_light = render_logo(1200, 320, "light")
+    logo_transparent = render_logo(1200, 320, "transparent")
+
+    # icons/
+    for size in (128, 256):
         save_png(render_badge(size, "dark"), ICONS_DIR / f"driftsentinel-mark-{size}.png")
-    save_png(render_logo(1200, 320, "transparent"), ICONS_DIR / "driftsentinel-logo-1200x320.png")
+    save_png(badge_512_dark, ICONS_DIR / "driftsentinel-mark-512.png")
+    save_png(logo_transparent, ICONS_DIR / "driftsentinel-logo-1200x320.png")
 
+    # variants/
+    save_png(badge_512_dark, VARIANTS_DIR / "mark-dark.png")
+    save_png(badge_512_light, VARIANTS_DIR / "mark-light.png")
+    save_png(badge_512_transparent, VARIANTS_DIR / "mark-transparent.png")
+    save_png(logo_dark, VARIANTS_DIR / "logo-dark.png")
+    save_png(logo_light, VARIANTS_DIR / "logo-light.png")
+    save_png(logo_transparent, VARIANTS_DIR / "logo-transparent.png")
 
-def write_variants() -> None:
-    save_png(render_badge(512, "dark"), VARIANTS_DIR / "mark-dark.png")
-    save_png(render_badge(512, "light"), VARIANTS_DIR / "mark-light.png")
-    save_png(render_badge(512, "transparent"), VARIANTS_DIR / "mark-transparent.png")
-    save_png(render_logo(1200, 320, "dark"), VARIANTS_DIR / "logo-dark.png")
-    save_png(render_logo(1200, 320, "light"), VARIANTS_DIR / "logo-light.png")
-    save_png(render_logo(1200, 320, "transparent"), VARIANTS_DIR / "logo-transparent.png")
-
-
-def write_favicons() -> None:
+    # favicons/
     favicon_sizes = {
         "favicon-16x16.png": 16,
         "favicon-32x32.png": 32,
         "favicon-48x48.png": 48,
         "apple-touch-icon.png": 180,
         "android-chrome-192x192.png": 192,
-        "android-chrome-512x512.png": 512,
     }
     rendered: dict[str, Image.Image] = {}
     for filename, size in favicon_sizes.items():
         rendered[filename] = render_badge(size, "dark")
         save_png(rendered[filename], FAVICONS_DIR / filename)
+    # Reuse the already-rendered 512 dark badge for android-chrome-512x512.
+    save_png(badge_512_dark, FAVICONS_DIR / "android-chrome-512x512.png")
 
-    icon_path = FAVICONS_DIR / "favicon.ico"
-    rendered["android-chrome-512x512.png"].save(
-        icon_path,
+    badge_512_dark.save(
+        FAVICONS_DIR / "favicon.ico",
         format="ICO",
         sizes=[(16, 16), (32, 32), (48, 48)],
     )
@@ -401,7 +409,12 @@ def write_favicons() -> None:
         "short_name": "DriftSentinel",
         "icons": [
             {"src": "android-chrome-192x192.png", "sizes": "192x192", "type": "image/png"},
-            {"src": "android-chrome-512x512.png", "sizes": "512x512", "type": "image/png"},
+            {
+                "src": "android-chrome-512x512.png",
+                "sizes": "512x512",
+                "type": "image/png",
+                "purpose": "maskable any",
+            },
         ],
         "theme_color": PALETTE["midnight"],
         "background_color": PALETTE["midnight"],
@@ -474,9 +487,7 @@ def write_social() -> None:
 def main() -> None:
     ensure_dirs()
     write_svg_sources()
-    write_icons()
-    write_variants()
-    write_favicons()
+    write_icons_variants_favicons()
     write_social()
 
 

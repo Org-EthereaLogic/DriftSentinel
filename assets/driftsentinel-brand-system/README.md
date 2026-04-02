@@ -23,6 +23,9 @@ intended to read as:
 | Trust Teal | `#22C7A0` | Stable signal path |
 | Drift Amber | `#F59E0B` | Drift path and gate breach |
 | Alert Coral | `#F97316` | Beacon endpoint accent |
+| Gate Slate | `#8AA3B6` | Control gate line (structural) |
+| Mist | `#F4F8FA` | Light-mode badge background (structural) |
+| Light Grid | `#D7E4EC` | Light-mode grid and crosshair (structural) |
 
 ## Directory Structure
 
