@@ -7,6 +7,7 @@ definitions, and the benchmark policy normalizes into gate dicts.
 from __future__ import annotations
 
 import subprocess
+import tomllib
 import zipfile
 from pathlib import Path
 
@@ -175,7 +176,13 @@ def test_makefile_exposes_catalog_check_and_profile_override() -> None:
 def test_root_requirements_install_local_package_for_app_deploy() -> None:
     text = (ROOT / "requirements.txt").read_text(encoding="utf-8")
     assert "-e ." in text
-    assert "gradio" in text
+    assert "gradio>=6.10.0,<7" in text
+
+
+def test_pyproject_app_group_pins_secure_gradio_floor() -> None:
+    with open(ROOT / "pyproject.toml", "rb") as f:
+        data = tomllib.load(f)
+    assert "gradio>=6.10.0,<7" in data["dependency-groups"]["app"]
 
 
 def test_command_docs_do_not_use_bare_bundle_validate() -> None:

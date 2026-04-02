@@ -53,7 +53,7 @@ class TestAppFileStructure:
     def test_requirements_install_parent_project_and_gradio(self) -> None:
         text = APP_REQS.read_text()
         assert "-e .." in text
-        assert "gradio" in text
+        assert "gradio>=6.10.0,<7" in text
 
 
 # --- Read-only assertions ---

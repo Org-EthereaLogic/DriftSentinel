@@ -1,4 +1,4 @@
 # Deployment dependencies for surfaces that install from requirements.txt.
 # `-e .` ensures Databricks Apps installs this repository's local package.
 -e .
-gradio>=4.0,<6
+gradio>=6.10.0,<7
