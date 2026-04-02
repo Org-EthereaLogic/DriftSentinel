@@ -8,4 +8,5 @@ Responsibilities:
 - Measuring detection rates, false positive rates, and latency
 - Producing benchmark evidence for gate contract evaluation
 
-Currently a scaffold stub. Implementation arrives in DS-IP-001 Phase 1.
+Implemented in DS-IP-001 Phase 1. Key files: `synthetic.py`, `drift_detectors.py`,
+`quality_detectors.py`, `gates.py`, `scoring.py`, `orchestrator.py`.

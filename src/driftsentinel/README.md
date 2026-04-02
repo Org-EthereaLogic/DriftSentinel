@@ -16,5 +16,6 @@ gating, and control benchmarking into a single Databricks-deployable product.
 
 ## Current State
 
-All modules are scaffold stubs (`__init__.py` with docstrings only). Phase 1
-(DS-IP-001) will port real implementations from the chapter repositories.
+Phase 1 (DS-IP-001) is complete. All modules contain first-party implementations
+ported from the chapter repositories with no sibling clone dependencies. Uses
+Shannon entropy for drift detection, matching Chapters 1-3.

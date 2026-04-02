@@ -9,4 +9,5 @@ Responsibilities:
 - Publication gate logic (pass/warn/fail decisions)
 - Column-level drift diagnostics with per-column evidence
 
-Currently a scaffold stub. Implementation arrives in DS-IP-001 Phase 1.
+Implemented in DS-IP-001 Phase 1. Key files: `entropy.py`, `baseline.py`,
+`detection.py`, `gates.py`, `sample_data.py`.

@@ -7,4 +7,4 @@ Responsibilities:
 - Providing typed configuration objects to other modules
 - Supporting per-dataset policy overrides
 
-Currently a scaffold stub. Implementation arrives in DS-IP-001 Phase 1.
+Implemented in DS-IP-001 Phase 1. Key file: `loader.py`.

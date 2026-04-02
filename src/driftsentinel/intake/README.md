@@ -8,4 +8,5 @@ Responsibilities:
 - Contract validation
 - Quarantine routing for non-conforming records
 
-Currently a scaffold stub. Implementation arrives in DS-IP-001 Phase 1.
+Implemented in DS-IP-001 Phase 1. Key files: `contracts.py`, `sample_data.py`,
+`demo_metrics.py`.
