@@ -39,6 +39,9 @@ logs/
 /agents/
 /trees/
 
+# Playwright CLI session artifacts
+.playwright-cli/
+
 # Implementation session tracking (contains local paths)
 progress.json
 progress.txt
