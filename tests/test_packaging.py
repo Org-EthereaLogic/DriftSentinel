@@ -10,6 +10,7 @@ import subprocess
 import tomllib
 import zipfile
 from pathlib import Path
+from typing import Any
 
 import yaml
 
@@ -22,6 +23,7 @@ TEMPLATES = ROOT / "templates"
 BUNDLE_CONFIG = ROOT / "databricks.yml"
 MAKEFILE = ROOT / "Makefile"
 COMMANDS_DIR = ROOT / ".claude" / "commands"
+CI_WORKFLOW = ROOT / ".github" / "workflows" / "ci.yml"
 
 NOTEBOOK_FILES = [
     "00_quickstart_setup.py",
@@ -217,6 +219,54 @@ def test_bundle_docs_distinguish_catalog_check_validate_and_deploy() -> None:
         assert "does not" in text and "prove" in text, (
             f"{path.name} should distinguish validate from deploy proof"
         )
+
+
+def _load_ci_workflow() -> dict[str, Any]:
+    with open(CI_WORKFLOW, encoding="utf-8") as f:
+        data = yaml.safe_load(f)
+    assert isinstance(data, dict)
+    return data
+
+
+def test_ci_workflow_pins_current_setup_uv_and_codecov_actions() -> None:
+    data = _load_ci_workflow()
+    lint_steps = data["jobs"]["lint-and-test"]["steps"]
+    setup_uv_step = next(step for step in lint_steps if step.get("name") == "Install uv")
+    assert setup_uv_step["uses"] == "astral-sh/setup-uv@8d55fbecc275b1c35dbe060458839f8d30439ccf"
+
+    codecov_step = next(step for step in lint_steps if step.get("name") == "Upload coverage to Codecov")
+    assert codecov_step["uses"] == "codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe"
+    assert codecov_step["with"]["files"] == "coverage.xml"
+    assert codecov_step["with"]["fail_ci_if_error"] is True
+    assert "CODECOV_TOKEN" in codecov_step["env"]["CODECOV_TOKEN"]
+    assert "CODECOV_PROJECT_TOKEN" in codecov_step["env"]["CODECOV_TOKEN"]
+
+
+def test_ci_workflow_uses_default_codacy_analysis_mode() -> None:
+    data = _load_ci_workflow()
+    codacy_steps = data["jobs"]["codacy"]["steps"]
+    codacy_step = next(step for step in codacy_steps if step.get("name") == "Run Codacy Analysis")
+    assert codacy_step["uses"] == "codacy/codacy-analysis-cli-action@d43360362776a6789b47b99ae8973510854e2d3d"
+    assert "with" not in codacy_step, (
+        "Codacy CI should use default analysis mode unless client-side upload mode "
+        "is intentionally enabled with matching Codacy settings"
+    )
+
+
+def test_ci_workflow_pins_current_snyk_action() -> None:
+    data = _load_ci_workflow()
+    snyk_steps = data["jobs"]["snyk"]["steps"]
+    snyk_step = next(step for step in snyk_steps if step.get("name") == "Run Snyk")
+    assert snyk_step["uses"] == "snyk/actions/python@9adf32b1121593767fc3c057af55b55db032dc04"
+
+
+def test_build_instructions_document_current_quality_control_modes() -> None:
+    text = (ROOT / "specs" / "DS-BI-001_Build_Instructions.md").read_text(encoding="utf-8")
+    assert "CODECOV_TOKEN" in text
+    assert "CODECOV_PROJECT_TOKEN" in text
+    assert "SNYK_PROJECT_TOKEN" in text
+    assert "Run analysis on your build server" in text
+    assert "default analysis mode" in text
 
 
 def test_app_deploy_docs_distinguish_resource_creation_from_app_runtime_deploy() -> None:

@@ -51,4 +51,7 @@
 
 - Free Edition has strict limits on apps, pipelines, jobs
 - Marketplace provider operations require a paid workspace with Unity Catalog
-- GitHub Actions secrets: `CODACY_PROJECT_TOKEN`, `CODECOV_PROJECT_TOKEN`, `SNYK_PROJECT_TOKEN`
+- GitHub Actions secrets: `CODECOV_TOKEN` (preferred) or
+  `CODECOV_PROJECT_TOKEN` for backward compatibility, plus
+  `SNYK_PROJECT_TOKEN`; `CODACY_PROJECT_TOKEN` is only required if the project
+  switches to Codacy client-side upload mode

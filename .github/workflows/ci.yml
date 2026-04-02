@@ -22,7 +22,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v3
+        uses: astral-sh/setup-uv@8d55fbecc275b1c35dbe060458839f8d30439ccf # v3
 
       - name: Install dependencies
         run: uv sync --all-groups
@@ -38,26 +38,28 @@ jobs:
 
       - name: Upload coverage to Codecov
         if: matrix.python-version == '3.11'
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5
         with:
-          token: ${{ secrets.CODECOV_PROJECT_TOKEN }}
+          fail_ci_if_error: true
           files: coverage.xml
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN || secrets.CODECOV_PROJECT_TOKEN }}
 
   codacy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Run Codacy Analysis
-        uses: codacy/codacy-analysis-cli-action@master
-        with:
-          project-token: ${{ secrets.CODACY_PROJECT_TOKEN }}
+        # Default analysis mode keeps CI independent of Codacy's optional
+        # build-server upload setting.
+        uses: codacy/codacy-analysis-cli-action@d43360362776a6789b47b99ae8973510854e2d3d # master
 
   snyk:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Run Snyk
-        uses: snyk/actions/python@master
+        uses: snyk/actions/python@9adf32b1121593767fc3c057af55b55db032dc04 # master
         continue-on-error: true
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_PROJECT_TOKEN }}

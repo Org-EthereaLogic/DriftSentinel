@@ -15,8 +15,20 @@ Before substantive product code, verify:
 - `.codacy/README.md` exists
 - `codecov.yaml` exists
 - `.snyk` exists
-- `.github/workflows/ci.yml` references all three secret names:
-  `CODACY_PROJECT_TOKEN`, `CODECOV_PROJECT_TOKEN`, `SNYK_PROJECT_TOKEN`
+- `.github/workflows/ci.yml` wires:
+  - Codecov upload via `CODECOV_TOKEN` (preferred) or `CODECOV_PROJECT_TOKEN`
+    for backward compatibility
+  - Snyk auth via `SNYK_PROJECT_TOKEN`
+  - Codacy CI analysis via `codacy/codacy-analysis-cli-action`
+
+Codacy has two valid CI modes:
+
+1. Default analysis mode: no Codacy token required, results appear in the GitHub
+   Actions log and the workflow fails on detected issues.
+2. Client-side upload mode: requires a Codacy token plus enabling `Run analysis on your build server` in Codacy repository settings before CI uploads will succeed.
+
+The current repository workflow uses default analysis mode to avoid depending on
+that optional external Codacy setting.
 
 ## 2. Local Build
 
