@@ -23,6 +23,8 @@ dev = [
     "pytest-cov>=5.0",
     "ruff>=0.4",
     "mypy>=1.10",
+    "pandas-stubs>=2.0",
+    "types-PyYAML>=6.0",
 ]
 databricks = [
     "databricks-sdk>=0.20",
