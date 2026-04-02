@@ -44,28 +44,47 @@ print(f"Installing DriftSentinel from: {install_target}")
 
 dbutils.widgets.text("catalog", "", "Unity Catalog name")
 dbutils.widgets.text("schema", "default", "Schema name")
+dbutils.widgets.text("dataset_id", "", "Optional dataset ID from registry")
+dbutils.widgets.text("evidence_dir", "/tmp/driftsentinel_evidence", "Directory for evidence artifacts")
 
 # COMMAND ----------
 
 catalog = dbutils.widgets.get("catalog").strip()
 schema = dbutils.widgets.get("schema").strip()
+dataset_id = dbutils.widgets.get("dataset_id").strip()
+evidence_dir = dbutils.widgets.get("evidence_dir").strip()
 if not catalog:
     raise ValueError("Set the catalog widget to an existing Unity Catalog catalog before running this notebook.")
 if not schema:
     raise ValueError("Set the schema widget to an existing schema before running this notebook.")
 print(f"Target: {catalog}.{schema}")
+if dataset_id:
+    print(f"Dataset: {dataset_id}")
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Run Drift Gate Demo
+# MAGIC ## Run Drift Gate
 
 # COMMAND ----------
 
 import json
 from driftsentinel.orchestration.runner import run_drift_demo
+from driftsentinel.evidence.writer import generate_run_id, write_evidence
 
 result = run_drift_demo()
+
+if dataset_id and evidence_dir:
+    run_id = generate_run_id()
+    write_evidence(
+        evidence_dir,
+        f"drift_{dataset_id}.json",
+        result["provenance"],
+        dataset_id=dataset_id,
+        run_id=run_id,
+        run_kind="drift",
+    )
+    print(f"Evidence written for dataset={dataset_id}, run_id={run_id}")
 
 # COMMAND ----------
 

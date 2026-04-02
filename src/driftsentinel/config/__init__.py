@@ -2,6 +2,9 @@
 
 from driftsentinel.config.loader import (
     ConfigError,
+    DatasetRegistry,
+    RegistryError,
+    check_policy_compatibility,
     load_benchmark_policy,
     load_dataset_contract,
     load_drift_policy,
@@ -13,6 +16,9 @@ from driftsentinel.config.loader import (
 
 __all__ = [
     "ConfigError",
+    "DatasetRegistry",
+    "RegistryError",
+    "check_policy_compatibility",
     "load_benchmark_policy",
     "load_dataset_contract",
     "load_drift_policy",

@@ -2,9 +2,10 @@
 
 ## Current Stage
 
-DriftSentinel is in the DS-IP-001 Phase 2 packaging stage. The repository
-ships runnable bundle resources, operational notebook entry points, and local
-validation surfaces.
+DriftSentinel is at the DS-IP-001 Phase 3 multi-dataset hardening stage. The
+repository ships a multi-dataset registry, version-aware policy binding,
+queryable evidence lookup, dataset-aware orchestration, runnable bundle
+resources, and operational notebook entry points.
 
 ## What You Can Operate Today
 
@@ -15,6 +16,12 @@ validation surfaces.
 3. Run the notebooks directly from GitHub using bundled example templates or
    optional workspace YAML paths, with bundle-deployed notebooks preferring
    the uploaded bundle files.
+4. Register multiple datasets via `01_register_dataset.py` with a serializable
+   JSON registry.
+5. Execute intake, drift, and benchmark runs for a selected dataset using the
+   `dataset_id` widget in notebooks 03-05.
+6. Review historical evidence filtered by dataset, date range, or run ID in
+   `06_review_evidence.py`.
 
 ## Troubleshooting
 
@@ -30,15 +37,24 @@ validation surfaces.
 - **Evidence is missing in `06_review_evidence.py` after a job run**: the
   default `/tmp/driftsentinel_evidence` path is cluster-local. Use a volume
   path in the `evidence_dir` widget if you need persistence across clusters.
+- **Duplicate dataset registration**: the registry rejects re-registration
+  of the same dataset name and contract version. Bump the `contract_version`
+  in your YAML or remove the prior entry.
 
 ## Evidence Review
 
 Evidence artifacts are append-only. Repository evidence in `report/` covers
 verification and sync history. Benchmark notebook and job runs write
-machine-readable JSON bundles to the configured `evidence_dir`.
+machine-readable JSON bundles to the configured `evidence_dir`. Each artifact
+carries dataset identity, run ID, run kind, and version metadata for
+structured lookup.
 
 ## Updating Policies
 
 - Dataset contracts: edit `templates/dataset_contract.yml`
 - Drift policies: edit `templates/drift_policy.yml`
 - Benchmark policies: edit `templates/benchmark_policy.yml`
+
+All templates include `contract_version` and `policy_version` fields for
+explicit version binding. Policies must reference a registered dataset and
+matching contract version to pass compatibility checks.

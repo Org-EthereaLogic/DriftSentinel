@@ -46,6 +46,7 @@ dbutils.widgets.text("seed", "42", "Random seed for reproducibility")
 dbutils.widgets.text("n_rows", "1000", "Number of synthetic rows")
 dbutils.widgets.text("catalog", "", "Unity Catalog name")
 dbutils.widgets.text("schema", "default", "Schema name")
+dbutils.widgets.text("dataset_id", "", "Optional dataset ID from registry")
 dbutils.widgets.text("policy_path", "", "Optional workspace path to benchmark policy YAML")
 dbutils.widgets.text("evidence_dir", "/tmp/driftsentinel_evidence", "Directory for benchmark evidence JSON")
 
@@ -55,6 +56,7 @@ seed = int(dbutils.widgets.get("seed"))
 n_rows = int(dbutils.widgets.get("n_rows"))
 catalog = dbutils.widgets.get("catalog").strip()
 schema = dbutils.widgets.get("schema").strip()
+dataset_id = dbutils.widgets.get("dataset_id").strip()
 policy_path = dbutils.widgets.get("policy_path").strip()
 evidence_dir = dbutils.widgets.get("evidence_dir").strip()
 if not catalog:
@@ -62,6 +64,8 @@ if not catalog:
 if not schema:
     raise ValueError("Set the schema widget to an existing schema before running this notebook.")
 print(f"Benchmark config: seed={seed}, n_rows={n_rows}, target={catalog}.{schema}")
+if dataset_id:
+    print(f"Dataset: {dataset_id}")
 
 # COMMAND ----------
 

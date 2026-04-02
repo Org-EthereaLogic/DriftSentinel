@@ -1,8 +1,8 @@
-"""Minimal local orchestration for Phase 1 deterministic execution.
+"""Orchestration for DriftSentinel control pipeline execution.
 
-Connects config loading, the three domain slices (intake, drift, benchmark),
-and evidence writing into a single local execution path. This is intentionally
-narrow -- Phase 2 will add Databricks bundle orchestration.
+Phase 1 provides deterministic demo helpers for local validation.
+Phase 3 adds dataset-aware execution paths that accept a registered
+dataset identity and route evidence through the shared metadata contract.
 """
 
 from __future__ import annotations
@@ -13,11 +13,12 @@ from typing import Any
 import pandas as pd
 
 from driftsentinel.benchmark.orchestrator import run_benchmark
+from driftsentinel.config.loader import DatasetRegistry, check_policy_compatibility
 from driftsentinel.drift.baseline import BaselineSnapshot
 from driftsentinel.drift.detection import detect_drift
 from driftsentinel.drift.gates import GateConfig, evaluate_gates
 from driftsentinel.drift.sample_data import MONITORED_COLUMNS, generate_baseline, generate_drifted
-from driftsentinel.evidence.writer import build_provenance_envelope, write_evidence
+from driftsentinel.evidence.writer import build_provenance_envelope, generate_run_id, write_evidence
 from driftsentinel.intake.contracts import evaluate_batch
 from driftsentinel.intake.sample_data import ALL_BATCHES
 
@@ -139,6 +140,102 @@ def run_local_pipeline(
             "pipeline_summary.json",
             combined,
             run_ts=run_ts,
+        )
+
+    return combined
+
+
+# ---------------------------------------------------------------------------
+# Phase 3: Dataset-Aware Execution
+# ---------------------------------------------------------------------------
+
+
+def run_dataset_pipeline(
+    registry: DatasetRegistry,
+    dataset_id: str,
+    *,
+    evidence_dir: str | Path | None = None,
+    drift_policy: dict[str, Any] | None = None,
+    benchmark_policy: dict[str, Any] | None = None,
+    seed: int = 42,
+    n_rows: int = 200,
+    run_ts: str | None = None,
+    run_id: str | None = None,
+) -> dict[str, Any]:
+    """Execute intake, drift, and benchmark for a registered dataset.
+
+    Validates the dataset exists in the registry and checks policy
+    compatibility before execution. Uses deterministic demo data for
+    the control runs (the same underlying domain logic), but tags all
+    evidence with the selected dataset identity.
+    """
+    contract = registry.get(dataset_id)
+    ds = contract["dataset"]
+    contract_version = ds.get("contract_version", "0.0.0")
+    rid = run_id or generate_run_id()
+
+    drift_binding: dict[str, str] | None = None
+    bench_binding: dict[str, str] | None = None
+
+    if drift_policy is not None:
+        drift_binding = check_policy_compatibility(
+            registry, drift_policy["drift_policy"], "Drift policy"
+        )
+
+    if benchmark_policy is not None:
+        bench_binding = check_policy_compatibility(
+            registry, benchmark_policy["benchmark_policy"], "Benchmark policy"
+        )
+
+    intake_result = run_intake_demo()
+    drift_result = run_drift_demo(run_ts=run_ts)
+
+    bench_policy_version = bench_binding["policy_version"] if bench_binding else None
+    bench_kwargs: dict[str, Any] = {
+        "seed": seed,
+        "n_rows": n_rows,
+        "run_ts": run_ts,
+        "dataset_id": dataset_id,
+        "contract_version": contract_version,
+        "policy_version": bench_policy_version,
+        "run_id": rid,
+    }
+    if evidence_dir:
+        bench_kwargs["evidence_dir"] = evidence_dir
+    benchmark_result = run_benchmark(**bench_kwargs)
+
+    combined: dict[str, Any] = {
+        "dataset_id": dataset_id,
+        "contract_version": contract_version,
+        "run_id": rid,
+        "intake": intake_result,
+        "drift": {
+            "health_score": drift_result["health_score"],
+            "columns_drifted": drift_result["columns_drifted"],
+            "overall_verdict": drift_result["overall_verdict"],
+        },
+        "benchmark": {
+            "overall_verdict": benchmark_result["overall_verdict"].value,
+            "measured": benchmark_result["measured"],
+        },
+    }
+
+    if drift_binding:
+        combined["drift_policy_version"] = drift_binding["policy_version"]
+    if bench_binding:
+        combined["benchmark_policy_version"] = bench_binding["policy_version"]
+
+    if evidence_dir:
+        write_evidence(
+            evidence_dir,
+            f"pipeline_{dataset_id}.json",
+            combined,
+            run_ts=run_ts,
+            dataset_id=dataset_id,
+            contract_version=contract_version,
+            policy_version=drift_binding["policy_version"] if drift_binding else None,
+            run_id=rid,
+            run_kind="pipeline",
         )
 
     return combined

@@ -1,6 +1,6 @@
 # tests
 
-Product test suite for DriftSentinel. 171 tests across 8 files.
+Product test suite for DriftSentinel. 220 tests across 11 files.
 
 | File | Tests | Purpose |
 | --- | --- | --- |
@@ -12,6 +12,9 @@ Product test suite for DriftSentinel. 171 tests across 8 files.
 | `test_orchestration.py` | 6 | Local pipeline determinism, domain connectivity, evidence |
 | `test_config_loading.py` | 14 | YAML config loading, packaged templates, and validation |
 | `test_evidence_writer.py` | 6 | Append-only evidence and hash chain writing |
-| `test_packaging.py` | 13 | Databricks bundle config, notebook packaging, and wheel contents |
+| `test_packaging.py` | 17 | Databricks bundle config, notebook packaging, wheel contents, Phase 3 widgets |
+| `test_registry.py` | 22 | Dataset registry, serialization, policy compatibility, version metadata |
+| `test_evidence_lookup.py` | 15 | Evidence metadata, list/filter, date range, malformed file handling |
+| `test_dataset_orchestration.py` | 8 | Dataset-aware pipeline, evidence metadata end-to-end, demo preservation |
 
 Run with `make test` or `uv run pytest`.

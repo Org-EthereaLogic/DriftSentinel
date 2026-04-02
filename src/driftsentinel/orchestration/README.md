@@ -6,5 +6,8 @@ Responsibilities:
 - Coordinating intake, drift, and benchmark stages in order
 - Managing run context and configuration propagation
 - Routing results to the evidence writer
+- Dataset-aware execution with registry-backed validation and version checks
 
-Implemented in DS-IP-001 Phase 1. Key file: `runner.py`.
+Key exports: `run_local_pipeline`, `run_dataset_pipeline`.
+
+Key file: `runner.py`.

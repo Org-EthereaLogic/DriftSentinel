@@ -3,11 +3,14 @@
 This shared surface is used by intake, drift, and benchmark domains to
 produce auditable JSON evidence artifacts. Files are never overwritten
 or deleted -- each write creates a new artifact.
+
+Phase 3 adds dataset identity metadata, run IDs, and local lookup helpers.
 """
 
 from __future__ import annotations
 
 import json
+import uuid
 from dataclasses import asdict
 from datetime import datetime, timezone
 from pathlib import Path
@@ -25,12 +28,22 @@ def _serialize(obj: Any) -> Any:
     return obj
 
 
+def generate_run_id() -> str:
+    """Generate a unique run identifier."""
+    return str(uuid.uuid4())
+
+
 def write_evidence(
     output_dir: str | Path,
     filename: str,
     payload: dict[str, Any],
     *,
     run_ts: str | None = None,
+    dataset_id: str | None = None,
+    contract_version: str | None = None,
+    policy_version: str | None = None,
+    run_id: str | None = None,
+    run_kind: str | None = None,
 ) -> Path:
     """Write a single evidence artifact as JSON.
 
@@ -44,6 +57,11 @@ def write_evidence(
         payload: The evidence data to serialize.
         run_ts: Optional timestamp override for deterministic tests.
             Defaults to current UTC time.
+        dataset_id: Dataset identifier for multi-dataset traceability.
+        contract_version: Dataset contract version.
+        policy_version: Policy version used for this run.
+        run_id: Unique run identifier for evidence lookup.
+        run_kind: Run type (intake, drift, benchmark, pipeline).
 
     Returns:
         The path to the written file.
@@ -53,11 +71,23 @@ def write_evidence(
 
     ts = run_ts or datetime.now(timezone.utc).isoformat()
 
+    meta: dict[str, Any] = {
+        "generated_at": ts,
+        "version": "0.2.0",
+    }
+    if dataset_id is not None:
+        meta["dataset_id"] = dataset_id
+    if contract_version is not None:
+        meta["contract_version"] = contract_version
+    if policy_version is not None:
+        meta["policy_version"] = policy_version
+    if run_id is not None:
+        meta["run_id"] = run_id
+    if run_kind is not None:
+        meta["run_kind"] = run_kind
+
     envelope: dict[str, Any] = {
-        "meta": {
-            "generated_at": ts,
-            "version": "0.1.0",
-        },
+        "meta": meta,
         "payload": _serialize(payload),
     }
 
@@ -122,6 +152,10 @@ def write_benchmark_bundle(
     overall_verdict: str,
     *,
     run_ts: str | None = None,
+    dataset_id: str | None = None,
+    contract_version: str | None = None,
+    policy_version: str | None = None,
+    run_id: str | None = None,
 ) -> Path:
     """Write a structured benchmark evidence bundle.
 
@@ -160,4 +194,114 @@ def write_benchmark_bundle(
     }
 
     filename = f"bench_{seed}_{n_rows}.json"
-    return write_evidence(output_dir, filename, payload, run_ts=ts)
+    return write_evidence(
+        output_dir,
+        filename,
+        payload,
+        run_ts=ts,
+        dataset_id=dataset_id,
+        contract_version=contract_version,
+        policy_version=policy_version,
+        run_id=run_id,
+        run_kind="benchmark",
+    )
+
+
+# ---------------------------------------------------------------------------
+# Phase 3: Evidence Lookup Helpers
+# ---------------------------------------------------------------------------
+
+
+def list_evidence(
+    evidence_dir: str | Path,
+    *,
+    dataset_id: str | None = None,
+    run_kind: str | None = None,
+    run_id: str | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
+) -> list[dict[str, Any]]:
+    """List evidence artifacts with optional filtering.
+
+    Scans all .json files in evidence_dir and returns a list of summary
+    dicts containing the file path and metadata. Malformed files are
+    skipped with a parse_error entry rather than crashing the query.
+
+    Args:
+        evidence_dir: Directory containing evidence JSON artifacts.
+        dataset_id: Filter to artifacts for this dataset.
+        run_kind: Filter to artifacts of this run kind.
+        run_id: Filter to artifacts with this run ID.
+        date_from: ISO date string; include artifacts generated at or after.
+        date_to: ISO date string; include artifacts generated at or before.
+
+    Returns:
+        A list of summary dicts sorted by generated_at descending.
+    """
+    d = Path(evidence_dir)
+    if not d.is_dir():
+        return []
+
+    results: list[dict[str, Any]] = []
+    for p in sorted(d.glob("*.json")):
+        try:
+            with open(p, encoding="utf-8") as f:
+                data = json.load(f)
+        except (json.JSONDecodeError, OSError):
+            results.append({
+                "file": str(p),
+                "parse_error": True,
+            })
+            continue
+
+        if not isinstance(data, dict) or "meta" not in data:
+            results.append({
+                "file": str(p),
+                "parse_error": True,
+            })
+            continue
+
+        meta = data["meta"]
+
+        if dataset_id is not None and meta.get("dataset_id") != dataset_id:
+            continue
+        if run_kind is not None and meta.get("run_kind") != run_kind:
+            continue
+        if run_id is not None and meta.get("run_id") != run_id:
+            continue
+
+        generated_at = meta.get("generated_at", "")
+        if date_from is not None and generated_at < date_from:
+            continue
+        if date_to is not None and generated_at > date_to:
+            continue
+
+        results.append({
+            "file": str(p),
+            "generated_at": generated_at,
+            "dataset_id": meta.get("dataset_id"),
+            "contract_version": meta.get("contract_version"),
+            "policy_version": meta.get("policy_version"),
+            "run_id": meta.get("run_id"),
+            "run_kind": meta.get("run_kind"),
+        })
+
+    results.sort(key=lambda r: r.get("generated_at", ""), reverse=True)
+    return results
+
+
+def load_evidence(path: str | Path) -> dict[str, Any]:
+    """Load a single evidence artifact from disk.
+
+    Raises FileNotFoundError if the file does not exist.
+    Raises ValueError if the file is not valid JSON.
+    """
+    p = Path(path)
+    if not p.is_file():
+        raise FileNotFoundError(f"Evidence file not found: {p}")
+    try:
+        with open(p, encoding="utf-8") as f:
+            data: dict[str, Any] = json.load(f)
+        return data
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"Malformed evidence file: {p}") from exc

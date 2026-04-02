@@ -42,6 +42,10 @@ def run_benchmark(
     *,
     policy_path: str | Path | None = None,
     run_ts: str | None = None,
+    dataset_id: str | None = None,
+    contract_version: str | None = None,
+    policy_version: str | None = None,
+    run_id: str | None = None,
 ) -> dict[str, Any]:
     """Run the full dual-track benchmark and return structured results."""
     dataset = generate_dataset(seed=seed, n_rows=n_rows)
@@ -108,6 +112,10 @@ def run_benchmark(
             baseline_d_score, challenger_d_score,
             gate_results, overall_verdict.value,
             run_ts=run_ts,
+            dataset_id=dataset_id,
+            contract_version=contract_version,
+            policy_version=policy_version,
+            run_id=run_id,
         )
 
     return {

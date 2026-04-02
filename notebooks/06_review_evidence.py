@@ -2,8 +2,8 @@
 # MAGIC %md
 # MAGIC # DriftSentinel — Review Evidence
 # MAGIC
-# MAGIC Inspect the latest control run evidence: quarantine counts, drift verdicts,
-# MAGIC benchmark scores, and gate outcomes.
+# MAGIC Inspect historical control run evidence with optional filtering by
+# MAGIC dataset, date range, or run ID.
 
 # COMMAND ----------
 
@@ -43,34 +43,65 @@ print(f"Installing DriftSentinel from: {install_target}")
 # COMMAND ----------
 
 dbutils.widgets.text("evidence_dir", "/tmp/driftsentinel_evidence", "Path to evidence directory")
+dbutils.widgets.text("dataset_id", "", "Filter by dataset ID")
+dbutils.widgets.text("run_kind", "", "Filter by run kind (intake, drift, benchmark, pipeline)")
+dbutils.widgets.text("run_id", "", "Filter by run ID")
+dbutils.widgets.text("date_from", "", "Filter from date (ISO format)")
+dbutils.widgets.text("date_to", "", "Filter to date (ISO format)")
 
 # COMMAND ----------
 
-import json
-import os
-
 evidence_dir = dbutils.widgets.get("evidence_dir")
+dataset_id = dbutils.widgets.get("dataset_id").strip() or None
+run_kind = dbutils.widgets.get("run_kind").strip() or None
+run_id = dbutils.widgets.get("run_id").strip() or None
+date_from = dbutils.widgets.get("date_from").strip() or None
+date_to = dbutils.widgets.get("date_to").strip() or None
 print(f"Evidence directory: {evidence_dir}")
+if dataset_id:
+    print(f"Filter dataset: {dataset_id}")
+if run_kind:
+    print(f"Filter run kind: {run_kind}")
+if run_id:
+    print(f"Filter run ID: {run_id}")
+if date_from or date_to:
+    print(f"Filter date range: {date_from or '*'} to {date_to or '*'}")
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## List Evidence Files
+# MAGIC ## Query Evidence
 
 # COMMAND ----------
 
-if not os.path.isdir(evidence_dir):
-    print(f"Directory not found: {evidence_dir}")
+from driftsentinel.evidence.writer import list_evidence, load_evidence
+
+results = list_evidence(
+    evidence_dir,
+    dataset_id=dataset_id,
+    run_kind=run_kind,
+    run_id=run_id,
+    date_from=date_from,
+    date_to=date_to,
+)
+
+if not results:
+    print("No evidence artifacts found matching the filters.")
     print("Run a pipeline or benchmark first to generate evidence artifacts.")
 else:
-    files = sorted(f for f in os.listdir(evidence_dir) if f.endswith(".json"))
-    if not files:
-        print("No evidence files found.")
-    else:
-        print(f"Found {len(files)} evidence file(s):")
-        for f in files:
-            size = os.path.getsize(os.path.join(evidence_dir, f))
-            print(f"  {f} ({size} bytes)")
+    print(f"Found {len(results)} evidence artifact(s):")
+    for r in results:
+        if r.get("parse_error"):
+            print(f"  [malformed] {r['file']}")
+        else:
+            parts = [r.get("generated_at", "?")]
+            if r.get("dataset_id"):
+                parts.append(f"dataset={r['dataset_id']}")
+            if r.get("run_kind"):
+                parts.append(f"kind={r['run_kind']}")
+            if r.get("run_id"):
+                parts.append(f"run={r['run_id'][:8]}...")
+            print(f"  {' | '.join(parts)} — {r['file']}")
 
 # COMMAND ----------
 
@@ -79,13 +110,17 @@ else:
 
 # COMMAND ----------
 
-if os.path.isdir(evidence_dir):
-    files = sorted(f for f in os.listdir(evidence_dir) if f.endswith(".json"))
-    for f in files:
-        path = os.path.join(evidence_dir, f)
-        with open(path, encoding="utf-8") as fh:
-            data = json.load(fh)
-        print(f"\n{'=' * 60}")
-        print(f"File: {f}")
-        print(f"{'=' * 60}")
-        print(json.dumps(data, indent=2, default=str))
+import json
+
+for r in results:
+    if r.get("parse_error"):
+        continue
+    try:
+        data = load_evidence(r["file"])
+    except (FileNotFoundError, ValueError) as exc:
+        print(f"Could not load {r['file']}: {exc}")
+        continue
+    print(f"\n{'=' * 60}")
+    print(f"File: {r['file']}")
+    print(f"{'=' * 60}")
+    print(json.dumps(data, indent=2, default=str))

@@ -8,9 +8,10 @@ Built by Anthony Johnson | EthereaLogic LLC
 
 DriftSentinel establishes the standalone repository, governance layer, and
 Databricks delivery surfaces that unify the three Enterprise Data Trust
-control patterns into one application. DS-IP-001 Phase 2 is implemented:
-the repo ships runnable Databricks bundle resources, notebook entry points,
-and benchmark evidence-producing execution.
+control patterns into one application. DS-IP-001 Phase 3 is implemented:
+the repo ships a multi-dataset registry, version-aware policy binding,
+queryable evidence lookup, dataset-aware orchestration, and Databricks
+bundle resources with notebook entry points.
 
 ## What this repository contains
 

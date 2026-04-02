@@ -165,6 +165,45 @@ def test_notebooks_expose_template_override_and_evidence_widgets() -> None:
     assert 'dbutils.widgets.text("evidence_dir", "/tmp/driftsentinel_evidence",' in benchmark_text
 
 
+# --- Phase 3: Dataset selection and evidence query widgets ---
+
+
+def test_register_notebook_has_registry_widget() -> None:
+    text = (NOTEBOOKS / "01_register_dataset.py").read_text(encoding="utf-8")
+    assert 'dbutils.widgets.text("registry_path"' in text
+    assert "DatasetRegistry" in text
+
+
+def test_run_notebooks_have_dataset_id_widget() -> None:
+    for name in ["03_run_intake_controls.py", "04_run_drift_gate.py", "05_run_control_benchmark.py"]:
+        text = (NOTEBOOKS / name).read_text(encoding="utf-8")
+        assert 'dbutils.widgets.text("dataset_id"' in text, (
+            f"{name} missing dataset_id widget"
+        )
+
+
+def test_review_notebook_has_filter_widgets() -> None:
+    text = (NOTEBOOKS / "06_review_evidence.py").read_text(encoding="utf-8")
+    for widget in ["dataset_id", "run_kind", "run_id", "date_from", "date_to"]:
+        assert f'dbutils.widgets.text("{widget}"' in text, (
+            f"06_review_evidence.py missing {widget} widget"
+        )
+    assert "list_evidence" in text
+    assert "load_evidence" in text
+
+
+def test_notebooks_delegate_to_package_code() -> None:
+    """Notebooks must not re-implement registry, lookup, or orchestration logic."""
+    for name in NOTEBOOK_FILES:
+        text = (NOTEBOOKS / name).read_text(encoding="utf-8")
+        assert "class DatasetRegistry" not in text, (
+            f"{name} re-implements DatasetRegistry instead of importing"
+        )
+        assert "def list_evidence" not in text, (
+            f"{name} re-implements list_evidence instead of importing"
+        )
+
+
 def test_built_wheel_includes_packaged_templates(tmp_path: Path) -> None:
     subprocess.run(
         ["uv", "build", "--wheel", "--out-dir", str(tmp_path)],

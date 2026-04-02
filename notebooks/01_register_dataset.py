@@ -4,6 +4,7 @@
 # MAGIC
 # MAGIC Register a new dataset for DriftSentinel monitoring by loading a dataset
 # MAGIC contract from `templates/dataset_contract.yml` or providing inline config.
+# MAGIC Persists the registration to a local JSON registry.
 
 # COMMAND ----------
 
@@ -45,12 +46,14 @@ print(f"Installing DriftSentinel from: {install_target}")
 dbutils.widgets.text("catalog", "", "Unity Catalog name")
 dbutils.widgets.text("schema", "default", "Schema name")
 dbutils.widgets.text("contract_path", "", "Optional workspace path to dataset contract YAML")
+dbutils.widgets.text("registry_path", "/tmp/driftsentinel_registry.json", "Path to dataset registry JSON")
 
 # COMMAND ----------
 
 catalog = dbutils.widgets.get("catalog").strip()
 schema = dbutils.widgets.get("schema").strip()
 contract_path = dbutils.widgets.get("contract_path").strip()
+registry_path = dbutils.widgets.get("registry_path").strip()
 if not catalog:
     raise ValueError("Set the catalog widget to an existing Unity Catalog catalog before running this notebook.")
 if not schema:
@@ -65,7 +68,13 @@ print(f"Target: {catalog}.{schema}")
 # COMMAND ----------
 
 import json
-from driftsentinel.config.loader import load_dataset_contract, load_packaged_dataset_contract
+from pathlib import Path as _Path
+from driftsentinel.config.loader import (
+    DatasetRegistry,
+    RegistryError,
+    load_dataset_contract,
+    load_packaged_dataset_contract,
+)
 
 if contract_path:
     contract = load_dataset_contract(contract_path)
@@ -82,6 +91,39 @@ print(json.dumps(contract, indent=2))
 # COMMAND ----------
 
 # MAGIC %md
+# MAGIC ## Register Dataset
+
+# COMMAND ----------
+
+if _Path(registry_path).is_file():
+    registry = DatasetRegistry.load(registry_path)
+    print(f"Loaded existing registry from {registry_path}")
+else:
+    registry = DatasetRegistry()
+    print("Created new dataset registry")
+
+try:
+    dataset_id, contract_version = registry.register(contract)
+    registry.save(registry_path)
+    print(f"Registered: {dataset_id} v{contract_version}")
+except RegistryError as exc:
+    print(f"Registration blocked: {exc}")
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Registry Summary
+
+# COMMAND ----------
+
+datasets = registry.list_datasets()
+print(f"Registered datasets: {len(datasets)}")
+for ds in datasets:
+    print(f"  {ds['dataset_id']} v{ds['contract_version']}")
+
+# COMMAND ----------
+
+# MAGIC %md
 # MAGIC ## Contract Summary
 
 # COMMAND ----------
@@ -91,6 +133,7 @@ ct = contract["contract"]
 print(f"Dataset:          {ds['name']}")
 print(f"Catalog:          {ds.get('catalog', catalog)}")
 print(f"Schema:           {ds.get('schema', schema)}")
+print(f"Version:          {ds.get('contract_version', 'unversioned')}")
 print(f"Required columns: {len(ct['required_columns'])}")
 print(f"Business key:     {ct['business_key']}")
 print(f"Batch identifier: {ct['batch_identifier']}")

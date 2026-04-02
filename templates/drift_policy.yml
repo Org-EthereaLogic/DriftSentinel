@@ -5,6 +5,8 @@
 drift_policy:
   name: example_drift_policy
   dataset: example_dataset
+  contract_version: "1.0.0"
+  policy_version: "1.0.0"
 
   monitored_columns:
     - column_name: amount

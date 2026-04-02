@@ -6,6 +6,8 @@
 benchmark_policy:
   name: example_benchmark_policy
   dataset: example_dataset
+  contract_version: "1.0.0"
+  policy_version: "1.0.0"
   seed: 42
 
   quality_faults:
