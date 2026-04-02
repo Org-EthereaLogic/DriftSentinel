@@ -1,10 +1,13 @@
-# DriftSentinel Intake Pipeline
-# Databricks Asset Bundle scaffold surface
-#
-# This pipeline runs intake certification: schema drift detection,
-# duplicate replay blocking, contract validation, and quarantine routing.
-#
-# Current status:
-# - Phase 0/1 reserves this file as a bundle resource surface only.
-# - `databricks bundle validate` loads this file through `resources/*.yml`.
-# - DS-IP-001 Phase 2 will replace this stub with an operational pipeline definition.
+resources:
+  pipelines:
+    intake_pipeline:
+      name: "driftsentinel_intake"
+      catalog: "${var.catalog}"
+      target: "${var.schema}"
+      serverless: true
+      libraries:
+        - notebook:
+            path: ../notebooks/03_run_intake_controls.py
+      configuration:
+        catalog: "${var.catalog}"
+        schema: "${var.schema}"

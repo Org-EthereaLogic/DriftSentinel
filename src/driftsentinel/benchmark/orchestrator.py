@@ -13,6 +13,7 @@ from driftsentinel.benchmark.gates import evaluate_gates_from_dicts
 from driftsentinel.benchmark.quality_detectors import baseline_quality_check, challenger_quality_check
 from driftsentinel.benchmark.scoring import score_drift, score_quality
 from driftsentinel.benchmark.synthetic import generate_dataset
+from driftsentinel.config.loader import load_benchmark_policy, normalize_benchmark_gates
 from driftsentinel.evidence.writer import write_benchmark_bundle
 
 _MONITORED_COLUMNS = [
@@ -23,22 +24,13 @@ _EXPECTED_COLUMNS = [
     "product_category", "status", "priority", "amount",
 ]
 
-def _gate(name: str, typ: str, op: str, thresh: float, track: str, desc: str) -> dict[str, Any]:
-    return {"name": name, "type": typ, "operator": op, "threshold": thresh, "track": track, "description": desc}
+_DEFAULT_POLICY_PATH = Path(__file__).resolve().parent.parent.parent.parent / "templates" / "benchmark_policy.yml"
 
 
-_DEFAULT_GATES: list[dict[str, Any]] = [
-    _gate("quality_recall", "FAIL", ">=", 0.70, "quality", "Challenger recall"),
-    _gate("quality_precision", "WARN", ">=", 0.60, "quality", "Challenger precision"),
-    _gate("quality_f1", "WARN", ">=", 0.50, "quality", "Challenger F1"),
-    _gate("quality_fpr", "FAIL", "<=", 0.10, "quality", "Challenger FPR"),
-    _gate("challenger_beats_baseline_quality", "FAIL", ">=", 1.00, "quality", "Challenger >= baseline recall"),
-    _gate("sudden_drift_sensitivity", "FAIL", ">=", 1.00, "drift", "Sudden drift detected"),
-    _gate("gradual_drift_sensitivity", "WARN", ">=", 0.50, "drift", "Gradual drift detected"),
-    _gate("drift_fpr", "FAIL", "<=", 0.00, "drift", "No false positive on stable"),
-    _gate("new_category_sensitivity", "WARN", ">=", 1.00, "drift", "New category detected"),
-    _gate("challenger_beats_baseline_drift", "FAIL", ">=", 1.00, "drift", "Challenger >= baseline drift"),
-]
+def _load_default_gates() -> list[dict[str, Any]]:
+    """Load gates from the default benchmark policy template."""
+    policy = load_benchmark_policy(_DEFAULT_POLICY_PATH)
+    return normalize_benchmark_gates(policy)
 
 
 def run_benchmark(
@@ -47,6 +39,7 @@ def run_benchmark(
     evidence_dir: str | Path | None = None,
     gate_dicts: list[dict[str, Any]] | None = None,
     *,
+    policy_path: str | Path | None = None,
     run_ts: str | None = None,
 ) -> dict[str, Any]:
     """Run the full dual-track benchmark and return structured results."""
@@ -80,7 +73,13 @@ def run_benchmark(
     challenger_d_score = score_drift(ch_sudden, ch_gradual, ch_newcat, ch_stable)
 
     # --- Gate evaluation ---
-    gates = gate_dicts or _DEFAULT_GATES
+    if gate_dicts is not None:
+        gates = gate_dicts
+    elif policy_path is not None:
+        policy = load_benchmark_policy(policy_path)
+        gates = normalize_benchmark_gates(policy)
+    else:
+        gates = _load_default_gates()
     q_recall_ratio = challenger_q_score.recall / max(baseline_q_score.recall, 0.001)
     d_combined_ratio = challenger_d_score.combined_score / max(baseline_d_score.combined_score, 0.001)
 

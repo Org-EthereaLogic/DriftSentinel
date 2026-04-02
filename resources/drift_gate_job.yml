@@ -1,10 +1,11 @@
-# DriftSentinel Drift Gate Job
-# Databricks Asset Bundle scaffold surface
-#
-# This job runs distribution stability measurement against a stored baseline
-# and emits explicit gate verdicts before Gold publication.
-#
-# Current status:
-# - Phase 0/1 reserves this file as a bundle resource surface only.
-# - `databricks bundle validate` loads this file through `resources/*.yml`.
-# - DS-IP-001 Phase 2 will replace this stub with an operational job definition.
+resources:
+  jobs:
+    drift_gate_job:
+      name: "driftsentinel_drift_gate"
+      tasks:
+        - task_key: run_drift_gate
+          notebook_task:
+            notebook_path: ../notebooks/04_run_drift_gate.py
+            base_parameters:
+              catalog: "${var.catalog}"
+              schema: "${var.schema}"

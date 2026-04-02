@@ -12,6 +12,7 @@ from driftsentinel.config.loader import (
     load_benchmark_policy,
     load_dataset_contract,
     load_drift_policy,
+    normalize_benchmark_gates,
 )
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -72,6 +73,37 @@ def test_load_benchmark_policy_from_template() -> None:
     policy = data["benchmark_policy"]
     assert policy["seed"] == 42
     assert "gates" in policy
+    assert isinstance(policy["gates"], list)
+    assert len(policy["gates"]) == 10
+
+
+def test_normalize_benchmark_gates_from_template() -> None:
+    data = load_benchmark_policy(TEMPLATES / "benchmark_policy.yml")
+    gates = normalize_benchmark_gates(data)
+    assert len(gates) == 10
+    for gate in gates:
+        assert "name" in gate
+        assert "type" in gate
+        assert "operator" in gate
+        assert "threshold" in gate
+        assert "track" in gate
+        assert "description" in gate
+        assert isinstance(gate["threshold"], float)
+    names = [g["name"] for g in gates]
+    assert "quality_recall" in names
+    assert "drift_fpr" in names
+
+
+def test_normalize_benchmark_gates_rejects_flat_dict() -> None:
+    policy = {"benchmark_policy": {"gates": {"min_recall": 0.80}}}
+    with pytest.raises(ConfigError, match="Expected 'gates' to be a list"):
+        normalize_benchmark_gates(policy)
+
+
+def test_normalize_benchmark_gates_rejects_missing_keys() -> None:
+    policy = {"benchmark_policy": {"gates": [{"name": "test"}]}}
+    with pytest.raises(ConfigError, match="missing keys.*type"):
+        normalize_benchmark_gates(policy)
 
 
 def test_load_benchmark_policy_missing_required(tmp_path: Path) -> None:

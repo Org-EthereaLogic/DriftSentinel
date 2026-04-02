@@ -2,53 +2,100 @@
 
 ## Prerequisites
 
-- Databricks workspace (Free Edition for evaluation, paid for operational
-  deployment)
+- Databricks workspace with Unity Catalog enabled
+- A catalog and schema for DriftSentinel tables (e.g. `driftsentinel.default`)
+- Compute cluster with Python 3.11+
 - Databricks CLI installed and authenticated through `.databrickscfg`,
   `DATABRICKS_CONFIG_PROFILE`, or `DATABRICKS_*` environment variables
-- Python 3.11+ with uv
 
-## Current Phase
+## Option 1: Databricks Asset Bundle Deploy
 
-Phase 0/1 provides a validated repository scaffold, bundle entrypoint, and
-notebook/resource surfaces. It does not yet define runnable Databricks jobs or
-pipelines. DS-IP-001 Phase 2 activates the operational bundle resources.
+The recommended deployment path uses Databricks Asset Bundles. The bundle
+defines an intake pipeline, drift gate job, and benchmark job.
 
-## Option 1: Validate the Bundle Scaffold
+### Validate
 
 ```bash
 git clone https://github.com/Org-EthereaLogic/DriftSentinel.git
 cd DriftSentinel
 
-# Use your default Databricks CLI profile
 databricks bundle validate
-
-# Or select a profile explicitly
-DATABRICKS_CONFIG_PROFILE=<profile> databricks bundle validate
 ```
 
-## Option 2: Review Notebook Entry Points in a Workspace
-
-1. Clone the repository locally.
-2. Upload the `notebooks/` directory to your Databricks workspace.
-3. Open `00_quickstart_setup.py` to review the scaffolded workflow order.
-4. Upload `templates/` to a workspace volume for dataset configuration.
-
-## Option 3: Databricks CLI Upload
+### Deploy
 
 ```bash
-databricks workspace import_dir notebooks/ /Users/<you>/DriftSentinel/notebooks
-```
-
-Running the current notebooks raises an explicit DS-IP-001 Phase 2 error. That
-is expected scaffold behavior until the operational notebooks are implemented.
-
-## Phase 2 Deployment Activation
-
-Once DS-IP-001 Phase 2 lands and the bundle resources are implemented, the
-operational deployment path becomes:
-
-```bash
+# Deploy to the dev target (default)
 databricks bundle deploy --target dev
-databricks bundle run --target dev <resource>
+
+# Deploy to production
+databricks bundle deploy --target prod
 ```
+
+### Run
+
+```bash
+# Run the intake pipeline
+databricks bundle run intake_pipeline
+
+# Run the drift gate job
+databricks bundle run drift_gate_job
+
+# Run the benchmark job
+databricks bundle run benchmark_job
+```
+
+### Bundle Variables
+
+| Variable | Description | Default |
+| --- | --- | --- |
+| `catalog` | Unity Catalog catalog name | `driftsentinel` |
+| `schema` | Unity Catalog schema name | `default` |
+
+Override at deploy time:
+
+```bash
+databricks bundle deploy --var="catalog=my_catalog,schema=my_schema"
+```
+
+## Option 2: Direct Notebook Import with pip Install
+
+If you prefer to run notebooks directly without the bundle CLI, each notebook
+installs DriftSentinel from GitHub on first run.
+
+1. Clone or download the repository.
+2. Import the `notebooks/` directory into your Databricks workspace.
+3. Import the `templates/` directory to a workspace volume for dataset
+   configuration.
+4. Open `00_quickstart_setup.py` to verify installation and run a health check.
+5. Follow notebooks in order: register dataset, seed baseline, run controls.
+
+Each notebook includes a `%pip install` cell that pulls the package directly
+from the GitHub repository. No prior installation is required on the cluster.
+
+## Notebook Sequence
+
+| Order | Notebook | Purpose |
+| --- | --- | --- |
+| 0 | `00_quickstart_setup.py` | Install, verify, health check |
+| 1 | `01_register_dataset.py` | Load and validate a dataset contract |
+| 2 | `02_seed_or_import_baseline.py` | Establish a trusted drift baseline |
+| 3 | `03_run_intake_controls.py` | Run intake certification controls |
+| 4 | `04_run_drift_gate.py` | Measure drift and emit gate verdicts |
+| 5 | `05_run_control_benchmark.py` | Run dual-track benchmark with scoring |
+| 6 | `06_review_evidence.py` | Inspect evidence artifacts from prior runs |
+
+## Bundle Resources
+
+| Resource | Type | Notebook |
+| --- | --- | --- |
+| `intake_pipeline` | Pipeline (DLT) | `03_run_intake_controls.py` |
+| `drift_gate_job` | Job | `04_run_drift_gate.py` |
+| `benchmark_job` | Job | `05_run_control_benchmark.py` |
+
+## Compute Requirements
+
+- DBR 14.3 LTS or later recommended
+- Python 3.11+ (included in DBR 14.3+)
+- Single-node cluster sufficient for evaluation
+- Unity Catalog access for the configured catalog and schema

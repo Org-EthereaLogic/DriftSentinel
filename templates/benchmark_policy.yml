@@ -1,6 +1,7 @@
 # DriftSentinel Benchmark Policy Template
 #
 # Copy this file and customize for control effectiveness evaluation.
+# Gate definitions use the explicit schema expected by the evaluator.
 
 benchmark_policy:
   name: example_benchmark_policy
@@ -23,5 +24,63 @@ benchmark_policy:
       columns: [amount]
 
   gates:
-    min_recall: 0.80
-    max_false_positive_rate: 0.10
+    - name: quality_recall
+      type: FAIL
+      operator: ">="
+      threshold: 0.80
+      track: quality
+      description: Challenger recall must meet minimum
+    - name: quality_precision
+      type: WARN
+      operator: ">="
+      threshold: 0.60
+      track: quality
+      description: Challenger precision target
+    - name: quality_f1
+      type: WARN
+      operator: ">="
+      threshold: 0.50
+      track: quality
+      description: Challenger F1 target
+    - name: quality_fpr
+      type: FAIL
+      operator: "<="
+      threshold: 0.10
+      track: quality
+      description: Challenger false positive rate ceiling
+    - name: challenger_beats_baseline_quality
+      type: FAIL
+      operator: ">="
+      threshold: 1.00
+      track: quality
+      description: Challenger recall must meet or exceed baseline
+    - name: sudden_drift_sensitivity
+      type: FAIL
+      operator: ">="
+      threshold: 1.00
+      track: drift
+      description: Sudden drift must be detected
+    - name: gradual_drift_sensitivity
+      type: WARN
+      operator: ">="
+      threshold: 0.50
+      track: drift
+      description: Gradual drift should be detected
+    - name: drift_fpr
+      type: FAIL
+      operator: "<="
+      threshold: 0.00
+      track: drift
+      description: No false positive on stable data
+    - name: new_category_sensitivity
+      type: WARN
+      operator: ">="
+      threshold: 1.00
+      track: drift
+      description: New category injection should be detected
+    - name: challenger_beats_baseline_drift
+      type: FAIL
+      operator: ">="
+      threshold: 1.00
+      track: drift
+      description: Challenger drift score must meet or exceed baseline

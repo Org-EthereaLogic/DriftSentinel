@@ -2,11 +2,11 @@
 
 Databricks Asset Bundle job and pipeline definitions.
 
-| File | Purpose |
-| --- | --- |
-| `intake_pipeline.yml` | Intake certification pipeline definition |
-| `drift_gate_job.yml` | Distribution drift gate job definition |
-| `benchmark_job.yml` | Control effectiveness benchmark job definition |
+| File | Type | Purpose |
+| --- | --- | --- |
+| `intake_pipeline.yml` | Pipeline (DLT) | Intake certification pipeline |
+| `drift_gate_job.yml` | Job | Distribution drift gate job |
+| `benchmark_job.yml` | Job | Control effectiveness benchmark job |
 
-These are scaffold stubs referenced by `databricks.yml`. They define
-non-operational placeholders until DS-IP-001 Phase 2 adds runnable resources.
+These files are included by `databricks.yml` and define the operational
+Databricks resources deployed via `databricks bundle deploy`.

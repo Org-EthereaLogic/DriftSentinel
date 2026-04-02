@@ -1,10 +1,13 @@
-# DriftSentinel Benchmark Job
-# Databricks Asset Bundle scaffold surface
-#
-# This job runs control effectiveness benchmarking against known failure
-# scenarios and writes scored evidence bundles.
-#
-# Current status:
-# - Phase 0/1 reserves this file as a bundle resource surface only.
-# - `databricks bundle validate` loads this file through `resources/*.yml`.
-# - DS-IP-001 Phase 2 will replace this stub with an operational job definition.
+resources:
+  jobs:
+    benchmark_job:
+      name: "driftsentinel_benchmark"
+      tasks:
+        - task_key: run_benchmark
+          notebook_task:
+            notebook_path: ../notebooks/05_run_control_benchmark.py
+            base_parameters:
+              catalog: "${var.catalog}"
+              schema: "${var.schema}"
+              seed: "42"
+              n_rows: "1000"

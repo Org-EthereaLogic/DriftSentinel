@@ -82,3 +82,43 @@ def load_benchmark_policy(path: str | Path) -> dict[str, Any]:
         f"benchmark_policy section ({p.name})",
     )
     return data
+
+
+_GATE_REQUIRED_KEYS = ["name", "type", "operator", "threshold"]
+
+
+def normalize_benchmark_gates(policy: dict[str, Any]) -> list[dict[str, Any]]:
+    """Convert loaded benchmark policy gates into evaluator-compatible gate dicts.
+
+    Each gate dict must have: name, type, operator, threshold, track, description.
+    Raises ``ConfigError`` if any gate is missing required keys.
+    """
+    raw_gates = policy.get("benchmark_policy", {}).get("gates", [])
+    if not isinstance(raw_gates, list):
+        raise ConfigError(
+            f"Expected 'gates' to be a list of gate definitions, "
+            f"got {type(raw_gates).__name__}"
+        )
+
+    normalized: list[dict[str, Any]] = []
+    for i, gate in enumerate(raw_gates):
+        if not isinstance(gate, dict):
+            raise ConfigError(
+                f"Gate at index {i} must be a mapping, got {type(gate).__name__}"
+            )
+        missing = [k for k in _GATE_REQUIRED_KEYS if k not in gate]
+        if missing:
+            raise ConfigError(
+                f"Gate at index {i} ({gate.get('name', '?')}) missing keys: "
+                f"{', '.join(missing)}"
+            )
+        normalized.append({
+            "name": gate["name"],
+            "type": gate["type"],
+            "operator": gate["operator"],
+            "threshold": float(gate["threshold"]),
+            "track": gate.get("track", ""),
+            "description": gate.get("description", ""),
+        })
+
+    return normalized

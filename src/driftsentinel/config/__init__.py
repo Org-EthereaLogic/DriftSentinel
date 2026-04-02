@@ -5,6 +5,7 @@ from driftsentinel.config.loader import (
     load_benchmark_policy,
     load_dataset_contract,
     load_drift_policy,
+    normalize_benchmark_gates,
 )
 
 __all__ = [
@@ -12,4 +13,5 @@ __all__ = [
     "load_benchmark_policy",
     "load_dataset_contract",
     "load_drift_policy",
+    "normalize_benchmark_gates",
 ]

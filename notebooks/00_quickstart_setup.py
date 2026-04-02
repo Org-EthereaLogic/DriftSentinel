@@ -16,9 +16,46 @@
 # MAGIC - A catalog and schema for DriftSentinel tables
 # MAGIC - Compute cluster with Python 3.11+
 
-PHASE_TWO_MESSAGE = (
-    "DriftSentinel scaffold notebook is not operational yet. "
-    "DS-IP-001 Phase 2 (Databricks MVP Packaging) must be implemented before this notebook can run."
-)
+# COMMAND ----------
 
-raise RuntimeError(PHASE_TWO_MESSAGE)
+# MAGIC %pip install git+https://github.com/Org-EthereaLogic/DriftSentinel.git
+# MAGIC dbutils.library.restartPython()
+
+# COMMAND ----------
+
+import driftsentinel
+print(f"DriftSentinel version: {driftsentinel.__version__}")
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Module Inventory
+
+# COMMAND ----------
+
+import importlib
+import pkgutil
+
+modules = [mod.name for mod in pkgutil.iter_modules(driftsentinel.__path__)]
+print("Installed modules:")
+for name in sorted(modules):
+    mod = importlib.import_module(f"driftsentinel.{name}")
+    doc = (mod.__doc__ or "").strip().split("\n")[0]
+    print(f"  driftsentinel.{name}: {doc}")
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Health Check
+
+# COMMAND ----------
+
+from driftsentinel.orchestration.runner import run_intake_demo
+
+result = run_intake_demo()
+print("Health check — intake demo result:")
+print(f"  Total rows processed: {result['total_rows']}")
+print(f"  Ready:                {result['ready']}")
+print(f"  Quarantined:          {result['quarantined']}")
+print(f"  Violations:           {result['violations']}")
+print("\nDriftSentinel is operational.")
