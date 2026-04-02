@@ -41,22 +41,32 @@ make sync   # installs runtime + dev dependencies via uv
 make test   # runs the pytest suite
 ```
 
-### Databricks Bundle Validation
+### Databricks Catalog And Bundle Validation
 
 ```bash
-# The bundle requires an existing Unity Catalog catalog.
-DATABRICKS_CONFIG_PROFILE=<profile> \
-  databricks bundle validate --target dev --var="catalog=my_catalog"
+# First prove the catalog exists for the profile you will use.
+make bundle-catalog-check CATALOG=my_catalog PROFILE=<profile>
+
+# Then validate bundle wiring against that catalog.
+make bundle-validate CATALOG=my_catalog PROFILE=<profile>
 ```
 
-Deploy and run with the same catalog selection:
+Direct CLI equivalents:
 
 ```bash
-DATABRICKS_CONFIG_PROFILE=<profile> \
-  databricks bundle deploy --target dev --var="catalog=my_catalog"
+databricks catalogs get my_catalog -p <profile>
+databricks bundle validate -p <profile> --target dev --var="catalog=my_catalog"
+```
 
-DATABRICKS_CONFIG_PROFILE=<profile> \
-  databricks bundle run benchmark_job --target dev --var="catalog=my_catalog"
+`bundle validate` proves bundle/auth/resource resolution. It does not by itself
+prove the catalog exists or that deploy/run succeeded.
+
+Deploy and run with the same catalog selection to prove the deployment path:
+
+```bash
+databricks bundle deploy -p <profile> --target dev --var="catalog=my_catalog"
+
+databricks bundle run benchmark_job -p <profile> --target dev --var="catalog=my_catalog"
 ```
 
 ### Manual workspace import

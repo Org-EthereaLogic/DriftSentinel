@@ -25,7 +25,8 @@ When prior repository patterns conflict, use this precedence:
 | `make typecheck` | Type-check with mypy |
 | `make test` | Run the pytest suite |
 | `make coverage` | Run tests with coverage reporting |
-| `make bundle-validate` | Validate the Databricks Asset Bundle |
+| `make bundle-catalog-check CATALOG=<catalog> [PROFILE=<profile>]` | Prove the selected Unity Catalog catalog exists for the current Databricks auth context |
+| `make bundle-validate CATALOG=<catalog> [PROFILE=<profile>]` | Validate the Databricks Asset Bundle against an explicit catalog input |
 
 ### Core Workflow Commands (21 total)
 

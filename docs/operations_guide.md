@@ -11,16 +11,17 @@ resources, and operational notebook entry points.
 
 1. Run local repository validation (`make lint`, `make typecheck`,
    `make test`).
-2. Validate, deploy, and run the Databricks bundle with an explicit existing
-   Unity Catalog catalog.
-3. Run the notebooks directly from GitHub using bundled example templates or
+2. Prove a Unity Catalog catalog exists with `make bundle-catalog-check
+   CATALOG=<catalog> PROFILE=<profile>`.
+3. Validate, deploy, and run the Databricks bundle with that catalog.
+4. Run the notebooks directly from GitHub using bundled example templates or
    optional workspace YAML paths, with bundle-deployed notebooks preferring
    the uploaded bundle files.
-4. Register multiple datasets via `01_register_dataset.py` with a serializable
+5. Register multiple datasets via `01_register_dataset.py` with a serializable
    JSON registry.
-5. Execute intake, drift, and benchmark runs for a selected dataset using the
+6. Execute intake, drift, and benchmark runs for a selected dataset using the
    `dataset_id` widget in notebooks 03-05.
-6. Review historical evidence filtered by dataset, date range, or run ID in
+7. Review historical evidence filtered by dataset, date range, or run ID in
    `06_review_evidence.py`.
 
 ## Troubleshooting
@@ -28,6 +29,10 @@ resources, and operational notebook entry points.
 - **`databricks bundle validate` cannot authenticate**: configure a
   `.databrickscfg` profile, set `DATABRICKS_CONFIG_PROFILE`, or provide the
   required `DATABRICKS_*` environment variables.
+- **`databricks bundle validate` passes but deploy or run still fails for
+  `catalog`**: `bundle validate` does not prove catalog existence. Run
+  `make bundle-catalog-check CATALOG=<catalog> PROFILE=<profile>` or
+  `databricks catalogs get <catalog> -p <profile>` first.
 - **Bundle validation or deploy fails for `catalog`**: pass an existing Unity
   Catalog catalog through `--var="catalog=<catalog>"`, `BUNDLE_VAR_catalog`,
   or `.databricks/bundle/<target>/variable-overrides.json`.

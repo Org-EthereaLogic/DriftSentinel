@@ -30,7 +30,8 @@ If the feature belongs elsewhere, stop and explain why.
 - placeholder scan
 - `uv run ruff check .`
 - `uv run pytest`
-- `databricks bundle validate` (if bundle assets changed)
+- `make bundle-validate CATALOG=<existing_uc_catalog> PROFILE=<profile>` (if
+  bundle assets changed and Databricks auth plus catalog access are available)
 
 ## Report
 

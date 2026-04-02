@@ -24,10 +24,15 @@ Set up the local development environment and verify the project is functional.
    uv run pytest
    ```
 
-5. Validate the Databricks bundle (if configured):
+5. Verify catalog access and validate the Databricks bundle when Databricks
+   authentication is configured and you have a real Unity Catalog catalog:
    ```
-   databricks bundle validate
+   make bundle-catalog-check CATALOG=<existing_uc_catalog> PROFILE=<profile>
+   make bundle-validate CATALOG=<existing_uc_catalog> PROFILE=<profile>
    ```
+
+   `bundle validate` alone does not prove catalog existence or deployment
+   success.
 
 ## Report
 

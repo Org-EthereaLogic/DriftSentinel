@@ -19,6 +19,8 @@ NOTEBOOKS = ROOT / "notebooks"
 RESOURCES = ROOT / "resources"
 TEMPLATES = ROOT / "templates"
 BUNDLE_CONFIG = ROOT / "databricks.yml"
+MAKEFILE = ROOT / "Makefile"
+COMMANDS_DIR = ROOT / ".claude" / "commands"
 
 NOTEBOOK_FILES = [
     "00_quickstart_setup.py",
@@ -34,6 +36,14 @@ RESOURCE_FILES = [
     "intake_pipeline.yml",
     "drift_gate_job.yml",
     "benchmark_job.yml",
+]
+
+COMMAND_DOC_FILES = [
+    "start.md",
+    "test.md",
+    "sync.md",
+    "feature.md",
+    "pull-request.md",
 ]
 
 
@@ -138,6 +148,54 @@ def test_bundle_requires_explicit_catalog_var() -> None:
     catalog = data["variables"]["catalog"]
     assert "default" not in catalog
     assert data["variables"]["schema"]["default"] == "default"
+
+
+def test_makefile_exposes_catalog_check_and_profile_override() -> None:
+    text = MAKEFILE.read_text(encoding="utf-8")
+    assert "bundle-catalog-check:" in text
+    assert 'catalogs get "$${CATALOG:?Set CATALOG}" $(PROFILE_ARG) -o json' in text
+    expected_validate = (
+        'bundle validate $(PROFILE_ARG) --target dev '
+        '--var="catalog=$${BUNDLE_VAR_catalog:-$${CATALOG:?Set CATALOG or '
+        'BUNDLE_VAR_catalog}}"'
+    )
+    assert (
+        expected_validate in text
+    )
+
+
+def test_command_docs_do_not_use_bare_bundle_validate() -> None:
+    for name in COMMAND_DOC_FILES:
+        text = (COMMANDS_DIR / name).read_text(encoding="utf-8")
+        assert "databricks bundle validate" not in text, (
+            f"{name} should route bundle validation through the safe make target"
+        )
+        assert "make bundle-validate" in text, (
+            f"{name} should document the safe make bundle-validate command"
+        )
+
+
+def test_start_test_and_sync_docs_require_catalog_check() -> None:
+    for name in ["start.md", "test.md", "sync.md"]:
+        text = (COMMANDS_DIR / name).read_text(encoding="utf-8")
+        assert "make bundle-catalog-check" in text, (
+            f"{name} should require an explicit catalog existence check"
+        )
+
+
+def test_bundle_docs_distinguish_catalog_check_validate_and_deploy() -> None:
+    doc_paths = [
+        ROOT / "README.md",
+        ROOT / "docs" / "deployment_guide.md",
+        ROOT / "specs" / "DS-BI-001_Build_Instructions.md",
+    ]
+    for path in doc_paths:
+        text = path.read_text(encoding="utf-8")
+        assert "make bundle-catalog-check" in text
+        assert "databricks catalogs get" in text
+        assert "does not" in text and "prove" in text, (
+            f"{path.name} should distinguish validate from deploy proof"
+        )
 
 
 # --- Benchmark policy normalization ---

@@ -14,36 +14,61 @@
 The recommended deployment path uses Databricks Asset Bundles. The bundle
 defines an intake pipeline, drift gate job, and benchmark job.
 
+### Verify Catalog Access
+
+```bash
+make bundle-catalog-check CATALOG=my_catalog PROFILE=<profile>
+```
+
+Direct CLI equivalent:
+
+```bash
+databricks catalogs get my_catalog -p <profile>
+```
+
+Expected result: the CLI returns catalog metadata for the exact catalog you
+plan to pass into the bundle.
+
 ### Validate
 
 ```bash
 git clone https://github.com/Org-EthereaLogic/DriftSentinel.git
 cd DriftSentinel
 
-databricks bundle validate --target dev --var="catalog=my_catalog"
+make bundle-validate CATALOG=my_catalog PROFILE=<profile>
 ```
+
+Direct CLI equivalent:
+
+```bash
+databricks bundle validate -p <profile> --target dev --var="catalog=my_catalog"
+```
+
+Expected result: `Validation OK!`. This confirms bundle/auth/resource
+resolution only. It does not replace the catalog check above, and it does not
+prove deploy or job execution.
 
 ### Deploy
 
 ```bash
 # Deploy to the dev target (default)
-databricks bundle deploy --target dev --var="catalog=my_catalog"
+databricks bundle deploy -p <profile> --target dev --var="catalog=my_catalog"
 
 # Deploy to production
-databricks bundle deploy --target prod --var="catalog=my_catalog,schema=my_schema"
+databricks bundle deploy -p <profile> --target prod --var="catalog=my_catalog,schema=my_schema"
 ```
 
 ### Run
 
 ```bash
 # Run the intake pipeline
-databricks bundle run intake_pipeline --target dev --var="catalog=my_catalog"
+databricks bundle run intake_pipeline -p <profile> --target dev --var="catalog=my_catalog"
 
 # Run the drift gate job
-databricks bundle run drift_gate_job --target dev --var="catalog=my_catalog"
+databricks bundle run drift_gate_job -p <profile> --target dev --var="catalog=my_catalog"
 
 # Run the benchmark job
-databricks bundle run benchmark_job --target dev --var="catalog=my_catalog"
+databricks bundle run benchmark_job -p <profile> --target dev --var="catalog=my_catalog"
 ```
 
 ### Bundle Variables
@@ -56,7 +81,7 @@ databricks bundle run benchmark_job --target dev --var="catalog=my_catalog"
 Override at deploy time:
 
 ```bash
-databricks bundle deploy --var="catalog=my_catalog,schema=my_schema"
+databricks bundle deploy -p <profile> --var="catalog=my_catalog,schema=my_schema"
 ```
 
 ## Option 2: Direct Notebook Import with pip Install

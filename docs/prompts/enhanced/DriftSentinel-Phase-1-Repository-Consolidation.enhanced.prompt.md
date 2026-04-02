@@ -13,7 +13,7 @@
 |--------|---------------|
 | Source prompt | Phase 1 Repository Consolidation is the only remaining not-started task and has four explicit acceptance criteria: port Chapter 1, 2, and 3 logic; normalize config and evidence; preserve deterministic behavior and tests; remove sibling-clone runtime dependencies. |
 | `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/AGENTS.md` | Use `Plan -> Act -> Verify -> Report`, keep sibling chapter logic as first-party code, and run the required validation suite truthfully. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/CLAUDE.md` | `specs/` is canonical, product code belongs under `src/driftsentinel/`, and the standard repo commands are `make lint`, `make typecheck`, `make test`, and `make bundle-validate`. |
+| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/CLAUDE.md` | `specs/` is canonical, product code belongs under `src/driftsentinel/`, and the standard repo commands are `make lint`, `make typecheck`, `make test`, `make bundle-catalog-check`, and `make bundle-validate` with an explicit catalog. |
 | `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/CONSTITUTION.md` | Safety, evidence traceability, security hygiene, simplicity, and reproducibility control implementation decisions in that order. |
 | `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/DIRECTIVES.md` | No runtime dependency on sibling chapter clones is a critical directive, and specs remain canonical over any explanatory docs. |
 | `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/.github/instructions/codacy.instructions.md` | Codacy analysis should run after edits when the tool surface is available, and repository identifiers must remain `gh / Org-EthereaLogic / DriftSentinel`. |
@@ -22,7 +22,7 @@
 | `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/specs/DS-SDD-001_Architecture_Blueprint.md` | The architecture already reserves `config`, `evidence`, `intake`, `drift`, `benchmark`, and `orchestration` as the product-layer package boundaries. |
 | `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/specs/DS-TM-001_Traceability_Matrix.md` | Verification must cover local config loaders, evidence writers, intake, drift, benchmark, and deterministic validation paths. |
 | `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/specs/DS-WBS-001_Project_Plan_WBS.md` | The implementation WBS assigns Phase 1 deliverables directly to `src/driftsentinel/intake/`, `drift/`, `benchmark/`, `evidence/`, `orchestration/`, `config/`, and `tests/`. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/Makefile` | The canonical validation commands are `make lint`, `make typecheck`, `make test`, and `make bundle-validate`. |
+| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/Makefile` | The canonical validation commands are `make lint`, `make typecheck`, `make test`, `make bundle-catalog-check`, and `make bundle-validate`, with `CATALOG` required for Databricks checks. |
 | `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/pyproject.toml` | The product targets Python 3.11+, currently depends only on `pyyaml` and `pandas`, and should avoid unnecessary dependency growth. |
 | `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/tests/test_scaffold_layout.py` | The current tests only guard scaffold presence and package layout. |
 | `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/tests/test_governance_guards.py` | Placeholder markers are banned from executable surfaces and bundle wiring already has explicit tests. |
@@ -290,7 +290,7 @@ Current DriftSentinel tests verify only scaffold integrity and governance guards
 20. **Run bundle validation only if you edited bundle-linked surfaces.**
 
    ```bash
-   cd "/Users/etherealogic-2/Dev/Databricks/DriftSentinel" && make bundle-validate
+   cd "/Users/etherealogic-2/Dev/Databricks/DriftSentinel" && make bundle-catalog-check CATALOG=<existing_uc_catalog> PROFILE=<profile> && make bundle-validate CATALOG=<existing_uc_catalog> PROFILE=<profile>
    ```
 
    *Success: The command exits with status `0`, or you document that notebooks, `databricks.yml`, and `resources/` were not changed and the check was not required.*
@@ -350,7 +350,7 @@ Current DriftSentinel tests verify only scaffold integrity and governance guards
 - [ ] `make lint` exits with status `0`.
 - [ ] `make typecheck` exits with status `0`.
 - [ ] `make test` exits with status `0`.
-- [ ] `make bundle-validate` exits with status `0`, or its omission is justified because no bundle-linked surfaces changed.
+- [ ] `make bundle-catalog-check CATALOG=<existing_uc_catalog> PROFILE=<profile>` and `make bundle-validate CATALOG=<existing_uc_catalog> PROFILE=<profile>` exit with status `0`, or their omission is justified because no bundle-linked surfaces changed.
 - [ ] The sibling-dependency boundary scan returns no runtime dependency matches.
 - [ ] The placeholder scan returns no banned markers in required surfaces.
 - [ ] Codacy and Snyk analysis outcomes, or exact tool-surface limitations, are reported truthfully.

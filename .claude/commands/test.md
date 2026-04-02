@@ -35,10 +35,15 @@ TEST_COMMAND_TIMEOUT: 5 minutes
 - test_name: `pytest_suite`
 - test_purpose: "Runs all pytest tests with coverage enforcement"
 
-### 5. Bundle Validation
-- Command: `databricks bundle validate`
+### 5. Catalog Check
+- Command: `make bundle-catalog-check CATALOG=<existing_uc_catalog> PROFILE=<profile>`
+- test_name: `catalog_check`
+- test_purpose: "Proves the selected Unity Catalog catalog exists in the target workspace"
+
+### 6. Bundle Validation
+- Command: `make bundle-validate CATALOG=<existing_uc_catalog> PROFILE=<profile>`
 - test_name: `bundle_validate`
-- test_purpose: "Validates the Databricks Asset Bundle configuration"
+- test_purpose: "Validates the Databricks Asset Bundle configuration after catalog existence is proven"
 
 ## Report
 

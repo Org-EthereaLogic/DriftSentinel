@@ -28,9 +28,12 @@ scope: $ARGUMENTS
 - Run `make lint` to ensure linting passes
 - Run `make typecheck` to ensure type-checking passes
 - Run `make test` to ensure tests pass
-- Run `databricks bundle validate` when Databricks CLI authentication is
-  configured. If authentication is unavailable, record the blocker explicitly
-  instead of claiming bundle validation passed.
+- Run `make bundle-catalog-check CATALOG=<existing_uc_catalog> PROFILE=<profile>`
+  and `make bundle-validate CATALOG=<existing_uc_catalog> PROFILE=<profile>`
+  when Databricks CLI authentication is configured and a real catalog is
+  available. If authentication or catalog access is unavailable, record the
+  blocker explicitly instead of claiming bundle validation passed. Do not treat
+  `bundle validate` alone as deployment proof.
 
 ### Phase 3: Commit & Push
 

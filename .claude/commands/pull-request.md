@@ -13,7 +13,10 @@ target_branch: $ARGUMENTS (default: main)
 3. Run placeholder scan — must return clean
 4. `uv run ruff check .` — must pass
 5. `uv run pytest` — must pass
-6. `databricks bundle validate` when `databricks.yml` exists
+6. `make bundle-catalog-check CATALOG=<existing_uc_catalog> PROFILE=<profile>`
+   and `make bundle-validate CATALOG=<existing_uc_catalog> PROFILE=<profile>`
+   when `databricks.yml` exists and Databricks auth plus catalog access are
+   available
 7. Push: `git push -u origin $(git branch --show-current)`
 8. Create PR: `gh pr create --title "<title>" --body "<body>" --base <target_branch>`
 
