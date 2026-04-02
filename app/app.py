@@ -88,18 +88,19 @@ def _build_summary_line(rows: list[list[str]]) -> str:
 
 def _extract_artifact_meta(data: dict[str, Any]) -> dict[str, str]:
     """Extract key metadata fields from an evidence artifact for the preview line."""
+    meta = data.get("meta", {}) or {}
     payload = data.get("payload", {})
     verdict = (
         str(payload.get("overall_verdict", ""))
         or (payload.get("drift", {}) or {}).get("overall_verdict", "")
         or (payload.get("benchmark", {}) or {}).get("overall_verdict", "")
     )
-    run_id = data.get("run_id", "") or ""
+    run_id = meta.get("run_id", "") or data.get("run_id", "") or ""
     return {
-        "dataset_id": data.get("dataset_id", "") or "",
-        "run_kind": data.get("run_kind", "") or "",
+        "dataset_id": meta.get("dataset_id", "") or data.get("dataset_id", "") or "",
+        "run_kind": meta.get("run_kind", "") or data.get("run_kind", "") or "",
         "run_id": run_id[:8] if len(run_id) > 8 else run_id,
-        "generated_at": _fmt_timestamp(data.get("generated_at", "") or ""),
+        "generated_at": _fmt_timestamp(meta.get("generated_at", "") or data.get("generated_at", "") or ""),
         "verdict": verdict,
     }
 

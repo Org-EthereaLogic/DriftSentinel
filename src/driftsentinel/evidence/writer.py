@@ -267,7 +267,7 @@ def list_evidence(
             continue
         if run_kind is not None and meta.get("run_kind") != run_kind:
             continue
-        if run_id is not None and meta.get("run_id") != run_id:
+        if run_id is not None and not (meta.get("run_id") or "").startswith(run_id):
             continue
 
         generated_at = meta.get("generated_at", "")
