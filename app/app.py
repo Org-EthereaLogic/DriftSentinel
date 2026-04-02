@@ -80,18 +80,20 @@ def _build_summary_line(rows: list[list[str]]) -> str:
     counts: dict[str, int] = {"PASS": 0, "FAIL": 0, "WARN": 0}
     other = 0
     for row in rows:
-        v = (row[4].strip().upper() if len(row) > 4 else "")
+        raw = (row[4].strip() if len(row) > 4 else "")
+        # Strip colored-circle prefix if present (e.g. "🟢 PASS" -> "PASS")
+        v = raw.split()[-1].upper() if raw else ""
         if v in counts:
             counts[v] += 1
         else:
             other += 1
     parts = [f"**{total} artifact{'s' if total != 1 else ''}**"]
     if counts["PASS"]:
-        parts.append(f"PASS: {counts['PASS']}")
+        parts.append(f"🟢 PASS: {counts['PASS']}")
     if counts["WARN"]:
-        parts.append(f"WARN: {counts['WARN']}")
+        parts.append(f"🟡 WARN: {counts['WARN']}")
     if counts["FAIL"]:
-        parts.append(f"FAIL: {counts['FAIL']}")
+        parts.append(f"🔴 FAIL: {counts['FAIL']}")
     if other:
         parts.append(f"other: {other}")
     return "  |  ".join(parts)
@@ -209,6 +211,8 @@ def query_evidence(
             verdict = _extract_verdict(data)
         except (FileNotFoundError, ValueError):
             pass
+        _VERDICT_CIRCLES = {"PASS": "🟢 PASS", "FAIL": "🔴 FAIL", "WARN": "🟡 WARN"}
+        verdict = _VERDICT_CIRCLES.get(verdict.strip().upper(), verdict)
         rows.append([
             Path(r["file"]).name,
             r.get("dataset_id", "") or "",
@@ -249,7 +253,9 @@ def load_artifact_meta(evidence_dir: str, filename: str) -> str:
         return f"_File not found: `{filename}`_"
     try:
         meta = _extract_artifact_meta(load_evidence(path))
-        verdict = meta["verdict"] or "—"
+        _VERDICT_CIRCLES = {"PASS": "🟢 PASS", "FAIL": "🔴 FAIL", "WARN": "🟡 WARN"}
+        raw_verdict = meta["verdict"] or ""
+        verdict = _VERDICT_CIRCLES.get(raw_verdict.strip().upper(), raw_verdict) or "—"
         return (
             f"**Dataset:** `{meta['dataset_id'] or '—'}`  "
             f"**Kind:** `{meta['run_kind'] or '—'}`  "
@@ -324,6 +330,7 @@ def _build_theme():  # type: ignore[no-untyped-def]
 _DS_CSS = """
     .ds-summary { color: #8AA3B6; font-size: 0.88em; margin-top: 4px; }
     .ds-tab-desc { color: #8AA3B6; font-size: 0.9em; margin-bottom: 12px; }
+    .ds-empty-state { text-align: center; padding: 24px 16px; font-size: 0.95em; color: #8AA3B6; }
 """
 
 
@@ -377,7 +384,7 @@ def build_app():  # type: ignore[no-untyped-def]
                 reg_btn = gr.Button("Load Registry", variant="primary", scale=1)
             reg_status = gr.Markdown(
                 "_Click Load Registry to fetch the current dataset registry._",
-                elem_classes=["ds-summary"],
+                elem_classes=["ds-summary", "ds-empty-state"],
             )
             reg_table = gr.Dataframe(
                 headers=["Dataset ID", "Version", "Catalog", "Schema", "Table"],
@@ -415,10 +422,11 @@ def build_app():  # type: ignore[no-untyped-def]
                     from_filter = gr.Textbox(label="Date From", value="", placeholder="YYYY-MM-DD")
                     to_filter = gr.Textbox(label="Date To", value="", placeholder="YYYY-MM-DD")
             run_summary = gr.Markdown("_Click Query to load evidence artifacts._",
-                                      elem_classes=["ds-summary"])
+                                      elem_classes=["ds-summary", "ds-empty-state"])
             status_table = gr.Dataframe(
                 headers=["File", "Dataset", "Kind", "Timestamp", "Verdict", "Run ID"],
-                interactive=False, wrap=False,
+                column_count=6,
+                interactive=False, wrap=True,
             )
 
             def _query_with_summary(
@@ -458,7 +466,7 @@ def build_app():  # type: ignore[no-untyped-def]
                 exp_btn = gr.Button("Load Artifact", variant="primary", scale=1)
             exp_meta = gr.Markdown(
                 "_Enter an artifact filename above and click Load Artifact._",
-                elem_classes=["ds-summary"],
+                elem_classes=["ds-summary", "ds-empty-state"],
             )
             exp_json = gr.Code(label="Artifact JSON", language="json", interactive=False)
 
