@@ -37,8 +37,19 @@ _ALERT_CORAL = "#F97316"
 _GATE_SLATE = "#8AA3B6"
 
 _ASSETS = Path(__file__).parent.parent / "assets" / "driftsentinel-brand-system"
-_LOGO_PATH = str(_ASSETS / "variants" / "logo-dark.png")
+_LOGO_PATH = _ASSETS / "variants" / "logo-dark.png"
 _FAVICON_PATH = str(_ASSETS / "favicons" / "favicon-32x32.png")
+
+
+def _logo_data_uri() -> str | None:
+    """Encode the brand logo as a base64 data URI for inline HTML display."""
+    import base64
+
+    if not _LOGO_PATH.is_file():
+        return None
+    data = _LOGO_PATH.read_bytes()
+    b64 = base64.b64encode(data).decode("ascii")
+    return f"data:image/png;base64,{b64}"
 
 # ---------------------------------------------------------------------------
 # Formatting helpers
@@ -337,13 +348,17 @@ def build_app():  # type: ignore[no-untyped-def]
 
     with ctx as app:
         # ---- Header ----
-        logo_exists = Path(_LOGO_PATH).is_file()
-        with gr.Row():
-            if logo_exists:
-                gr.Image(
-                    value=_LOGO_PATH, show_label=False, height=44, width=None,
-                    container=False, buttons=[],
-                )
+        logo_uri = _logo_data_uri()
+        if logo_uri:
+            gr.HTML(
+                f'<div style="display:flex;align-items:center;gap:16px;padding:12px 0 8px 0;">'
+                f'<img src="{logo_uri}" alt="DriftSentinel" '
+                f'style="height:64px;width:auto;" />'
+                f'<span style="color:{_GATE_SLATE};font-size:0.85em;">'
+                f'Read-only operator dashboard — intake, drift, benchmark</span>'
+                f'</div>'
+            )
+        else:
             gr.Markdown(
                 "## DriftSentinel\n"
                 f"<span style='color:{_GATE_SLATE};font-size:0.85em;'>"
