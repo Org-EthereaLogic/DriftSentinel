@@ -4,7 +4,7 @@
 
 | Field | Value |
 | --- | --- |
-| Dashboard URL | [DriftSentinel UMIF Entropy Gradient Drift Monitor](https://www.notion.so/DriftSentinel-UMIF-Entropy-Gradient-Drift-Monitor-4d85af16161b42ed92071933bc90fb10?source=copy_link) |
+| Dashboard URL | [DriftSentinel Project Dashboard](https://www.notion.so/4d85af16161b42ed92071933bc90fb10) |
 | Page ID | `4d85af16161b42ed92071933bc90fb10` |
 
 ## Governance Rules

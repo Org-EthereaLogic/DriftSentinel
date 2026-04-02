@@ -66,7 +66,7 @@ When prior repository patterns conflict, use this precedence:
 
 | Surface | Target |
 | --- | --- |
-| Notion dashboard | [DriftSentinel UMIF Entropy Gradient Drift Monitor](https://www.notion.so/DriftSentinel-UMIF-Entropy-Gradient-Drift-Monitor-4d85af16161b42ed92071933bc90fb10?source=copy_link) |
+| Notion dashboard | [DriftSentinel Project Dashboard](https://www.notion.so/4d85af16161b42ed92071933bc90fb10) |
 | Page ID | `4d85af16161b42ed92071933bc90fb10` |
 | Sync policy | `docs/notion_dashboard_sync.md` |
 
