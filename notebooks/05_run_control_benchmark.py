@@ -5,5 +5,9 @@
 # MAGIC Run control effectiveness benchmarking against known failure scenarios
 # MAGIC and write scored evidence bundles.
 
-# Placeholder — populate during Phase 2 (Databricks MVP Packaging)
-print("DriftSentinel control benchmark — not yet implemented")
+PHASE_TWO_MESSAGE = (
+    "DriftSentinel scaffold notebook is not operational yet. "
+    "DS-IP-001 Phase 2 (Databricks MVP Packaging) must be implemented before this notebook can run."
+)
+
+raise RuntimeError(PHASE_TWO_MESSAGE)

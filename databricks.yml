@@ -4,12 +4,10 @@
 bundle:
   name: driftsentinel
 
-workspace:
-  host: ${var.databricks_host}
+include:
+  - "resources/*.yml"
 
 variables:
-  databricks_host:
-    description: Databricks workspace URL
   catalog:
     description: Unity Catalog catalog name
     default: driftsentinel

@@ -1,28 +1,35 @@
 # DriftSentinel Operations Guide
 
-## Daily Operations
+## Current Stage
 
-1. Review the operational handoff summary after each pipeline run.
-2. Check quarantine counts — investigate any rows that failed intake.
-3. Check drift gate verdicts — verify that Gold publication was allowed or
-   blocked with explicit reasons.
-4. If a benchmark run was requested, review the evidence bundle for detection
-   rates and gate verdicts.
+DriftSentinel is currently in scaffold mode. The repository does not yet ship
+operational intake, drift, or benchmark workloads. DS-IP-001 Phase 2 adds the
+runtime implementations for those flows.
+
+## What You Can Operate Today
+
+1. Run local repository validation (`make lint`, `make typecheck`,
+   `make test`).
+2. Validate the Databricks bundle scaffold with authenticated CLI settings.
+3. Review templates, notebooks, and bundle surfaces before Phase 2
+   implementation lands.
 
 ## Troubleshooting
 
-- **Intake quarantine spike**: Check source system for schema drift, duplicate
-  batches, or null required fields.
-- **Drift gate FAIL**: Compare the current load against the stored baseline.
-  Determine whether the distribution shift is a real business change or a
-  source failure.
-- **Bundle deploy failure**: Run `databricks bundle validate` locally to
-  identify configuration issues.
+- **`databricks bundle validate` cannot authenticate**: configure a
+  `.databrickscfg` profile, set `DATABRICKS_CONFIG_PROFILE`, or provide the
+  required `DATABRICKS_*` environment variables.
+- **Notebook stops immediately with a DS-IP-001 Phase 2 error**: expected
+  scaffold behavior. The notebook surfaces are intentionally non-operational
+  until Phase 2.
+- **Need runnable jobs, pipelines, or evidence outputs**: out of scope for the
+  current scaffold stage. Activate the operational flow in DS-IP-001 Phase 2.
 
 ## Evidence Review
 
-Evidence artifacts are written to append-only surfaces. Use
-`06_review_evidence.py` to inspect the latest run.
+Evidence artifacts are append-only. Current evidence in `report/` covers
+repository validation and sync history; control-run evidence starts when Phase
+2 adds runnable workflows.
 
 ## Updating Policies
 

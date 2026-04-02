@@ -15,18 +15,33 @@
   current tool context or documented in the repository.
 - Do not invent additional Notion database IDs, view IDs, task IDs, or page
   relationships.
+- Every sync attempt writes a new timestamped record under `report/`. Never
+  rewrite an existing sync artifact.
 - Every status update pushed to Notion must be backed by repository evidence.
-- If direct Notion mutation is unavailable, create a repo-backed sync payload
-  under `report/` instead of fabricating an external write.
+- Each Notion claim must carry one evidence class:
+  - `repo-verified` for repository facts and direct tool output
+  - `public-page-observed` for evidence gathered from the public page URL
+  - `operator-reported` for external actions that were reported by an operator
+    but not independently re-verified in the current session
+- Public page reachability can confirm that the page URL resolves, but it does
+  not prove task-level mutation history.
+- If direct Notion mutation is unavailable, the sync record becomes the
+  repo-backed fallback payload and must explicitly state that no live mutation
+  was verified in the current session.
 - Notion sync is non-blocking. A failed sync must not be reported as a
   successful live dashboard update.
 
-## Fallback Payload
+## Sync Record
 
-When direct update is unavailable, write a dated payload:
+Create a timestamped record for every sync attempt:
 
-`report/YYYY-MM-DD-notion-sync-payload.md`
+`report/YYYY-MM-DDTHH-MM-SS-notion-sync-record.md`
 
-Include: target page URL, page ID, intended summary, evidence references,
-current blockers, and explicit statement that the live dashboard was not
-updated.
+Include:
+
+- target page URL and page ID
+- local branch, commit, and validation results
+- intended or applied Notion mutations
+- evidence references for each claim
+- explicit evidence class for each external observation
+- blockers, unknowns, and whether live mutation was verified

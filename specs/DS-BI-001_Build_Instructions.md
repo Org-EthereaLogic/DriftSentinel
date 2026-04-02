@@ -29,23 +29,41 @@ uv run pytest
 
 ## 3. Bundle Validation
 
+Authenticate the Databricks CLI through `.databrickscfg`,
+`DATABRICKS_CONFIG_PROFILE`, or `DATABRICKS_*` environment variables, then
+run:
+
 ```bash
 databricks bundle validate
+DATABRICKS_CONFIG_PROFILE=<profile> databricks bundle validate
 ```
 
-## 4. Deployment
+Expected result during Phase 0/1: the bundle scaffold validates and loads the
+reserved `resources/*.yml` surfaces. Operational jobs and pipelines are added
+in DS-IP-001 Phase 2.
 
-```bash
-databricks bundle deploy --target dev
-databricks bundle run --target dev <resource>
-```
+## 4. Deployment Activation
+
+Operational deploy/run commands apply after DS-IP-001 Phase 2 lands and the
+bundle resources become runnable.
 
 ## 5. Manual Workspace Import
 
-Upload the `notebooks/` directory to a Databricks workspace and follow
-`00_quickstart_setup.py`.
+Upload the `notebooks/` directory to a Databricks workspace to review the
+planned operator surfaces. The current scaffold notebooks fail closed until
+DS-IP-001 Phase 2 is implemented.
 
-## 6. Placeholder Scan
+## 6. Governance Guard Check
+
+```bash
+uv run pytest tests/test_governance_guards.py -q
+```
+
+Expected result: executable and bundle surfaces contain no banned scaffold
+markers, `databricks.yml` includes `resources/*.yml`, and the bundle no longer
+encodes Databricks auth interpolation.
+
+## 7. Canonical Placeholder Scan
 
 ```bash
 PATTERN='TO''DO|FIX''ME|TB''D|PLACE''HOLDER'; rg -n "$PATTERN" specs .claude CLAUDE.md docs

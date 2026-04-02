@@ -6,10 +6,11 @@ Built by Anthony Johnson | EthereaLogic LLC
 
 ---
 
-DriftSentinel productizes the three Enterprise Data Trust control patterns into
-a single Databricks application. Users download one repository, configure it
-for their own datasets, and run intake certification, drift gating, and control
-benchmarking with replayable evidence.
+DriftSentinel establishes the standalone repository, governance layer, and
+Databricks scaffold that will unify the three Enterprise Data Trust control
+patterns into one application. Phase 0/1 validates repository integrity,
+bundle surfaces, and notebook entry points; DS-IP-001 Phase 2 adds runnable
+Databricks workflows and evidence-producing execution.
 
 ## What this repository contains
 
@@ -33,17 +34,25 @@ make sync   # installs runtime + dev dependencies via uv
 make test   # runs the pytest suite
 ```
 
-### Databricks deployment
+### Databricks scaffold validation
 
 ```bash
+# If your Databricks CLI default profile is already configured:
 databricks bundle validate
-databricks bundle deploy --target dev
+
+# Or choose a specific Databricks CLI profile explicitly:
+DATABRICKS_CONFIG_PROFILE=<profile> databricks bundle validate
 ```
+
+Phase 0/1 validates the bundle scaffold only. The repository does not yet ship
+operational Databricks jobs or pipelines; Phase 2 adds runnable bundle
+resources.
 
 ### Manual workspace import
 
-Upload the `notebooks/` directory to your Databricks workspace and follow
-`00_quickstart_setup.py`.
+Upload the `notebooks/` directory to your Databricks workspace to inspect the
+planned entry points. The current scaffold notebooks fail closed with an
+explicit DS-IP-001 Phase 2 runtime error until implementation lands.
 
 ## Part of a series
 

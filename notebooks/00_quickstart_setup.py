@@ -16,5 +16,9 @@
 # MAGIC - A catalog and schema for DriftSentinel tables
 # MAGIC - Compute cluster with Python 3.11+
 
-# Placeholder — populate during Phase 2 (Databricks MVP Packaging)
-print("DriftSentinel quickstart setup — not yet implemented")
+PHASE_TWO_MESSAGE = (
+    "DriftSentinel scaffold notebook is not operational yet. "
+    "DS-IP-001 Phase 2 (Databricks MVP Packaging) must be implemented before this notebook can run."
+)
+
+raise RuntimeError(PHASE_TWO_MESSAGE)

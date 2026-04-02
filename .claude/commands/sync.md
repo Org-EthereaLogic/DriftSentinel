@@ -1,5 +1,5 @@
 ---
-description: Audit docs, validate, commit & push, and bidirectionally sync with Notion.
+description: Audit docs, validate, commit & push, and sync with Notion using append-only evidence.
 ---
 
 # sync
@@ -28,6 +28,9 @@ scope: $ARGUMENTS
 - Run `make lint` to ensure linting passes
 - Run `make typecheck` to ensure type-checking passes
 - Run `make test` to ensure tests pass
+- Run `databricks bundle validate` when Databricks CLI authentication is
+  configured. If authentication is unavailable, record the blocker explicitly
+  instead of claiming bundle validation passed.
 
 ### Phase 3: Commit & Push
 
@@ -40,6 +43,16 @@ scope: $ARGUMENTS
 ### Phase 4: Notion Sync
 
 Sync project state between the local codebase and the Notion project dashboard.
+
+**Evidence record:**
+
+1. Create a new timestamped record under `report/` before finalizing the sync:
+   `report/YYYY-MM-DDTHH-MM-SS-notion-sync-record.md`
+2. Never rewrite an earlier sync artifact
+3. Classify every external claim as `repo-verified`, `public-page-observed`,
+   or `operator-reported`
+4. If live Notion mutation cannot be verified in the current session, say so
+   explicitly in the new record
 
 **Pre-flight:**
 
@@ -104,6 +117,7 @@ Assignee:         user://1ebd872b-594c-81df-8377-0002fac140f6
 ### Git
 - Commit: {hash} {message}
 - Push: success/failure
+- Sync record: {report path}
 
 ### Notion
 - Project page: updated/unchanged
@@ -112,4 +126,5 @@ Assignee:         user://1ebd872b-594c-81df-8377-0002fac140f6
 - Active tasks pulled: N
 - Current sprint: {sprint name} ({start} — {end})
 - Unmatched Notion tasks: [list or "none"]
+- Evidence classes: repo-verified/public-page-observed/operator-reported
 ```
