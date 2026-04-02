@@ -1,0 +1,124 @@
+"""Benchmark orchestrator -- generates data, runs both tracks, scores, evaluates gates.
+
+Ported from Chapter 3 (measurable-control-effectiveness) as first-party DriftSentinel code.
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Any
+
+from driftsentinel.benchmark.drift_detectors import baseline_drift_check, challenger_drift_check
+from driftsentinel.benchmark.gates import evaluate_gates_from_dicts
+from driftsentinel.benchmark.quality_detectors import baseline_quality_check, challenger_quality_check
+from driftsentinel.benchmark.scoring import score_drift, score_quality
+from driftsentinel.benchmark.synthetic import generate_dataset
+from driftsentinel.evidence.writer import write_benchmark_bundle
+
+_MONITORED_COLUMNS = [
+    "department", "region", "product_category", "status", "priority",
+]
+_EXPECTED_COLUMNS = [
+    "record_id", "customer_id", "department", "region",
+    "product_category", "status", "priority", "amount",
+]
+
+def _gate(name: str, typ: str, op: str, thresh: float, track: str, desc: str) -> dict[str, Any]:
+    return {"name": name, "type": typ, "operator": op, "threshold": thresh, "track": track, "description": desc}
+
+
+_DEFAULT_GATES: list[dict[str, Any]] = [
+    _gate("quality_recall", "FAIL", ">=", 0.70, "quality", "Challenger recall"),
+    _gate("quality_precision", "WARN", ">=", 0.60, "quality", "Challenger precision"),
+    _gate("quality_f1", "WARN", ">=", 0.50, "quality", "Challenger F1"),
+    _gate("quality_fpr", "FAIL", "<=", 0.10, "quality", "Challenger FPR"),
+    _gate("challenger_beats_baseline_quality", "FAIL", ">=", 1.00, "quality", "Challenger >= baseline recall"),
+    _gate("sudden_drift_sensitivity", "FAIL", ">=", 1.00, "drift", "Sudden drift detected"),
+    _gate("gradual_drift_sensitivity", "WARN", ">=", 0.50, "drift", "Gradual drift detected"),
+    _gate("drift_fpr", "FAIL", "<=", 0.00, "drift", "No false positive on stable"),
+    _gate("new_category_sensitivity", "WARN", ">=", 1.00, "drift", "New category detected"),
+    _gate("challenger_beats_baseline_drift", "FAIL", ">=", 1.00, "drift", "Challenger >= baseline drift"),
+]
+
+
+def run_benchmark(
+    seed: int = 42,
+    n_rows: int = 1000,
+    evidence_dir: str | Path | None = None,
+    gate_dicts: list[dict[str, Any]] | None = None,
+    *,
+    run_ts: str | None = None,
+) -> dict[str, Any]:
+    """Run the full dual-track benchmark and return structured results."""
+    dataset = generate_dataset(seed=seed, n_rows=n_rows)
+
+    # --- Quality track ---
+    baseline_q = baseline_quality_check(
+        dataset.faulted_df, dataset.clean_df, _EXPECTED_COLUMNS,
+    )
+    challenger_q = challenger_quality_check(
+        dataset.faulted_df, dataset.clean_df, _EXPECTED_COLUMNS,
+    )
+    baseline_q_score = score_quality(
+        baseline_q["flagged_indices"], dataset.fault_manifest, n_rows,
+    )
+    challenger_q_score = score_quality(
+        challenger_q["flagged_indices"], dataset.fault_manifest, n_rows,
+    )
+
+    # --- Drift track ---
+    bl_sudden = baseline_drift_check(dataset.clean_df, dataset.drifted_sudden_df, _MONITORED_COLUMNS)
+    ch_sudden = challenger_drift_check(dataset.clean_df, dataset.drifted_sudden_df, _MONITORED_COLUMNS)
+    bl_gradual = baseline_drift_check(dataset.clean_df, dataset.drifted_gradual_df, _MONITORED_COLUMNS)
+    ch_gradual = challenger_drift_check(dataset.clean_df, dataset.drifted_gradual_df, _MONITORED_COLUMNS)
+    bl_newcat = baseline_drift_check(dataset.clean_df, dataset.drifted_new_cat_df, _MONITORED_COLUMNS)
+    ch_newcat = challenger_drift_check(dataset.clean_df, dataset.drifted_new_cat_df, _MONITORED_COLUMNS)
+    bl_stable = baseline_drift_check(dataset.clean_df, dataset.stable_df, _MONITORED_COLUMNS)
+    ch_stable = challenger_drift_check(dataset.clean_df, dataset.stable_df, _MONITORED_COLUMNS)
+
+    baseline_d_score = score_drift(bl_sudden, bl_gradual, bl_newcat, bl_stable)
+    challenger_d_score = score_drift(ch_sudden, ch_gradual, ch_newcat, ch_stable)
+
+    # --- Gate evaluation ---
+    gates = gate_dicts or _DEFAULT_GATES
+    q_recall_ratio = challenger_q_score.recall / max(baseline_q_score.recall, 0.001)
+    d_combined_ratio = challenger_d_score.combined_score / max(baseline_d_score.combined_score, 0.001)
+
+    measured = {
+        "quality_recall": challenger_q_score.recall,
+        "quality_precision": challenger_q_score.precision,
+        "quality_f1": challenger_q_score.f1,
+        "quality_fpr": challenger_q_score.fpr,
+        "challenger_beats_baseline_quality": round(q_recall_ratio, 4),
+        "sudden_drift_sensitivity": challenger_d_score.sudden_sensitivity,
+        "gradual_drift_sensitivity": challenger_d_score.gradual_sensitivity,
+        "drift_fpr": challenger_d_score.drift_fpr,
+        "new_category_sensitivity": challenger_d_score.new_category_sensitivity,
+        "challenger_beats_baseline_drift": round(d_combined_ratio, 4),
+    }
+
+    gate_results, overall_verdict = evaluate_gates_from_dicts(gates, measured)
+
+    # --- Evidence bundle ---
+    evidence_path = None
+    if evidence_dir:
+        evidence_path = write_benchmark_bundle(
+            evidence_dir, seed, n_rows,
+            baseline_q_score, challenger_q_score,
+            baseline_d_score, challenger_d_score,
+            gate_results, overall_verdict.value,
+            run_ts=run_ts,
+        )
+
+    return {
+        "seed": seed,
+        "n_rows": n_rows,
+        "baseline_quality": baseline_q_score,
+        "challenger_quality": challenger_q_score,
+        "baseline_drift": baseline_d_score,
+        "challenger_drift": challenger_d_score,
+        "gate_results": gate_results,
+        "overall_verdict": overall_verdict,
+        "measured": measured,
+        "evidence_path": evidence_path,
+    }

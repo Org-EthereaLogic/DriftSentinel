@@ -46,11 +46,11 @@ class GeneratedDataset:
     """Container for a generated dataset with its injection manifest."""
 
     clean_df: pd.DataFrame
-    faulted_df: pd.DataFrame | None = None
-    drifted_sudden_df: pd.DataFrame | None = None
-    drifted_gradual_df: pd.DataFrame | None = None
-    drifted_new_cat_df: pd.DataFrame | None = None
-    stable_df: pd.DataFrame | None = None
+    faulted_df: pd.DataFrame
+    drifted_sudden_df: pd.DataFrame
+    drifted_gradual_df: pd.DataFrame
+    drifted_new_cat_df: pd.DataFrame
+    stable_df: pd.DataFrame
     fault_manifest: dict[str, Any] = field(default_factory=dict)
     drift_manifest: dict[str, Any] = field(default_factory=dict)
 

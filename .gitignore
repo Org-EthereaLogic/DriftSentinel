@@ -39,6 +39,10 @@ logs/
 /agents/
 /trees/
 
+# Implementation session tracking (contains local paths)
+progress.json
+progress.txt
+
 
 #Ignore insiders AI rules
 .github/instructions/codacy.instructions.md
