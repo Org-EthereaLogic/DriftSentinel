@@ -1,7 +1,7 @@
 # Notion Sync Payload — 2026-04-01
 
 **Target page:** `4d85af16161b42ed92071933bc90fb10`
-**Action:** No mutation required
+**Action:** Updated project page and created 3 tasks
 
 ## Dashboard State
 
@@ -15,14 +15,24 @@
 
 ## Repository State at Sync Time
 
-- Branch: `main`, 1 commit (`a5e757a`)
-- Product scaffold created but not yet committed
-- Validation: lint PASS, 92/92 tests PASS, bundle validate FAIL (known interpolation constraint)
-- 9 documentation drift issues identified (see sync report)
+- Branch: `main`, commit `9599bfa` (scaffold committed and pushed)
+- Validation: lint PASS, typecheck PASS, 92/92 scaffold layout tests PASS
+- `databricks bundle validate` not run (requires Databricks CLI with workspace configured)
+- Documentation audit: 45 files audited, 0 drift issues in current commit
 
-## Rationale for No Mutation
+## Mutations Applied
 
-The Notion dashboard accurately reflects the project's current state. No new
-evidence, deployment status, or gate results exist that would warrant an update.
-The scaffold has not been committed yet, so reporting uncommitted state to the
-dashboard would be premature.
+**Project page updated:**
+- Added repository link and scaffold status line
+
+**Tasks created (3):**
+1. Phase 0: Scaffold — complete (Done)
+2. Wire Codacy, Codecov, and Snyk pre-implementation gates (Not Started, due 2026-04-04)
+3. Phase 1: Repository consolidation — copy Chapter 1/2/3 logic (Not Started, due 2026-04-11)
+
+## Open Issues (not resolved by this sync)
+
+- Codacy CI step missing from `.github/workflows/ci.yml` (spec DS-BI-001 requires it)
+- Codacy badge URL in README.md contains literal "placeholder" string
+- `databricks bundle validate` fails without a configured workspace
+- Test suite covers scaffold layout only, not product behavior

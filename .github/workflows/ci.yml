@@ -43,6 +43,15 @@ jobs:
           token: ${{ secrets.CODECOV_PROJECT_TOKEN }}
           files: coverage.xml
 
+  codacy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Codacy Analysis
+        uses: codacy/codacy-analysis-cli-action@master
+        with:
+          project-token: ${{ secrets.CODACY_PROJECT_TOKEN }}
+
   snyk:
     runs-on: ubuntu-latest
     steps:
