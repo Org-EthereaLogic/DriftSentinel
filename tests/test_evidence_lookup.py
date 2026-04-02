@@ -125,6 +125,20 @@ class TestListEvidence:
         dates = [r["generated_at"] for r in valid]
         assert dates == sorted(dates, reverse=True)
 
+    def test_extracts_overall_verdict_when_present(self, tmp_path: Path) -> None:
+        write_evidence(
+            tmp_path,
+            "verdict.json",
+            {"overall_verdict": "PASS"},
+            run_ts=FIXED_TS,
+            dataset_id="ds_a",
+            run_kind="benchmark",
+            run_id="r1",
+        )
+        results = list_evidence(tmp_path)
+        assert len(results) == 1
+        assert results[0]["overall_verdict"] == "PASS"
+
 
 class TestLoadEvidence:
     def test_load_valid(self, tmp_path: Path) -> None:

@@ -184,6 +184,14 @@ class TestAppHelpers:
         assert len(rows) == 1
         assert rows[0][1] == "ds_a"
         assert rows[0][2] == "benchmark"
+        assert rows[0][4] == "🟢 PASS"
+
+    def test_query_evidence_with_malformed_file(self, tmp_path: Path) -> None:
+        from app.app import query_evidence
+
+        (tmp_path / "bad.json").write_text("not json", encoding="utf-8")
+        rows = query_evidence(str(tmp_path), "", "", "", "", "")
+        assert rows == [["bad.json", "", "parse_error", "", "(malformed)", ""]]
 
     def test_load_artifact_detail_missing(self) -> None:
         from app.app import load_artifact_detail
@@ -204,6 +212,37 @@ class TestAppHelpers:
         result = load_artifact_detail(str(tmp_path), "detail.json")
         data = json.loads(result)
         assert data["payload"]["score"] == 0.95
+
+
+class TestAnalyticsHelpers:
+    def test_timeline_data_preserves_event_level_context(self) -> None:
+        from app.analytics import timeline_data
+
+        rows = timeline_data([
+            {
+                "dataset_id": "ds_a",
+                "generated_at": "2026-04-02T22:00:00+00:00",
+                "run_kind": "benchmark",
+                "verdict": "PASS",
+            }
+        ])
+
+        assert rows == [[
+            "2026-04-02T22:00:00+00:00",
+            "benchmark",
+            "ds_a",
+            "PASS",
+        ]]
+
+    def test_build_plotly_timeline_uses_activity_title(self) -> None:
+        from app.analytics import build_plotly_timeline
+
+        fig = build_plotly_timeline([
+            ["2026-04-02T22:00:00+00:00", "benchmark", "ds_a", "PASS"]
+        ])
+
+        assert fig is not None
+        assert fig.layout.title.text == "Run Activity Timeline"
 
 
 # --- DAB resource ---

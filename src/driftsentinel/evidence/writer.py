@@ -33,6 +33,21 @@ def generate_run_id() -> str:
     return str(uuid.uuid4())
 
 
+def _extract_overall_verdict(envelope: dict[str, Any]) -> str:
+    """Best-effort extraction of an overall verdict from an evidence envelope."""
+    payload = envelope.get("payload", {})
+    if not isinstance(payload, dict):
+        return ""
+    if "overall_verdict" in payload:
+        return str(payload["overall_verdict"])
+
+    for section in ("drift", "benchmark"):
+        nested = payload.get(section)
+        if isinstance(nested, dict) and "overall_verdict" in nested:
+            return str(nested["overall_verdict"])
+    return ""
+
+
 def write_evidence(
     output_dir: str | Path,
     filename: str,
@@ -281,6 +296,7 @@ def list_evidence(
             "generated_at": generated_at,
             "dataset_id": meta.get("dataset_id"),
             "contract_version": meta.get("contract_version"),
+            "overall_verdict": _extract_overall_verdict(data).strip().upper(),
             "policy_version": meta.get("policy_version"),
             "run_id": meta.get("run_id"),
             "run_kind": meta.get("run_kind"),

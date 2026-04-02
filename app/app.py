@@ -32,6 +32,7 @@ _TRUST_TEAL = "#22C7A0"
 _DRIFT_AMBER = "#F59E0B"
 _ALERT_CORAL = "#F97316"
 _GATE_SLATE = "#8AA3B6"
+_VERDICT_CIRCLES = {"PASS": "🟢 PASS", "FAIL": "🔴 FAIL", "WARN": "🟡 WARN"}
 
 _ASSETS = Path(__file__).parent.parent / "assets" / "driftsentinel-brand-system"
 _LOGO_PATH = _ASSETS / "variants" / "logo-dark.png"
@@ -143,17 +144,6 @@ def _registry_status_text(rows: list[list[str]]) -> str:
     count = len(rows)
     return f"**{count} dataset{'s' if count != 1 else ''} registered**"
 
-def _extract_verdict(artifact: dict[str, Any]) -> str:
-    """Best-effort extraction of an overall verdict from an evidence payload."""
-    payload = artifact.get("payload", {})
-    if "overall_verdict" in payload:
-        return str(payload["overall_verdict"])
-    if "drift" in payload and isinstance(payload["drift"], dict):
-        return payload["drift"].get("overall_verdict", "")
-    if "benchmark" in payload and isinstance(payload["benchmark"], dict):
-        return payload["benchmark"].get("overall_verdict", "")
-    return ""
-
 def query_evidence(
     evidence_dir: str,
     dataset_id: str,
@@ -177,16 +167,10 @@ def query_evidence(
     rows: list[list[str]] = []
     for r in results:
         if r.get("parse_error"):
-            rows.append([Path(r["file"]).name, "(malformed)", "", "", "", r["file"]])
+            rows.append([Path(r["file"]).name, "", "parse_error", "", "(malformed)", ""])
             continue
-        verdict = ""
-        try:
-            data = load_evidence(r["file"])
-            verdict = _extract_verdict(data)
-        except (FileNotFoundError, ValueError):
-            pass
-        _VERDICT_CIRCLES = {"PASS": "🟢 PASS", "FAIL": "🔴 FAIL", "WARN": "🟡 WARN"}
-        verdict = _VERDICT_CIRCLES.get(verdict.strip().upper(), verdict)
+        raw_verdict = str(r.get("overall_verdict", "") or "").strip().upper()
+        verdict = _VERDICT_CIRCLES.get(raw_verdict, raw_verdict)
         rows.append([
             Path(r["file"]).name,
             r.get("dataset_id", "") or "",
@@ -283,11 +267,9 @@ _DS_CSS = """
 """
 
 def build_app():  # type: ignore[no-untyped-def]
-    """Construct the Gradio Blocks app with three tabs."""
+    """Construct the Gradio Blocks app with four tabs."""
     import gradio as gr
-    import pandas as pd
     globals()["gr"] = gr
-    globals()["pd"] = pd
 
     blocks_kwargs: dict[str, Any] = {
         "title": "DriftSentinel",
@@ -423,31 +405,32 @@ def build_app():  # type: ignore[no-untyped-def]
                 exp_btn.click(fn=_load_with_meta, inputs=[exp_dir, exp_file],
                               outputs=[exp_json, exp_meta])
 
-                def _on_status_select(evt: "gr.SelectData", current_data: "pd.DataFrame"):
-                    # We use a string type hint "gr.SelectData" here because of standard typing evaluation
-                    # But the globals()["gr"] trick ensures it evaluates without Error.
-                    row_idx = evt.index[0]
-                    if hasattr(current_data, 'iloc'):
-                        filename = current_data.iloc[row_idx, 0]
-                    else:
-                        filename = current_data[row_idx][0]
-                    detail, meta = _load_with_meta(EVIDENCE_DIR, filename) # Fetch using env dir
-                    return filename, detail, meta, gr.Tabs(selected="evidence_explorer")
+                def _sync_evidence_dir(current_dir: str) -> str:
+                    return current_dir
+
+                ev_dir.change(fn=_sync_evidence_dir, inputs=[ev_dir], outputs=[exp_dir])
+
+                def _on_status_select(current_dir: str, evt: "gr.SelectData"):
+                    filename = ""
+                    if isinstance(evt.row_value, list) and evt.row_value:
+                        filename = str(evt.row_value[0])
+                    detail, meta = _load_with_meta(current_dir, filename)
+                    return current_dir, filename, detail, meta, gr.Tabs(selected="evidence_explorer")
 
                 status_table.select(
                     fn=_on_status_select,
-                    inputs=[status_table],
-                    outputs=[exp_file, exp_json, exp_meta, tabs]
+                    inputs=[ev_dir],
+                    outputs=[exp_dir, exp_file, exp_json, exp_meta, tabs]
                 )
 
             # ---- Analytics ----
             with gr.Tab("Analytics", id="analytics"):
-                import pandas as pd
-
                 try:
                     from app.analytics import (
                         build_analytics_data,
+                        build_plotly_bar,
                         build_plotly_pie,
+                        build_plotly_timeline,
                         kind_pie_data,
                         timeline_data,
                         verdict_bar_data,
@@ -455,7 +438,9 @@ def build_app():  # type: ignore[no-untyped-def]
                 except (ImportError, ModuleNotFoundError):
                     from analytics import (  # type: ignore[no-redef]
                         build_analytics_data,
+                        build_plotly_bar,
                         build_plotly_pie,
+                        build_plotly_timeline,
                         kind_pie_data,
                         timeline_data,
                         verdict_bar_data,
@@ -475,32 +460,22 @@ def build_app():  # type: ignore[no-untyped-def]
                 )
 
                 with gr.Row():
-                    verdict_plot = gr.BarPlot(
-                        x="Verdict", y="Count", title="Verdict Distribution",
-                        color="Verdict",
-                        color_map={"PASS": _TRUST_TEAL, "FAIL": _ALERT_CORAL, "WARN": _DRIFT_AMBER},
-                        height=320,
-                    )
+                    verdict_plot = gr.Plot(label="Verdict Distribution")
                     kind_plot = gr.Plot(label="Runs by Kind")
-                timeline_plot = gr.LinePlot(
-                    x="Date", y="Runs", title="Run Timeline",
-                    height=280,
-                )
+                timeline_plot = gr.Plot(label="Run Activity Timeline")
 
                 def _refresh_analytics(edir: str):  # type: ignore[no-untyped-def]
                     records = build_analytics_data(edir.strip() or EVIDENCE_DIR)
                     if not records:
-                        empty = pd.DataFrame({"Verdict": [], "Count": []})
-                        empty_t = pd.DataFrame({"Date": [], "Runs": []})
-                        return empty, None, empty_t, "No evidence artifacts found."
+                        return None, None, None, "No evidence artifacts found."
                     vrows = verdict_bar_data(records)
-                    v_df = pd.DataFrame(vrows, columns=["Verdict", "Count"])
+                    verdict_fig = build_plotly_bar(vrows)
                     krows = kind_pie_data(records)
                     pie_fig = build_plotly_pie(krows)
                     trows = timeline_data(records)
-                    t_df = pd.DataFrame(trows, columns=["Date", "Runs"])
+                    timeline_fig = build_plotly_timeline(trows)
                     total = len(records)
-                    return v_df, pie_fig, t_df, f"**{total} artifacts** analyzed"
+                    return verdict_fig, pie_fig, timeline_fig, f"**{total} artifacts** analyzed"
 
             ana_btn.click(
                 fn=_refresh_analytics, inputs=[ana_dir],
