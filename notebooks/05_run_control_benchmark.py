@@ -91,8 +91,25 @@ result = run_benchmark(
 # COMMAND ----------
 
 print("Measured metrics:")
-for name, value in result["measured"].items():
-    print(f"  {name}: {value}")
+metric_rows = [
+    {"metric": "quality_recall", "value": float(result["measured"]["quality_recall"])},
+    {"metric": "quality_precision", "value": float(result["measured"]["quality_precision"])},
+    {"metric": "quality_f1", "value": float(result["measured"]["quality_f1"])},
+    {"metric": "quality_fpr", "value": float(result["measured"]["quality_fpr"])},
+    {
+        "metric": "challenger_beats_baseline_quality",
+        "value": float(result["measured"]["challenger_beats_baseline_quality"]),
+    },
+    {"metric": "sudden_drift_sensitivity", "value": float(result["measured"]["sudden_drift_sensitivity"])},
+    {"metric": "gradual_drift_sensitivity", "value": float(result["measured"]["gradual_drift_sensitivity"])},
+    {"metric": "drift_fpr", "value": float(result["measured"]["drift_fpr"])},
+    {"metric": "new_category_sensitivity", "value": float(result["measured"]["new_category_sensitivity"])},
+    {
+        "metric": "challenger_beats_baseline_drift",
+        "value": float(result["measured"]["challenger_beats_baseline_drift"]),
+    },
+]
+display(metric_rows)
 
 # COMMAND ----------
 
@@ -113,4 +130,7 @@ for gr in result["gate_results"]:
 # COMMAND ----------
 
 print(f"Overall verdict: {result['overall_verdict'].value}")
-print(f"Evidence path: {result['evidence_path']}")
+if result["evidence_path"] is None:
+    print("Evidence artifact was not written.")
+else:
+    print("Evidence artifact written to the configured evidence directory.")

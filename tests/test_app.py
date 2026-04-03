@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import ast
 import json
+import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -115,8 +116,11 @@ class TestAppImportHygiene:
         allowed = {
             "DatasetRegistry",
             "RegistryError",
+            "PathSecurityError",
             "list_evidence",
             "load_evidence",
+            "resolve_trusted_child",
+            "resolve_trusted_file",
         }
         for imp in ds_imports:
             assert imp in allowed, f"Unexpected driftsentinel import: {imp}"
@@ -137,10 +141,10 @@ class TestAppHelpers:
 
         assert len(load_dependencies) == 1
 
-    def test_load_registry_table_missing_file(self) -> None:
+    def test_load_registry_table_missing_file(self, tmp_path: Path) -> None:
         from app.app import load_registry_table
 
-        rows = load_registry_table("/nonexistent/path.json")
+        rows = load_registry_table(str(tmp_path / "missing.json"))
         assert len(rows) == 1
         assert "no registry" in rows[0][0]
 
@@ -171,12 +175,32 @@ class TestAppHelpers:
         assert rows[0][1] == "1.0.0"
         assert rows[0][2] == "cat"
 
+    def test_load_registry_table_rejects_untrusted_path(self) -> None:
+        from app.app import load_registry_table
+
+        with tempfile.TemporaryDirectory(dir=ROOT.parent) as temp_dir:
+            reg_path = Path(temp_dir) / "registry.json"
+            reg_path.write_text('{"registry": []}', encoding="utf-8")
+            rows = load_registry_table(str(reg_path))
+
+        assert rows[0][0].startswith("(error:")
+        assert "trusted roots" in rows[0][0]
+
     def test_query_evidence_empty_dir(self, tmp_path: Path) -> None:
         from app.app import query_evidence
 
         rows = query_evidence(str(tmp_path), "", "", "", "", "")
         assert len(rows) == 1
         assert "no artifacts" in rows[0][0]
+
+    def test_query_evidence_rejects_untrusted_dir(self) -> None:
+        from app.app import query_evidence
+
+        with tempfile.TemporaryDirectory(dir=ROOT.parent) as temp_dir:
+            rows = query_evidence(temp_dir, "", "", "", "", "")
+
+        assert rows[0][0].startswith("(error:")
+        assert "trusted roots" in rows[0][0]
 
     def test_query_evidence_with_data(self, tmp_path: Path) -> None:
         from app.app import query_evidence
@@ -223,6 +247,19 @@ class TestAppHelpers:
         result = load_artifact_detail(str(tmp_path), "detail.json")
         data = json.loads(result)
         assert data["payload"]["score"] == 0.95
+
+    def test_load_artifact_detail_rejects_absolute_filename(self, tmp_path: Path) -> None:
+        from app.app import load_artifact_detail
+        from driftsentinel.evidence.writer import write_evidence
+
+        artifact = write_evidence(
+            tmp_path,
+            "detail.json",
+            {"score": 0.95},
+            run_ts="2026-04-02T00:00:00+00:00",
+        )
+        result = load_artifact_detail(str(tmp_path), str(artifact))
+        assert "bare filename" in result
 
 
 class TestAnalyticsHelpers:
@@ -288,3 +325,4 @@ class TestAppBundleResource:
         env = {item["name"]: item["value"] for item in app_def["config"]["env"]}
         assert env["REGISTRY_PATH"] == "/tmp/driftsentinel_registry.json"
         assert env["EVIDENCE_DIR"] == "/tmp/driftsentinel_evidence"
+        assert env["DRIFTSENTINEL_ALLOWED_PATH_ROOTS"] == ""

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -16,6 +17,7 @@ from driftsentinel.config.loader import (
     load_dataset_contract,
     load_drift_policy,
 )
+from driftsentinel.paths import PathSecurityError
 
 ROOT = Path(__file__).resolve().parent.parent
 TEMPLATES = ROOT / "templates"
@@ -181,6 +183,20 @@ class TestRegistrySerialization:
         bad.write_text('["not a registry"]')
         with pytest.raises(RegistryError, match="Invalid registry"):
             DatasetRegistry.load(bad)
+
+    def test_load_untrusted_path_rejected(self) -> None:
+        with tempfile.TemporaryDirectory(dir=ROOT.parent) as temp_dir:
+            bad = Path(temp_dir) / "registry.json"
+            bad.write_text('{"registry": []}', encoding="utf-8")
+            with pytest.raises(PathSecurityError, match="trusted roots"):
+                DatasetRegistry.load(bad)
+
+    def test_save_untrusted_path_rejected(self) -> None:
+        reg = DatasetRegistry()
+        reg.register(_make_contract("ds_a", "1.0.0"))
+        with tempfile.TemporaryDirectory(dir=ROOT.parent) as temp_dir:
+            with pytest.raises(PathSecurityError, match="trusted roots"):
+                reg.save(Path(temp_dir) / "registry.json")
 
 
 # --- Policy Compatibility ---

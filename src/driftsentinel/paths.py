@@ -23,7 +23,12 @@ class PathSecurityError(ValueError):
 
 def _normalized_path(value: str | Path) -> str:
     """Return a normalized absolute path string."""
-    return os.path.realpath(os.fspath(Path(value).expanduser()))
+    return os.path.abspath(os.path.normpath(os.path.expanduser(os.fspath(value))))
+
+
+def _resolved_root(value: str | Path) -> str:
+    """Return a symlink-resolved root path for trusted aliases."""
+    return os.path.realpath(os.path.expanduser(os.fspath(value)))
 
 
 def _has_path_prefix(path: str, root: str) -> bool:
@@ -70,9 +75,10 @@ def trusted_roots(extra_roots: Iterable[str | Path] = ()) -> tuple[str, ...]:
 
     roots: list[str] = []
     for candidate in candidates:
-        normalized = _normalized_path(candidate)
-        if normalized not in roots:
-            roots.append(normalized)
+        aliases = (_normalized_path(candidate), _resolved_root(candidate))
+        for normalized in aliases:
+            if normalized not in roots:
+                roots.append(normalized)
     return tuple(roots)
 
 
@@ -164,7 +170,7 @@ def resolve_trusted_child(
     """Join a sanitized child filename to a trusted root directory."""
     root = resolve_trusted_dir(root_dir, context=f"{context} directory", extra_roots=extra_roots)
     name = validate_simple_filename(child_name, context=context, allowed_suffixes=allowed_suffixes)
-    child = Path(os.path.realpath(os.path.join(os.fspath(root), name)))
+    child = Path(_normalized_path(os.path.join(os.fspath(root), name)))
     if not _has_path_prefix(os.fspath(child), os.fspath(root)):
         raise PathSecurityError(f"{context} escapes trusted directory: {child_name}")
     return child

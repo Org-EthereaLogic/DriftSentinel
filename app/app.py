@@ -204,13 +204,12 @@ def _resolve_artifact_path(evidence_dir: str, filename: str) -> Path | None:
     fname = filename.strip()
     if not fname:
         return None
-    path = resolve_trusted_child(
+    return resolve_trusted_child(
         evidence_dir.strip() or EVIDENCE_DIR,
         fname,
         context="Evidence artifact",
         allowed_suffixes=(".json",),
     )
-    return path if path.is_file() else None
 
 
 def load_artifact_detail(evidence_dir: str, filename: str) -> str:
@@ -226,7 +225,9 @@ def load_artifact_detail(evidence_dir: str, filename: str) -> str:
     try:
         data = load_evidence(path)
         return json.dumps(data, indent=2, default=str)
-    except (FileNotFoundError, ValueError) as exc:
+    except FileNotFoundError:
+        return f"(file not found: {filename})"
+    except ValueError as exc:
         return f"(error: {exc})"
 
 def load_artifact_meta(evidence_dir: str, filename: str) -> str:
@@ -250,7 +251,9 @@ def load_artifact_meta(evidence_dir: str, filename: str) -> str:
             f"**Generated:** {meta['generated_at'] or '—'}  "
             f"**Verdict:** {verdict}"
         )
-    except (FileNotFoundError, ValueError) as exc:
+    except FileNotFoundError:
+        return f"_File not found: `{filename}`_"
+    except ValueError as exc:
         return f"_Error reading artifact: {exc}_"
 
 def _build_theme():  # type: ignore[no-untyped-def]

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -13,7 +14,9 @@ from driftsentinel.evidence.writer import (
     load_evidence,
     write_evidence,
 )
+from driftsentinel.paths import PathSecurityError
 
+ROOT = Path(__file__).resolve().parent.parent
 FIXED_TS = "2026-04-02T00:00:00+00:00"
 
 
@@ -119,6 +122,11 @@ class TestListEvidence:
         results = list_evidence(tmp_path / "nonexistent")
         assert results == []
 
+    def test_untrusted_directory_rejected(self) -> None:
+        with tempfile.TemporaryDirectory(dir=ROOT.parent) as temp_dir:
+            with pytest.raises(PathSecurityError, match="trusted roots"):
+                list_evidence(temp_dir)
+
     def test_malformed_file_skipped(self, tmp_path: Path) -> None:
         (tmp_path / "bad.json").write_text("not json{{{")
         self._write_artifacts(tmp_path)
@@ -165,3 +173,10 @@ class TestLoadEvidence:
         bad.write_text("not json")
         with pytest.raises(ValueError, match="Malformed"):
             load_evidence(bad)
+
+    def test_load_untrusted_path_raises(self) -> None:
+        with tempfile.TemporaryDirectory(dir=ROOT.parent) as temp_dir:
+            artifact = Path(temp_dir) / "outside.json"
+            artifact.write_text('{"meta": {}, "payload": {}}', encoding="utf-8")
+            with pytest.raises(PathSecurityError, match="trusted roots"):
+                load_evidence(artifact)

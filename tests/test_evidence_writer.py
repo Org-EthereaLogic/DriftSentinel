@@ -5,11 +5,14 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from driftsentinel.evidence.writer import (
     build_provenance_envelope,
     write_benchmark_bundle,
     write_evidence,
 )
+from driftsentinel.paths import PathSecurityError
 
 FIXED_TS = "2026-04-02T00:00:00+00:00"
 
@@ -46,6 +49,11 @@ def test_write_evidence_deterministic_ts(tmp_path: Path) -> None:
     path = write_evidence(tmp_path, "ts.json", {}, run_ts=FIXED_TS)
     data = json.loads(path.read_text())
     assert data["meta"]["generated_at"] == FIXED_TS
+
+
+def test_write_evidence_rejects_nested_filename(tmp_path: Path) -> None:
+    with pytest.raises(PathSecurityError, match="bare filename"):
+        write_evidence(tmp_path, "../escape.json", {"x": 1}, run_ts=FIXED_TS)
 
 
 def test_build_provenance_envelope() -> None:
