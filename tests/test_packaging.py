@@ -6,6 +6,7 @@ definitions, and the benchmark policy normalizes into gate dicts.
 
 from __future__ import annotations
 
+import re
 import subprocess
 import tomllib
 import zipfile
@@ -24,7 +25,13 @@ BUNDLE_CONFIG = ROOT / "databricks.yml"
 MAKEFILE = ROOT / "Makefile"
 COMMANDS_DIR = ROOT / ".claude" / "commands"
 CI_WORKFLOW = ROOT / ".github" / "workflows" / "ci.yml"
+PUBLISH_WORKFLOW = ROOT / ".github" / "workflows" / "publish.yml"
+WORKFLOWS_DIR = ROOT / ".github" / "workflows"
 CODACY_CONFIG = ROOT / ".codacy.yml"
+WORKFLOW_USES_PATTERN = re.compile(
+    r"^\s*-\s+uses:\s+(?P<action>\S+?)@(?P<ref>[^\s#]+)",
+    re.MULTILINE,
+)
 
 NOTEBOOK_FILES = [
     "00_quickstart_setup.py",
@@ -246,9 +253,26 @@ def _load_codacy_config() -> dict[str, Any]:
     return data
 
 
+def _load_publish_workflow() -> dict[str, Any]:
+    with open(PUBLISH_WORKFLOW, encoding="utf-8") as f:
+        data = yaml.safe_load(f)
+    assert isinstance(data, dict)
+    return data
+
+
 def test_ci_workflow_pins_current_setup_uv_and_codecov_actions() -> None:
     data = _load_ci_workflow()
     lint_steps = data["jobs"]["lint-and-test"]["steps"]
+    checkout_step = lint_steps[0]
+    assert checkout_step["uses"] == "actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5"
+
+    setup_python_step = next(
+        step for step in lint_steps if step.get("name", "").startswith("Set up Python")
+    )
+    assert setup_python_step["uses"] == (
+        "actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065"
+    )
+
     setup_uv_step = next(step for step in lint_steps if step.get("name") == "Install uv")
     assert setup_uv_step["uses"] == "astral-sh/setup-uv@8d55fbecc275b1c35dbe060458839f8d30439ccf"
 
@@ -274,8 +298,49 @@ def test_ci_workflow_uses_default_codacy_analysis_mode() -> None:
 def test_ci_workflow_pins_current_snyk_action() -> None:
     data = _load_ci_workflow()
     snyk_steps = data["jobs"]["snyk"]["steps"]
+    checkout_step = snyk_steps[0]
+    assert checkout_step["uses"] == "actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5"
+
     snyk_step = next(step for step in snyk_steps if step.get("name") == "Run Snyk")
     assert snyk_step["uses"] == "snyk/actions/python@9adf32b1121593767fc3c057af55b55db032dc04"
+
+
+def test_publish_workflow_pins_current_release_actions() -> None:
+    data = _load_publish_workflow()
+    publish_steps = data["jobs"]["publish"]["steps"]
+    checkout_step = publish_steps[0]
+    assert checkout_step["uses"] == "actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5"
+
+    setup_python_step = next(step for step in publish_steps if step.get("name") == "Set up Python 3.11")
+    assert setup_python_step["uses"] == (
+        "actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065"
+    )
+
+    setup_uv_step = next(step for step in publish_steps if step.get("name") == "Install uv")
+    assert setup_uv_step["uses"] == "astral-sh/setup-uv@8d55fbecc275b1c35dbe060458839f8d30439ccf"
+
+    publish_step = next(step for step in publish_steps if step.get("name") == "Publish to PyPI")
+    assert publish_step["uses"] == (
+        "pypa/gh-action-pypi-publish@ed0c53931b1dc9bd32cbe73a98c7f6766f8a527e"
+    )
+
+
+def test_all_workflow_actions_are_pinned_to_immutable_commits() -> None:
+    violations: list[str] = []
+    for workflow_path in sorted(WORKFLOWS_DIR.glob("*.yml")):
+        raw = workflow_path.read_text(encoding="utf-8")
+        for match in WORKFLOW_USES_PATTERN.finditer(raw):
+            action = match.group("action")
+            ref = match.group("ref")
+            if action.startswith("./"):
+                continue
+            if not re.fullmatch(r"[0-9a-f]{40}", ref):
+                violations.append(f"{workflow_path.relative_to(ROOT)}: {action}@{ref}")
+
+    assert not violations, (
+        "GitHub Actions workflows must pin every external action to a full commit SHA:\n"
+        + "\n".join(violations)
+    )
 
 
 def test_build_instructions_document_current_quality_control_modes() -> None:
