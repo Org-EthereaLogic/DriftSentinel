@@ -615,7 +615,7 @@ wheels = [
 ]
 
 [[package]]
-name = "driftsentinel"
+name = "etherealogic-driftsentinel"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
