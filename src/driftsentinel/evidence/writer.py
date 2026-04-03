@@ -18,6 +18,13 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
+from driftsentinel.paths import (
+    resolve_trusted_child,
+    resolve_trusted_dir,
+    resolve_trusted_file,
+    validate_simple_filename,
+)
+
 # ---------------------------------------------------------------------------
 # In-memory metadata cache for evidence lookups
 # ---------------------------------------------------------------------------
@@ -113,7 +120,7 @@ def write_evidence(
     Returns:
         The path to the written file.
     """
-    out = Path(output_dir)
+    out = resolve_trusted_dir(output_dir, context="Evidence output directory")
     out.mkdir(parents=True, exist_ok=True)
 
     ts = run_ts or datetime.now(timezone.utc).isoformat()
@@ -138,13 +145,28 @@ def write_evidence(
         "payload": _serialize(payload),
     }
 
-    target = out / filename
+    filename = validate_simple_filename(
+        filename,
+        context="Evidence artifact",
+        allowed_suffixes=(".json",),
+    )
+    target = resolve_trusted_child(
+        out,
+        filename,
+        context="Evidence artifact",
+        allowed_suffixes=(".json",),
+    )
     if target.exists():
         stem = target.stem
         suffix = target.suffix
         counter = 1
         while target.exists():
-            target = out / f"{stem}_{counter}{suffix}"
+            target = resolve_trusted_child(
+                out,
+                f"{stem}_{counter}{suffix}",
+                context="Evidence artifact",
+                allowed_suffixes=(".json",),
+            )
             counter += 1
 
     with open(target, "w", encoding="utf-8") as f:
@@ -326,7 +348,7 @@ def list_evidence(
     Returns:
         A list of summary dicts sorted by generated_at descending.
     """
-    d = Path(evidence_dir)
+    d = resolve_trusted_dir(evidence_dir, context="Evidence directory")
     if not d.is_dir():
         return []
 
@@ -382,7 +404,11 @@ def load_evidence(path: str | Path) -> dict[str, Any]:
     Raises FileNotFoundError if the file does not exist.
     Raises ValueError if the file is not valid JSON.
     """
-    p = Path(path)
+    p = resolve_trusted_file(
+        path,
+        context="Evidence artifact",
+        allowed_suffixes=(".json",),
+    )
     if not p.is_file():
         raise FileNotFoundError(f"Evidence file not found: {p}")
     try:

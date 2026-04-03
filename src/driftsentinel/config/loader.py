@@ -18,6 +18,8 @@ from typing import Any
 
 import yaml
 
+from driftsentinel.paths import resolve_trusted_file
+
 
 class ConfigError(Exception):
     """Raised when a configuration file is missing required fields."""
@@ -73,7 +75,11 @@ def load_dataset_contract(path: str | Path) -> dict[str, Any]:
     Required top-level keys: dataset, contract.
     Required contract keys: required_columns, business_key, batch_identifier.
     """
-    p = Path(path)
+    p = resolve_trusted_file(
+        path,
+        context="Dataset contract",
+        allowed_suffixes=(".yml", ".yaml"),
+    )
     data = _load_yaml(p)
     return _validate_dataset_contract(data, f"dataset contract ({p.name})")
 
@@ -101,7 +107,11 @@ def load_drift_policy(path: str | Path) -> dict[str, Any]:
     Required top-level key: drift_policy.
     Required drift_policy keys: name, dataset, monitored_columns, gates.
     """
-    p = Path(path)
+    p = resolve_trusted_file(
+        path,
+        context="Drift policy",
+        allowed_suffixes=(".yml", ".yaml"),
+    )
     data = _load_yaml(p)
     return _validate_drift_policy(data, f"drift policy ({p.name})")
 
@@ -129,7 +139,11 @@ def load_benchmark_policy(path: str | Path) -> dict[str, Any]:
     Required top-level key: benchmark_policy.
     Required benchmark_policy keys: name, dataset, seed, gates.
     """
-    p = Path(path)
+    p = resolve_trusted_file(
+        path,
+        context="Benchmark policy",
+        allowed_suffixes=(".yml", ".yaml"),
+    )
     data = _load_yaml(p)
     return _validate_benchmark_policy(data, f"benchmark policy ({p.name})")
 
@@ -291,7 +305,11 @@ class DatasetRegistry:
 
     def save(self, path: str | Path) -> Path:
         """Serialize the registry to a JSON file."""
-        p = Path(path)
+        p = resolve_trusted_file(
+            path,
+            context="Registry file",
+            allowed_suffixes=(".json",),
+        )
         p.parent.mkdir(parents=True, exist_ok=True)
         data = {
             "registry": [
@@ -310,7 +328,11 @@ class DatasetRegistry:
     @classmethod
     def load(cls, path: str | Path) -> DatasetRegistry:
         """Deserialize a registry from a JSON file."""
-        p = Path(path)
+        p = resolve_trusted_file(
+            path,
+            context="Registry file",
+            allowed_suffixes=(".json",),
+        )
         if not p.is_file():
             raise RegistryError(f"Registry file not found: {p}")
         with open(p, encoding="utf-8") as f:

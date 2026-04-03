@@ -16,5 +16,8 @@ Bundle-backed app deployments use the repository root as the source path so the
 local `driftsentinel` package is installed from this repo, not from an external
 package index. The `app/requirements.txt` file remains the local development
 entry point for running the app directly from this directory.
+File inputs are constrained to trusted roots: the repository checkout, temp
+directories, the configured `REGISTRY_PATH` and `EVIDENCE_DIR`, plus any
+operator-supplied roots in `DRIFTSENTINEL_ALLOWED_PATH_ROOTS`.
 
 Key file: `app.py`.

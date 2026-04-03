@@ -7,3 +7,5 @@ env:
     value: /tmp/driftsentinel_registry.json
   - name: EVIDENCE_DIR
     value: /tmp/driftsentinel_evidence
+  - name: DRIFTSENTINEL_ALLOWED_PATH_ROOTS
+    value: ""

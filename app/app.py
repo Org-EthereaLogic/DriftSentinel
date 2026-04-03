@@ -25,6 +25,7 @@ except ImportError:  # allow test imports without gradio installed
 
 from driftsentinel.config.loader import DatasetRegistry, RegistryError
 from driftsentinel.evidence.writer import list_evidence, load_evidence
+from driftsentinel.paths import PathSecurityError, resolve_trusted_child, resolve_trusted_file
 
 REGISTRY_PATH = os.environ.get("REGISTRY_PATH", "/tmp/driftsentinel_registry.json")
 EVIDENCE_DIR = os.environ.get("EVIDENCE_DIR", "/tmp/driftsentinel_evidence")
@@ -118,11 +119,16 @@ def _extract_artifact_meta(data: dict[str, Any]) -> dict[str, str]:
 def load_registry_table(registry_path: str) -> list[list[str]]:
     """Load the registry and return rows for the Gradio table."""
     path = registry_path.strip() or REGISTRY_PATH
-    if not Path(path).is_file():
-        return [["(no registry file found)", "", "", "", ""]]
     try:
-        reg = DatasetRegistry.load(path)
-    except RegistryError as exc:
+        registry_file = resolve_trusted_file(
+            path,
+            context="Registry file",
+            allowed_suffixes=(".json",),
+        )
+        if not registry_file.is_file():
+            return [["(no registry file found)", "", "", "", ""]]
+        reg = DatasetRegistry.load(registry_file)
+    except (PathSecurityError, RegistryError) as exc:
         return [[f"(error: {exc})", "", "", "", ""]]
     datasets = reg.list_datasets()
     if not datasets:
@@ -163,14 +169,17 @@ def query_evidence(
 ) -> list[list[str]]:
     """Query evidence and return rows for the summary table."""
     edir = evidence_dir.strip() or EVIDENCE_DIR
-    results = list_evidence(
-        edir,
-        dataset_id=dataset_id.strip() or None,
-        run_kind=run_kind.strip() or None,
-        run_id=run_id.strip() or None,
-        date_from=date_from.strip() or None,
-        date_to=date_to.strip() or None,
-    )
+    try:
+        results = list_evidence(
+            edir,
+            dataset_id=dataset_id.strip() or None,
+            run_kind=run_kind.strip() or None,
+            run_id=run_id.strip() or None,
+            date_from=date_from.strip() or None,
+            date_to=date_to.strip() or None,
+        )
+    except PathSecurityError as exc:
+        return [[f"(error: {exc})", "", "", "", "", ""]]
     if not results:
         return [["(no artifacts found)", "", "", "", "", ""]]
     rows: list[list[str]] = []
@@ -195,10 +204,12 @@ def _resolve_artifact_path(evidence_dir: str, filename: str) -> Path | None:
     fname = filename.strip()
     if not fname:
         return None
-    path = Path((evidence_dir.strip() or EVIDENCE_DIR)) / fname
-    if path.is_file():
-        return path
-    path = Path(fname)
+    path = resolve_trusted_child(
+        evidence_dir.strip() or EVIDENCE_DIR,
+        fname,
+        context="Evidence artifact",
+        allowed_suffixes=(".json",),
+    )
     return path if path.is_file() else None
 
 
@@ -206,7 +217,10 @@ def load_artifact_detail(evidence_dir: str, filename: str) -> str:
     """Load and return the full JSON of an evidence artifact."""
     if not filename.strip():
         return "(select an artifact filename)"
-    path = _resolve_artifact_path(evidence_dir, filename)
+    try:
+        path = _resolve_artifact_path(evidence_dir, filename)
+    except ValueError as exc:
+        return f"(error: {exc})"
     if path is None:
         return f"(file not found: {filename})"
     try:
@@ -219,7 +233,10 @@ def load_artifact_meta(evidence_dir: str, filename: str) -> str:
     """Return a Markdown one-line metadata summary for an evidence artifact."""
     if not filename.strip():
         return "_Enter an artifact filename above and click Load Artifact._"
-    path = _resolve_artifact_path(evidence_dir, filename)
+    try:
+        path = _resolve_artifact_path(evidence_dir, filename)
+    except ValueError as exc:
+        return f"_Error reading artifact: {exc}_"
     if path is None:
         return f"_File not found: `{filename}`_"
     try:
@@ -377,7 +394,13 @@ def build_app():  # type: ignore[no-untyped-def]
                 ) -> tuple[list[list[str]], str]:
                     rows = query_evidence(ed, ds, rk, ri, df, dt)
                     is_empty = len(rows) == 1 and "no artifacts" in rows[0][0]
-                    if is_empty:
+                    is_error = len(rows) == 1 and rows[0][0].startswith("(error:")
+                    if is_error:
+                        summary = (
+                            "Evidence query blocked. Confirm the path stays inside the trusted "
+                            "roots or configure `DRIFTSENTINEL_ALLOWED_PATH_ROOTS`."
+                        )
+                    elif is_empty:
                         summary = (
                             "No artifacts found matching the current filters. "
                             "Confirm the evidence directory path is correct and that "
@@ -491,7 +514,10 @@ def build_app():  # type: ignore[no-untyped-def]
                     health_plot = gr.Plot(label="Daily Health Trend")
 
                 def _refresh_analytics(edir: str, theme: str):  # type: ignore[no-untyped-def]
-                    records = build_analytics_data(edir.strip() or EVIDENCE_DIR)
+                    try:
+                        records = build_analytics_data(edir.strip() or EVIDENCE_DIR)
+                    except PathSecurityError as exc:
+                        return None, None, None, None, f"Analytics refresh blocked: {exc}"
                     if not records:
                         return None, None, None, None, "No evidence artifacts found."
                     vrows = verdict_bar_data(records)
