@@ -39,6 +39,7 @@ def test_root_governance_file_exists(filename: str) -> None:
 
 @pytest.mark.parametrize("path", [
     ".github/workflows/ci.yml",
+    ".codacy.yml",
     ".codacy/README.md",
 ])
 def test_quality_control_file_exists(path: str) -> None:

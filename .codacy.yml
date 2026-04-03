@@ -1,0 +1,28 @@
+---
+# Scope hosted Codacy analysis to product-relevant code. Repository evidence,
+# prompt libraries, local Codacy helper files, and Databricks notebooks are
+# verified through dedicated repo checks and otherwise dominate the grade with
+# low-signal findings.
+exclude_paths:
+  - ".claude/**"
+  - ".codacy/**"
+  - ".github/prompts/**"
+  - "assets/**"
+  - "docs/prompts/**"
+  - "notebooks/**"
+  - "report/**"
+  - "uv.lock"
+
+engines:
+  bandit:
+    exclude_paths:
+      - "tests/**"
+  opengrep:
+    exclude_paths:
+      - "tests/**"
+  prospector:
+    exclude_paths:
+      - "tests/**"
+  pylintpython3:
+    exclude_paths:
+      - "tests/**"

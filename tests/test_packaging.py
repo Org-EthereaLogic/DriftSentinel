@@ -24,6 +24,7 @@ BUNDLE_CONFIG = ROOT / "databricks.yml"
 MAKEFILE = ROOT / "Makefile"
 COMMANDS_DIR = ROOT / ".claude" / "commands"
 CI_WORKFLOW = ROOT / ".github" / "workflows" / "ci.yml"
+CODACY_CONFIG = ROOT / ".codacy.yml"
 
 NOTEBOOK_FILES = [
     "00_quickstart_setup.py",
@@ -238,6 +239,13 @@ def _load_ci_workflow() -> dict[str, Any]:
     return data
 
 
+def _load_codacy_config() -> dict[str, Any]:
+    with open(CODACY_CONFIG, encoding="utf-8") as f:
+        data = yaml.safe_load(f)
+    assert isinstance(data, dict)
+    return data
+
+
 def test_ci_workflow_pins_current_setup_uv_and_codecov_actions() -> None:
     data = _load_ci_workflow()
     lint_steps = data["jobs"]["lint-and-test"]["steps"]
@@ -277,6 +285,26 @@ def test_build_instructions_document_current_quality_control_modes() -> None:
     assert "SNYK_PROJECT_TOKEN" in text
     assert "Run analysis on your build server" in text
     assert "default analysis mode" in text
+
+
+def test_root_codacy_config_scopes_non_product_surfaces() -> None:
+    data = _load_codacy_config()
+    exclude_paths = set(data["exclude_paths"])
+    assert {
+        ".claude/**",
+        ".codacy/**",
+        ".github/prompts/**",
+        "assets/**",
+        "docs/prompts/**",
+        "notebooks/**",
+        "report/**",
+        "uv.lock",
+    } <= exclude_paths
+
+    engines = data["engines"]
+    for engine_name in ("bandit", "opengrep", "prospector", "pylintpython3"):
+        engine = engines[engine_name]
+        assert "tests/**" in engine["exclude_paths"]
 
 
 def test_app_deploy_docs_distinguish_resource_creation_from_app_runtime_deploy() -> None:
