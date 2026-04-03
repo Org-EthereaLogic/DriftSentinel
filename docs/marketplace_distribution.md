@@ -3,9 +3,9 @@
 | Label | Value |
 | --- | --- |
 | Repo-side complete | yes |
-| Ready for GitHub evaluation | yes |
+| Available via GitHub | yes |
 | Published | no |
-| Marketplace-ready pending external approval | yes |
+| Databricks Marketplace path | not being pursued — no partnership or paid workspace |
 
 ## Phase 5 Scope
 
