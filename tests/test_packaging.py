@@ -179,12 +179,22 @@ def test_root_requirements_install_local_package_for_app_deploy() -> None:
     text = (ROOT / "requirements.txt").read_text(encoding="utf-8")
     assert "-e ." in text
     assert "gradio>=6.10.0,<7" in text
+    assert "plotly>=5.0,<6" in text
 
 
-def test_pyproject_app_group_pins_secure_gradio_floor() -> None:
+def test_pyproject_app_group_includes_dashboard_runtime_deps() -> None:
     with open(ROOT / "pyproject.toml", "rb") as f:
         data = tomllib.load(f)
-    assert "gradio>=6.10.0,<7" in data["dependency-groups"]["app"]
+    app_group = data["dependency-groups"]["app"]
+    assert "gradio>=6.10.0,<7" in app_group
+    assert "plotly>=5.0,<6" in app_group
+
+
+def test_app_requirements_match_local_dashboard_runtime() -> None:
+    text = (ROOT / "app" / "requirements.txt").read_text(encoding="utf-8")
+    assert "-e .." in text
+    assert "gradio>=6.10.0,<7" in text
+    assert "plotly>=5.0,<6" in text
 
 
 def test_command_docs_do_not_use_bare_bundle_validate() -> None:

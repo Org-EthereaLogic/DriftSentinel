@@ -2,3 +2,4 @@
 # `-e .` ensures Databricks Apps installs this repository's local package.
 -e .
 gradio>=6.10.0,<7
+plotly>=5.0,<6

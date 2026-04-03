@@ -76,13 +76,13 @@ TASK 1.2 — Read the README and quickstart
 - Screenshot the rendered README.
 
 TASK 1.3 — Launch the Gradio app locally
-- Run: cd app && pip install -e .. && pip install "gradio>=6.10.0,<7"
+- Run: cd app && pip install -r requirements.txt
 - Run: python app.py
-- VERIFY via Kapture/Chrome: The app launches and shows three tabs:
-  "Registry", "Run Status", "Evidence Explorer"
-- VERIFY: The title reads "DriftSentinel Operator Dashboard"
-- VERIFY: The subtitle reads "Read-only view of registered datasets, recent
-  control runs, and evidence artifacts."
+- VERIFY via Kapture/Chrome: The app launches and shows four tabs:
+  "Registry", "Run Status", "Evidence Explorer", "Analytics"
+- VERIFY: The branded header reads "DriftSentinel"
+- VERIFY: The subtitle reads "Read-only operator dashboard — intake, drift,
+  benchmark"
 - Screenshot the initial empty state of each tab.
 
 TASK 1.4 — Registry tab: empty state
