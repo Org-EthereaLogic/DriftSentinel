@@ -123,8 +123,9 @@ The detailed asset manifest lives in
 | Update sprint coordination live in Notion | complete | Phase 5 moved to "In Progress" in Notion Tasks (2026-04-03) |
 | Bundle validation against real catalog | complete | `make bundle-validate CATALOG=adb_dev PROFILE=e62-trial` passed. Evidence: `report/2026-04-03T01-40-bundle-validation-evidence.md` |
 | App screenshots for listing gallery | complete | 4 retina screenshots (dark mode, populated data) in `assets/driftsentinel-brand-system/marketplace/screenshots/` |
-| Inspect Marketplace provider/listing readiness read-only | blocked by workspace capability | Read-only CLI inspection returned `Marketplace private exchange provider experience not enabled` for profile `e62-trial` |
-| Create provider or listing | pending explicit confirmation | No irreversible Marketplace mutation was attempted |
+| Databricks Partner application | pending review | Submitted 2026-04-02 as Services Partner (C&SI). Partner Academy access confirmed. Marketplace provider setup blocked until partner approval and paid workspace provisioning. |
+| Inspect Marketplace provider/listing readiness read-only | blocked by workspace tier | Free Edition workspace does not support Account Console or Marketplace provider enablement. Requires paid (Premium/Enterprise) or partner NFR workspace. |
+| Create provider or listing | blocked by partner approval | No irreversible Marketplace mutation was attempted |
 | Final legal, pricing, and support metadata | operator input required | Business-owned fields are not defined in the repo |
 
 ## Operator Input Required
@@ -135,7 +136,6 @@ The detailed asset manifest lives in
 - Marketplace category, tags, and exchange-distribution strategy
 - Privacy policy, terms of use, and any compliance or legal URLs required by
   listing submission
-- Final screenshot set from a deployed app environment
 - Explicit approval before any live provider, listing, asset-upload, or submit
   action
 
