@@ -181,6 +181,66 @@ databricks apps get driftsentinel -p <profile> -o json
 
 Import the `notebooks/` directory into your Databricks workspace to run the control pipeline from the deployed bundle or standalone from GitHub. Notebooks ship with bundled example templates. `01_register_dataset.py` and `05_run_control_benchmark.py` also accept optional workspace YAML paths for customized contracts from `templates/`.
 
+## AI-Assisted Setup
+
+If you use an AI coding agent (Claude Code, Cursor, GitHub Copilot Workspace, or similar), paste the prompt below directly into your agent session. The agent will clone the repository, install dependencies, run the full test suite, and walk you through the Databricks deployment — no manual steps required.
+
+**Before you start, have these ready:**
+
+- Python 3.11+
+- `uv` package manager — install with `pip install uv`
+- Databricks CLI configured with a valid profile — run `databricks auth login` if needed
+- A Databricks workspace with Unity Catalog enabled
+- The name of your Unity Catalog catalog
+
+**Copy and paste this prompt into your AI coding agent:**
+
+````
+I want to set up DriftSentinel — a Databricks-deployable data trust platform that
+unifies intake certification, drift detection, and control benchmarking in a single
+application with a four-tab operator dashboard.
+
+Repository: https://github.com/Org-EthereaLogic/DriftSentinel
+
+Please complete these steps in order. Stop at any failure and report it before continuing.
+
+1. Clone the repository:
+   git clone https://github.com/Org-EthereaLogic/DriftSentinel.git
+   cd DriftSentinel
+
+2. Install dependencies (requires uv):
+   make sync
+   If uv is not installed: pip install uv
+
+3. Run the full test suite. All 297 tests must pass before proceeding:
+   make test
+
+4. Read these files to understand the configuration model before deployment:
+   - README.md
+   - templates/dataset_contract.yaml
+   - templates/drift_policy.yaml
+   - templates/benchmark_policy.yaml
+
+5. Ask me for my Databricks setup details:
+   - My Unity Catalog catalog name
+   - My Databricks CLI profile name
+   Then confirm the catalog is reachable:
+   make bundle-catalog-check CATALOG=<my_catalog> PROFILE=<my_profile>
+
+6. Validate the Asset Bundle against my workspace:
+   make bundle-validate CATALOG=<my_catalog> PROFILE=<my_profile>
+
+7. If validation passes, deploy the bundle and start the Databricks App:
+   make app-deploy CATALOG=<my_catalog> PROFILE=<my_profile>
+
+8. Verify the deployment succeeded:
+   databricks apps get driftsentinel -p <my_profile> -o json
+   Confirm the status shows SUCCEEDED and RUNNING, then report the app URL.
+
+After every step, report what happened. Do not skip a step or proceed past any
+error without explaining it and asking me how to continue.
+````
+
 ## Scope Boundary
 
 DriftSentinel validates the unified control platform using registered datasets in a local and Databricks environment. It does not constitute production-scale proof across arbitrary schema shapes or multi-workspace deployments. The registry, evidence model, and orchestration pattern are dataset-agnostic; the Databricks deployment path requires a workspace with Unity Catalog enabled.
