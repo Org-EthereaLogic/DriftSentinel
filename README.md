@@ -143,6 +143,20 @@ Every directory above contains a `README.md` describing its contents, including 
 
 ## Quickstart
 
+### Install via pip
+
+The fastest way to get the DriftSentinel package into your environment:
+
+```bash
+pip install etherealogic-driftsentinel
+```
+
+This installs the full DriftSentinel package — intake certification, drift gating, benchmarking, orchestration, evidence writer, and bundled contract and policy templates.
+
+### Clone and develop locally
+
+To run the full test suite or contribute:
+
 ```bash
 git clone https://github.com/Org-EthereaLogic/DriftSentinel.git
 cd DriftSentinel
