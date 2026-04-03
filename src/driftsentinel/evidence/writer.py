@@ -5,16 +5,29 @@ produce auditable JSON evidence artifacts. Files are never overwritten
 or deleted -- each write creates a new artifact.
 
 Phase 3 adds dataset identity metadata, run IDs, and local lookup helpers.
+Phase 4 adds an in-memory metadata cache for O(1) repeated lookups.
 """
 
 from __future__ import annotations
 
 import json
+import threading
 import uuid
 from dataclasses import asdict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
+
+# ---------------------------------------------------------------------------
+# In-memory metadata cache for evidence lookups
+# ---------------------------------------------------------------------------
+# Evidence is append-only, so cached metadata never becomes stale.
+# The cache tracks which files have been parsed and stores their extracted
+# metadata to avoid re-reading on every query.  Thread-safe via a lock.
+
+_cache_lock = threading.Lock()
+_metadata_cache: dict[str, dict[str, Any] | None] = {}
+# Maps file path string -> parsed summary dict, or None for malformed files
 
 
 def _serialize(obj: Any) -> Any:
@@ -246,6 +259,47 @@ def write_benchmark_bundle(
 # ---------------------------------------------------------------------------
 
 
+def _parse_evidence_file(p: Path) -> dict[str, Any] | None:
+    """Parse a single evidence file and return its summary dict, or None if malformed."""
+    try:
+        with open(p, encoding="utf-8") as f:
+            data = json.load(f)
+    except (json.JSONDecodeError, OSError):
+        return None
+
+    if not isinstance(data, dict) or "meta" not in data:
+        return None
+
+    meta = data["meta"]
+    return {
+        "file": str(p),
+        "generated_at": meta.get("generated_at", ""),
+        "dataset_id": meta.get("dataset_id"),
+        "contract_version": meta.get("contract_version"),
+        "overall_verdict": _extract_overall_verdict(data).strip().upper(),
+        "policy_version": meta.get("policy_version"),
+        "run_id": meta.get("run_id"),
+        "run_kind": meta.get("run_kind"),
+    }
+
+
+def invalidate_evidence_cache(evidence_dir: str | Path | None = None) -> None:
+    """Clear the in-memory metadata cache.
+
+    Args:
+        evidence_dir: If provided, only clear entries for this directory.
+            If None, clear the entire cache.
+    """
+    with _cache_lock:
+        if evidence_dir is None:
+            _metadata_cache.clear()
+        else:
+            prefix = str(Path(evidence_dir))
+            keys_to_remove = [k for k in _metadata_cache if k.startswith(prefix)]
+            for k in keys_to_remove:
+                del _metadata_cache[k]
+
+
 def list_evidence(
     evidence_dir: str | Path,
     *,
@@ -257,9 +311,9 @@ def list_evidence(
 ) -> list[dict[str, Any]]:
     """List evidence artifacts with optional filtering.
 
-    Scans all .json files in evidence_dir and returns a list of summary
-    dicts containing the file path and metadata. Malformed files are
-    skipped with a parse_error entry rather than crashing the query.
+    Uses an in-memory metadata cache to avoid re-parsing files on repeated
+    queries.  Evidence is append-only, so cached entries never become stale.
+    Only new files (not yet in cache) are parsed on each call.
 
     Args:
         evidence_dir: Directory containing evidence JSON artifacts.
@@ -280,52 +334,43 @@ def list_evidence(
     date_to_filter = _normalize_date_filter(date_to, end_of_day=True)
     has_filters = any(v is not None for v in (dataset_id, run_kind, run_id, date_from, date_to))
 
+    # Glob directory and parse only uncached files (append-only, so cache is stable)
+    all_paths = sorted(d.glob("*.json"))
+
+    with _cache_lock:
+        for p in all_paths:
+            key = str(p)
+            if key not in _metadata_cache:
+                _metadata_cache[key] = _parse_evidence_file(p)
+
+    # Build results from cache — filter in-memory without touching disk
     results: list[dict[str, Any]] = []
-    for p in sorted(d.glob("*.json")):
-        try:
-            with open(p, encoding="utf-8") as f:
-                data = json.load(f)
-        except (json.JSONDecodeError, OSError):
-            if not has_filters:
-                results.append({
-                    "file": str(p),
-                    "parse_error": True,
-                })
-            continue
+    with _cache_lock:
+        for p in all_paths:
+            entry = _metadata_cache.get(str(p))
 
-        if not isinstance(data, dict) or "meta" not in data:
-            if not has_filters:
-                results.append({
-                    "file": str(p),
-                    "parse_error": True,
-                })
-            continue
+            if entry is None:
+                if not has_filters:
+                    results.append({
+                        "file": str(p),
+                        "parse_error": True,
+                    })
+                continue
 
-        meta = data["meta"]
+            if dataset_id is not None and entry.get("dataset_id") != dataset_id:
+                continue
+            if run_kind is not None and entry.get("run_kind") != run_kind:
+                continue
+            if run_id is not None and not (entry.get("run_id") or "").startswith(run_id):
+                continue
 
-        if dataset_id is not None and meta.get("dataset_id") != dataset_id:
-            continue
-        if run_kind is not None and meta.get("run_kind") != run_kind:
-            continue
-        if run_id is not None and not (meta.get("run_id") or "").startswith(run_id):
-            continue
+            generated_at = entry.get("generated_at", "")
+            if date_from_filter is not None and generated_at < date_from_filter:
+                continue
+            if date_to_filter is not None and generated_at > date_to_filter:
+                continue
 
-        generated_at = meta.get("generated_at", "")
-        if date_from_filter is not None and generated_at < date_from_filter:
-            continue
-        if date_to_filter is not None and generated_at > date_to_filter:
-            continue
-
-        results.append({
-            "file": str(p),
-            "generated_at": generated_at,
-            "dataset_id": meta.get("dataset_id"),
-            "contract_version": meta.get("contract_version"),
-            "overall_verdict": _extract_overall_verdict(data).strip().upper(),
-            "policy_version": meta.get("policy_version"),
-            "run_id": meta.get("run_id"),
-            "run_kind": meta.get("run_kind"),
-        })
+            results.append(dict(entry))
 
     results.sort(key=lambda r: r.get("generated_at", ""), reverse=True)
     return results

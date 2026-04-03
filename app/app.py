@@ -441,6 +441,7 @@ def build_app():  # type: ignore[no-untyped-def]
             with gr.Tab("Analytics", id="analytics"):
                 try:
                     from app.analytics import (
+                        _daily_verdict_summary,
                         build_analytics_data,
                         build_plotly_bar,
                         build_plotly_daily_volume,
@@ -452,6 +453,7 @@ def build_app():  # type: ignore[no-untyped-def]
                     )
                 except (ImportError, ModuleNotFoundError):
                     from analytics import (  # type: ignore[no-redef]
+                        _daily_verdict_summary,
                         build_analytics_data,
                         build_plotly_bar,
                         build_plotly_daily_volume,
@@ -497,8 +499,10 @@ def build_app():  # type: ignore[no-untyped-def]
                     krows = kind_pie_data(records)
                     pie_fig = build_plotly_pie(krows, theme)
                     trows = timeline_data(records)
-                    volume_fig = build_plotly_daily_volume(trows, theme)
-                    health_fig = build_plotly_health_trend(trows, theme)
+                    # Compute daily summary once and pass to both chart builders
+                    summary = _daily_verdict_summary(trows)
+                    volume_fig = build_plotly_daily_volume(trows, theme, daily_summary=summary)
+                    health_fig = build_plotly_health_trend(trows, theme, daily_summary=summary)
                     total = len(records)
                     return verdict_fig, pie_fig, volume_fig, health_fig, f"**{total} artifacts** analyzed"
 

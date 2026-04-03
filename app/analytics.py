@@ -7,6 +7,8 @@ state.
 
 from __future__ import annotations
 
+from collections import defaultdict
+from datetime import datetime
 from typing import Any
 
 from driftsentinel.evidence.writer import list_evidence
@@ -64,24 +66,18 @@ def build_analytics_data(evidence_dir: str) -> list[dict[str, str]]:
     """Scan evidence artifacts and return a list of summary records.
 
     Each record has: dataset_id, run_kind, generated_at, verdict.
-    Malformed files are skipped.
+    Malformed files are tagged UNKNOWN. Fields are extracted directly
+    from the cached list_evidence output to avoid redundant work.
     """
     results = list_evidence(evidence_dir)
     records: list[dict[str, str]] = []
     for r in results:
-        if r.get("parse_error"):
-            records.append({
-                "dataset_id": r.get("dataset_id") or "untagged",
-                "run_kind": r.get("run_kind") or "unknown",
-                "generated_at": r.get("generated_at", ""),
-                "verdict": "UNKNOWN",
-            })
-            continue
+        is_malformed = r.get("parse_error")
         records.append({
             "dataset_id": r.get("dataset_id") or "untagged",
             "run_kind": r.get("run_kind") or "unknown",
             "generated_at": r.get("generated_at", ""),
-            "verdict": (r.get("overall_verdict") or "UNKNOWN").strip().upper(),
+            "verdict": "UNKNOWN" if is_malformed else (r.get("overall_verdict") or "UNKNOWN").strip().upper(),
         })
     return records
 
@@ -130,9 +126,6 @@ def _daily_verdict_summary(
     timeline_rows: list[list[Any]],
 ) -> tuple[list[str], dict[str, dict[str, int]], dict[str, int], dict[str, int]]:
     """Aggregate timeline rows into daily verdict totals."""
-    from collections import defaultdict
-    from datetime import datetime
-
     daily_counts: dict[str, dict[str, int]] = defaultdict(
         lambda: {"PASS": 0, "FAIL": 0, "WARN": 0, "UNKNOWN": 0}
     )
@@ -229,7 +222,12 @@ def build_plotly_pie(kind_rows: list[list[Any]], theme_name: str = "Brand") -> A
     return fig
 
 
-def build_plotly_daily_volume(timeline_rows: list[list[Any]], theme_name: str = "Brand") -> Any:
+def build_plotly_daily_volume(
+    timeline_rows: list[list[Any]],
+    theme_name: str = "Brand",
+    *,
+    daily_summary: tuple[list[str], dict[str, dict[str, int]], dict[str, int], dict[str, int]] | None = None,
+) -> Any:
     """Build a Plotly Stacked Bar chart for daily artifact volume by verdict."""
     if not timeline_rows:
         return None
@@ -238,7 +236,7 @@ def build_plotly_daily_volume(timeline_rows: list[list[Any]], theme_name: str = 
     except ImportError:
         return None
 
-    dates, daily_counts, _, _ = _daily_verdict_summary(timeline_rows)
+    dates, daily_counts, _, _ = daily_summary or _daily_verdict_summary(timeline_rows)
 
     colors = COLOR_SCHEMES.get(theme_name, COLOR_SCHEMES["Brand"])["verdict"]
 
@@ -279,7 +277,12 @@ def build_plotly_daily_volume(timeline_rows: list[list[Any]], theme_name: str = 
     return fig
 
 
-def build_plotly_health_trend(timeline_rows: list[list[Any]], theme_name: str = "Brand") -> Any:
+def build_plotly_health_trend(
+    timeline_rows: list[list[Any]],
+    theme_name: str = "Brand",
+    *,
+    daily_summary: tuple[list[str], dict[str, dict[str, int]], dict[str, int], dict[str, int]] | None = None,
+) -> Any:
     """Build a Plotly line chart showing daily PASS rate with a 90% threshold."""
     if not timeline_rows:
         return None
@@ -288,7 +291,7 @@ def build_plotly_health_trend(timeline_rows: list[list[Any]], theme_name: str = 
     except ImportError:
         return None
 
-    dates, _, daily_pass, daily_total = _daily_verdict_summary(timeline_rows)
+    dates, _, daily_pass, daily_total = daily_summary or _daily_verdict_summary(timeline_rows)
     rates = [(daily_pass[d] / daily_total[d] * 100) if daily_total[d] > 0 else 0 for d in dates]
 
     theme = COLOR_SCHEMES.get(theme_name, COLOR_SCHEMES["Brand"])
