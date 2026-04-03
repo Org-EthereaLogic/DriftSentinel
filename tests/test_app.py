@@ -234,15 +234,26 @@ class TestAnalyticsHelpers:
             "PASS",
         ]]
 
-    def test_build_plotly_timeline_uses_activity_title(self) -> None:
-        from app.analytics import build_plotly_timeline
+    def test_build_plotly_daily_volume(self) -> None:
+        from app.analytics import build_plotly_daily_volume
 
-        fig = build_plotly_timeline([
+        fig = build_plotly_daily_volume([
             ["2026-04-02T22:00:00+00:00", "benchmark", "ds_a", "PASS"]
         ])
 
         assert fig is not None
-        assert fig.layout.title.text == "Run Activity Timeline"
+        assert fig.layout.title.text == "Daily Activity Volume"
+
+
+    def test_build_plotly_health_trend(self) -> None:
+        from app.analytics import build_plotly_health_trend
+
+        fig = build_plotly_health_trend([
+            ["2026-04-02T22:00:00+00:00", "benchmark", "ds_a", "PASS"]
+        ])
+
+        assert fig is not None
+        assert fig.layout.title.text == "Daily Health Trend (% PASS)"
 
 
 # --- DAB resource ---

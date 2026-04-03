@@ -43,15 +43,19 @@ _ASSETS = Path(__file__).parent.parent / "assets" / "driftsentinel-brand-system"
 _LOGO_PATH = _ASSETS / "variants" / "logo-dark.png"
 _FAVICON_PATH = str(_ASSETS / "favicons" / "favicon-32x32.png")
 
-def _logo_data_uri() -> str | None:
-    """Encode the brand logo as a base64 data URI for inline HTML display."""
+def _get_logo_uris() -> tuple[str | None, str | None]:
+    """Encode the light and dark brand logos as base64 data URIs."""
     import base64
 
-    if not _LOGO_PATH.is_file():
-        return None
-    data = _LOGO_PATH.read_bytes()
-    b64 = base64.b64encode(data).decode("ascii")
-    return f"data:image/png;base64,{b64}"
+    def _b64(path: Path) -> str | None:
+        if not path.is_file():
+            return None
+        return f"data:image/png;base64,{base64.b64encode(path.read_bytes()).decode('ascii')}"
+
+    return (
+        _b64(_ASSETS / "variants" / "logo-light.png"),
+        _b64(_ASSETS / "variants" / "logo-dark.png"),
+    )
 
 def _fmt_timestamp(raw: str) -> str:
     """Convert ISO 8601 to compact human-readable form: 'Apr 02, 14:40 UTC'."""
@@ -245,7 +249,8 @@ def _build_theme():  # type: ignore[no-untyped-def]
         c500="#4A6C80", c600="#2E4F62", c700="#1A3A4A", c800=_DEEP_SLATE,
         c900=_MIDNIGHT, c950="#030E13",
     )
-    # Build theme with both light and dark variants set to the same dark values.
+    # Apply explicit overrides only to the dark mode variant.
+    # The light mode will inherit Gradio's Base defaults tinted by the hues above.
     pairs = {
         "body_background_fill": _MIDNIGHT, "body_text_color": _CLOUD,
         "block_background_fill": _DEEP_SLATE, "block_border_color": "#1A3A4A",
@@ -261,7 +266,6 @@ def _build_theme():  # type: ignore[no-untyped-def]
     }
     theme_args: dict[str, str] = {}
     for k, v in pairs.items():
-        theme_args[k] = v
         theme_args[f"{k}_dark"] = v
     return gr.themes.Base(
         primary_hue=cyan_hue, neutral_hue=slate_hue,
@@ -270,9 +274,13 @@ def _build_theme():  # type: ignore[no-untyped-def]
     ).set(**theme_args)
 
 _DS_CSS = """
-    .ds-summary { color: #8AA3B6; font-size: 0.88em; margin-top: 4px; }
-    .ds-tab-desc { color: #8AA3B6; font-size: 0.9em; margin-bottom: 12px; }
-    .ds-empty-state { text-align: center; padding: 24px 16px; font-size: 0.95em; color: #8AA3B6; }
+    .ds-summary { color: var(--body-text-color-subdued); font-size: 0.88em; margin-top: 4px; }
+    .ds-tab-desc { color: var(--body-text-color-subdued); font-size: 0.9em; margin-bottom: 12px; }
+    .ds-empty-state { text-align: center; padding: 24px 16px;
+        font-size: 0.95em; color: var(--body-text-color-subdued); }
+    #ds-logo-dark { display: none !important; }
+    .dark #ds-logo-dark, :root.dark #ds-logo-dark, body.dark #ds-logo-dark { display: block !important; }
+    .dark #ds-logo-light, :root.dark #ds-logo-light, body.dark #ds-logo-light { display: none !important; }
 """
 
 def build_app():  # type: ignore[no-untyped-def]
@@ -289,13 +297,13 @@ def build_app():  # type: ignore[no-untyped-def]
 
     with ctx as app:
         # ---- Header ----
-        logo_uri = _logo_data_uri()
-        if logo_uri:
+        logo_light_uri, logo_dark_uri = _get_logo_uris()
+        if logo_light_uri and logo_dark_uri:
             gr.HTML(
                 f'<div style="display:flex;align-items:center;gap:16px;padding:12px 0 8px 0;">'
-                f'<img src="{logo_uri}" alt="DriftSentinel" '
-                f'style="height:64px;width:auto;" />'
-                f'<span style="color:{_GATE_SLATE};font-size:0.85em;">'
+                f'<img id="ds-logo-light" src="{logo_light_uri}" alt="DriftSentinel" style="height:64px;width:auto;" />'
+                f'<img id="ds-logo-dark" src="{logo_dark_uri}" alt="DriftSentinel" style="height:64px;width:auto;" />'
+                f'<span style="color:var(--body-text-color-subdued);font-size:0.85em;">'
                 f'Read-only operator dashboard — intake, drift, benchmark</span>'
                 f'</div>'
             )
@@ -435,8 +443,9 @@ def build_app():  # type: ignore[no-untyped-def]
                     from app.analytics import (
                         build_analytics_data,
                         build_plotly_bar,
+                        build_plotly_daily_volume,
+                        build_plotly_health_trend,
                         build_plotly_pie,
-                        build_plotly_timeline,
                         kind_pie_data,
                         timeline_data,
                         verdict_bar_data,
@@ -445,8 +454,9 @@ def build_app():  # type: ignore[no-untyped-def]
                     from analytics import (  # type: ignore[no-redef]
                         build_analytics_data,
                         build_plotly_bar,
+                        build_plotly_daily_volume,
+                        build_plotly_health_trend,
                         build_plotly_pie,
-                        build_plotly_timeline,
                         kind_pie_data,
                         timeline_data,
                         verdict_bar_data,
@@ -458,7 +468,13 @@ def build_app():  # type: ignore[no-untyped-def]
                     elem_classes=["ds-tab-desc"],
                 )
                 with gr.Row():
-                    ana_dir = gr.Textbox(label="Evidence Directory", value=EVIDENCE_DIR, scale=4)
+                    ana_dir = gr.Textbox(label="Evidence Directory", value=EVIDENCE_DIR, scale=3)
+                    color_theme = gr.Dropdown(
+                        choices=["Brand", "Traffic Light", "Colorblind Safe", "Cyberpunk", "Pastel"],
+                        value="Brand",
+                        label="Color Theme",
+                        scale=1
+                    )
                     ana_btn = gr.Button("Refresh", variant="primary", scale=1)
                 ana_status = gr.Markdown(
                     "_Click Refresh to load analytics._",
@@ -468,24 +484,27 @@ def build_app():  # type: ignore[no-untyped-def]
                 with gr.Row():
                     verdict_plot = gr.Plot(label="Verdict Distribution")
                     kind_plot = gr.Plot(label="Runs by Kind")
-                timeline_plot = gr.Plot(label="Run Activity Timeline")
+                with gr.Row():
+                    volume_plot = gr.Plot(label="Daily Activity Volume")
+                    health_plot = gr.Plot(label="Daily Health Trend")
 
-                def _refresh_analytics(edir: str):  # type: ignore[no-untyped-def]
+                def _refresh_analytics(edir: str, theme: str):  # type: ignore[no-untyped-def]
                     records = build_analytics_data(edir.strip() or EVIDENCE_DIR)
                     if not records:
-                        return None, None, None, "No evidence artifacts found."
+                        return None, None, None, None, "No evidence artifacts found."
                     vrows = verdict_bar_data(records)
-                    verdict_fig = build_plotly_bar(vrows)
+                    verdict_fig = build_plotly_bar(vrows, theme)
                     krows = kind_pie_data(records)
-                    pie_fig = build_plotly_pie(krows)
+                    pie_fig = build_plotly_pie(krows, theme)
                     trows = timeline_data(records)
-                    timeline_fig = build_plotly_timeline(trows)
+                    volume_fig = build_plotly_daily_volume(trows, theme)
+                    health_fig = build_plotly_health_trend(trows, theme)
                     total = len(records)
-                    return verdict_fig, pie_fig, timeline_fig, f"**{total} artifacts** analyzed"
+                    return verdict_fig, pie_fig, volume_fig, health_fig, f"**{total} artifacts** analyzed"
 
             ana_btn.click(
-                fn=_refresh_analytics, inputs=[ana_dir],
-                outputs=[verdict_plot, kind_plot, timeline_plot, ana_status],
+                fn=_refresh_analytics, inputs=[ana_dir, color_theme],
+                outputs=[verdict_plot, kind_plot, volume_plot, health_plot, ana_status],
             )
 
         app.load(
@@ -498,8 +517,8 @@ def build_app():  # type: ignore[no-untyped-def]
             outputs=[status_table, run_summary],
         )
         app.load(
-            fn=_refresh_analytics, inputs=[ana_dir],
-            outputs=[verdict_plot, kind_plot, timeline_plot, ana_status],
+            fn=_refresh_analytics, inputs=[ana_dir, color_theme],
+            outputs=[verdict_plot, kind_plot, volume_plot, health_plot, ana_status],
         )
 
     return app
