@@ -28,6 +28,7 @@ dev = [
     "mypy>=1.10",
     "pandas-stubs>=2.0",
     "types-PyYAML>=6.0",
+    "playwright>=1.58.0",
 ]
 databricks = [
     "databricks-sdk>=0.20",

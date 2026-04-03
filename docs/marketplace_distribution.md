@@ -109,8 +109,7 @@ The detailed asset manifest lives in
 | available now | Square product mark | `assets/driftsentinel-brand-system/icons/driftsentinel-mark-512.png` |
 | available now | Transparent and light/dark logo variants | `assets/driftsentinel-brand-system/variants/` |
 | available now | Social preview graphics | `assets/driftsentinel-brand-system/social/` |
-| missing | App screenshots suitable for a Marketplace listing | `operator capture required` |
-| missing | Evidence visuals or dashboard screenshots for listing gallery use | `operator capture required` |
+| available now | App screenshots — all 4 dashboard tabs (2x retina, dark mode) | `assets/driftsentinel-brand-system/marketplace/screenshots/` |
 
 ## Submission Checklist
 
@@ -121,11 +120,12 @@ The detailed asset manifest lives in
 | Draft listing material in-repo | complete | This document provides the listing copy and delivery notes |
 | Create asset manifest in-repo | complete | `assets/driftsentinel-brand-system/marketplace/README.md` |
 | Update README discovery | complete | Root `README.md` points to this packet |
-| Update sprint coordination live in Notion | blocked | Notion mutation tools are not available in this session |
+| Update sprint coordination live in Notion | complete | Phase 5 moved to "In Progress" in Notion Tasks (2026-04-03) |
+| Bundle validation against real catalog | complete | `make bundle-validate CATALOG=adb_dev PROFILE=e62-trial` passed. Evidence: `report/2026-04-03T01-40-bundle-validation-evidence.md` |
+| App screenshots for listing gallery | complete | 4 retina screenshots (dark mode, populated data) in `assets/driftsentinel-brand-system/marketplace/screenshots/` |
 | Inspect Marketplace provider/listing readiness read-only | blocked by workspace capability | Read-only CLI inspection returned `Marketplace private exchange provider experience not enabled` for profile `e62-trial` |
 | Create provider or listing | pending explicit confirmation | No irreversible Marketplace mutation was attempted |
 | Final legal, pricing, and support metadata | operator input required | Business-owned fields are not defined in the repo |
-| Final screenshot set | operator input required | No repo-backed app screenshots are currently available |
 
 ## Operator Input Required
 
@@ -161,3 +161,5 @@ The detailed asset manifest lives in
   Verified Phase 5 `Not Started` state plus missing current sprint
 - `report/2026-04-03T01-05-notion-sync-record.md`
   Latest verified sprint-gap confirmation before this packet
+- `report/2026-04-03T01-40-bundle-validation-evidence.md`
+  First successful bundle-validate against adb_dev catalog (e62-trial workspace)

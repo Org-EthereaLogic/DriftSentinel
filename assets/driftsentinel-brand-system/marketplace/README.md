@@ -16,17 +16,23 @@ capture. It does not imply that a live Marketplace listing already exists.
 | Social preview graphics | Stopgap marketing collateral while Marketplace-specific screenshots are missing | available now | `assets/driftsentinel-brand-system/social/og-image.png`, `assets/driftsentinel-brand-system/social/twitter-card.png`, `assets/driftsentinel-brand-system/social/linkedin-banner.png` |
 | Favicon set | Small-icon fallback set | available now | `assets/driftsentinel-brand-system/favicons/` |
 
-No app screenshots or image-based evidence visuals are currently checked into
-`assets/`, `docs/`, or `report/`.
+## App Screenshots (Captured 2026-04-03)
+
+Four retina-quality (2x device scale) screenshots captured from the live Gradio
+dashboard in dark mode with populated data:
+
+| Screenshot | Tab | Path |
+| --- | --- | --- |
+| `01-registry.png` | Registry — 2 datasets registered | `screenshots/01-registry.png` |
+| `02-run-status.png` | Run Status — 48 artifacts with verdict breakdown | `screenshots/02-run-status.png` |
+| `03-evidence-explorer.png` | Evidence Explorer — drift artifact JSON detail | `screenshots/03-evidence-explorer.png` |
+| `04-analytics.png` | Analytics — verdict bar, kind donut, volume, health trend | `screenshots/04-analytics.png` |
 
 ## Missing Assets
 
 | Missing Asset | Why It Is Missing | Owner / Next Step |
 | --- | --- | --- |
-| Databricks App hero screenshot | No repository-backed screenshot artifact exists for the current App deployment | operator capture required from a running app deployment |
-| Databricks App detail screenshots for Registry, Run Status, Evidence Explorer, and Analytics | Marketplace gallery assets are not stored in the repo today | operator capture required from a running app deployment |
 | Marketplace-specific thumbnail or banner crop | Existing social graphics are reusable, but no Marketplace-dimension export is defined | operator decision required, then export from source assets |
-| Evidence-gallery screenshot | Repository evidence is text-first; no image snapshot of evidence review exists | operator capture required if the listing needs a visual evidence example |
 
 ## Source Paths
 
@@ -39,3 +45,4 @@ No app screenshots or image-based evidence visuals are currently checked into
 | Logo and mark variants | `assets/driftsentinel-brand-system/variants/` |
 | Social graphics | `assets/driftsentinel-brand-system/social/` |
 | Favicon exports | `assets/driftsentinel-brand-system/favicons/` |
+| Marketplace screenshots | `assets/driftsentinel-brand-system/marketplace/screenshots/` |
