@@ -42,6 +42,8 @@ driftsentinel-brand-system/
 │   ├── driftsentinel-mark-128.png
 │   ├── driftsentinel-mark-256.png
 │   └── driftsentinel-mark-512.png
+├── marketplace/
+│   └── README.md
 ├── variants/
 │   ├── mark-dark.png
 │   ├── mark-light.png
@@ -86,6 +88,8 @@ font.
   contexts.
 - Use `favicons/` for browser and PWA favicon wiring.
 - Use `social/og-image.png` for Open Graph previews.
+- Use `marketplace/README.md` as the auditable source of truth for Marketplace
+  collateral inventory and capture gaps.
 - Use `variants/logo-transparent.png` or `variants/logo-light.png` on light
   surfaces.
 - Use `variants/logo-dark.png` on dark surfaces.

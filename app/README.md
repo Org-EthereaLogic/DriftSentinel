@@ -2,10 +2,11 @@
 
 Databricks App UI for operator dashboard access.
 
-Three read-only views:
+Four read-only views:
 - **Registry View** — browse registered datasets and contract metadata
 - **Run Status** — filter and summarize recent control runs by dataset, kind, date
 - **Evidence Explorer** — inspect full evidence artifact JSON detail
+- **Analytics** — summarize verdict mix, run-kind breakdown, and timeline trends
 
 Built with Gradio. Deployed as a DAB resource via `resources/driftsentinel_app.yml`.
 Requires a Premium Databricks workspace. The notebook path remains fully

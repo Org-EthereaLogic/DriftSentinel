@@ -19,7 +19,7 @@ operator review.
 | Surface | Purpose |
 | ------- | ------- |
 | `src/driftsentinel/` | First-party product code for intake, drift, benchmark, evidence, and orchestration |
-| `app/` | Databricks App UI (Gradio) for operator dashboard — registry, run status, evidence explorer |
+| `app/` | Databricks App UI (Gradio) for operator dashboard — registry, run status, evidence explorer, analytics |
 | `assets/` | Project brand assets — SVG sources, exported icons, favicons, and social preview images |
 | `notebooks/` | Onboarding, execution, and evidence-review notebooks for Databricks |
 | `resources/` | Databricks Asset Bundle pipeline, job, and app definitions |
@@ -90,6 +90,18 @@ package either from the deployed bundle files or, when run standalone, from
 GitHub. The notebooks ship with bundled example templates, and
 `01_register_dataset.py` plus `05_run_control_benchmark.py` also accept
 optional workspace YAML paths if you import customized files from `templates/`.
+
+## Marketplace Preparation
+
+Phase 5 commercialization work is currently a repo-backed preparation packet,
+not a published Databricks Marketplace listing. See
+`docs/marketplace_distribution.md` for the provider-profile draft, listing
+material draft, asset manifest, submission checklist, and the operator inputs
+still required before any live provider or listing action.
+
+This packet reuses the existing GitHub, notebook, bundle, and Databricks App
+deployment proof. It does not change the product core or replace the current
+GitHub-to-Databricks install path documented above.
 
 ## Part of a series
 
