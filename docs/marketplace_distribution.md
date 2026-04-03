@@ -1,5 +1,12 @@
 # DriftSentinel Marketplace Distribution Preparation
 
+| Label | Value |
+| --- | --- |
+| Repo-side complete | yes |
+| Ready for GitHub evaluation | yes |
+| Published | no |
+| Marketplace-ready pending external approval | yes |
+
 ## Phase 5 Scope
 
 DriftSentinel Phase 5 is a commercialization-preparation phase, not a product
@@ -120,7 +127,7 @@ The detailed asset manifest lives in
 | Draft listing material in-repo | complete | This document provides the listing copy and delivery notes |
 | Create asset manifest in-repo | complete | `assets/driftsentinel-brand-system/marketplace/README.md` |
 | Update README discovery | complete | Root `README.md` points to this packet |
-| Update sprint coordination live in Notion | complete | Phase 5 moved to "In Progress" in Notion Tasks (2026-04-03) |
+| Update sprint coordination live in Notion | complete | Phase 5 moved to Done in Notion Tasks (2026-04-03). Repo-side deliverables complete; Marketplace listing blocked externally. |
 | Bundle validation against real catalog | complete | `make bundle-validate CATALOG=adb_dev PROFILE=e62-trial` passed. Evidence: `report/2026-04-03T01-40-bundle-validation-evidence.md` |
 | App screenshots for listing gallery | complete | 4 retina screenshots (dark mode, populated data) in `assets/driftsentinel-brand-system/marketplace/screenshots/` |
 | Databricks Partner application | pending review | Operator-reported submission on 2026-04-02 as Services Partner (C&SI). No repository artifact independently proves the external submission. Marketplace provider setup remains blocked until partner approval and paid workspace provisioning. |
