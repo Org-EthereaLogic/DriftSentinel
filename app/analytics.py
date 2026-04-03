@@ -126,6 +126,40 @@ def timeline_data(records: list[dict[str, str]]) -> list[list[Any]]:
     return rows
 
 
+def _daily_verdict_summary(
+    timeline_rows: list[list[Any]],
+) -> tuple[list[str], dict[str, dict[str, int]], dict[str, int], dict[str, int]]:
+    """Aggregate timeline rows into daily verdict totals."""
+    from collections import defaultdict
+    from datetime import datetime
+
+    daily_counts: dict[str, dict[str, int]] = defaultdict(
+        lambda: {"PASS": 0, "FAIL": 0, "WARN": 0, "UNKNOWN": 0}
+    )
+    daily_pass: dict[str, int] = defaultdict(int)
+    daily_total: dict[str, int] = defaultdict(int)
+
+    for row in timeline_rows:
+        ts_str = str(row[0])
+        verdict = str(row[3])
+        try:
+            dt = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
+            date_key = dt.strftime("%Y-%m-%d")
+        except ValueError:
+            date_key = ts_str[:10]
+
+        if verdict in daily_counts[date_key]:
+            daily_counts[date_key][verdict] += 1
+        else:
+            daily_counts[date_key]["UNKNOWN"] += 1
+        daily_total[date_key] += 1
+        if verdict == "PASS":
+            daily_pass[date_key] += 1
+
+    dates = sorted(daily_counts.keys())
+    return dates, daily_counts, daily_pass, daily_total
+
+
 def build_plotly_bar(verdict_rows: list[list[Any]], theme_name: str = "Brand") -> Any:
     """Build a Plotly bar chart from verdict distribution data."""
     if not verdict_rows:
@@ -204,30 +238,7 @@ def build_plotly_daily_volume(timeline_rows: list[list[Any]], theme_name: str = 
     except ImportError:
         return None
 
-    # Aggregate by date and verdict
-    from collections import defaultdict
-    from datetime import datetime
-
-    daily_counts: dict[str, dict[str, int]] = defaultdict(
-        lambda: {"PASS": 0, "FAIL": 0, "WARN": 0, "UNKNOWN": 0}
-    )
-
-    for row in timeline_rows:
-        ts_str = str(row[0])
-        verdict = str(row[3])
-        try:
-            # Parse ISO 8601 to YYYY-MM-DD
-            dt = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
-            date_key = dt.strftime("%Y-%m-%d")
-        except ValueError:
-            date_key = ts_str[:10]  # Fallback formatting
-
-        if verdict in daily_counts[date_key]:
-            daily_counts[date_key][verdict] += 1
-        else:
-            daily_counts[date_key]["UNKNOWN"] += 1
-
-    dates = sorted(list(daily_counts.keys()))
+    dates, daily_counts, _, _ = _daily_verdict_summary(timeline_rows)
 
     colors = COLOR_SCHEMES.get(theme_name, COLOR_SCHEMES["Brand"])["verdict"]
 
@@ -277,27 +288,7 @@ def build_plotly_health_trend(timeline_rows: list[list[Any]], theme_name: str = 
     except ImportError:
         return None
 
-    # Aggregate by date
-    from collections import defaultdict
-    from datetime import datetime
-
-    daily_pass: dict[str, int] = defaultdict(int)
-    daily_total: dict[str, int] = defaultdict(int)
-
-    for row in timeline_rows:
-        ts_str = str(row[0])
-        verdict = str(row[3])
-        try:
-            dt = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
-            date_key = dt.strftime("%Y-%m-%d")
-        except ValueError:
-            date_key = ts_str[:10]
-
-        daily_total[date_key] += 1
-        if verdict == "PASS":
-            daily_pass[date_key] += 1
-
-    dates = sorted(list(daily_total.keys()))
+    dates, _, daily_pass, daily_total = _daily_verdict_summary(timeline_rows)
     rates = [(daily_pass[d] / daily_total[d] * 100) if daily_total[d] > 0 else 0 for d in dates]
 
     theme = COLOR_SCHEMES.get(theme_name, COLOR_SCHEMES["Brand"])

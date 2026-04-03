@@ -12,7 +12,7 @@ from __future__ import annotations
 import json
 import uuid
 from dataclasses import asdict
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -46,6 +46,25 @@ def _extract_overall_verdict(envelope: dict[str, Any]) -> str:
         if isinstance(nested, dict) and "overall_verdict" in nested:
             return str(nested["overall_verdict"])
     return ""
+
+
+def _normalize_date_filter(raw: str | None, *, end_of_day: bool) -> str | None:
+    """Normalize `YYYY-MM-DD` inputs into full-day ISO boundaries."""
+    if raw is None:
+        return None
+    value = raw.strip()
+    if not value:
+        return None
+    if len(value) != 10:
+        return value
+    try:
+        day = datetime.fromisoformat(value)
+    except ValueError:
+        return value
+    if end_of_day:
+        day = day + timedelta(days=1) - timedelta(microseconds=1)
+        return day.isoformat(timespec="microseconds")
+    return day.isoformat(timespec="seconds")
 
 
 def write_evidence(
@@ -257,6 +276,8 @@ def list_evidence(
     if not d.is_dir():
         return []
 
+    date_from_filter = _normalize_date_filter(date_from, end_of_day=False)
+    date_to_filter = _normalize_date_filter(date_to, end_of_day=True)
     has_filters = any(v is not None for v in (dataset_id, run_kind, run_id, date_from, date_to))
 
     results: list[dict[str, Any]] = []
@@ -290,9 +311,9 @@ def list_evidence(
             continue
 
         generated_at = meta.get("generated_at", "")
-        if date_from is not None and generated_at < date_from:
+        if date_from_filter is not None and generated_at < date_from_filter:
             continue
-        if date_to is not None and generated_at > date_to:
+        if date_to_filter is not None and generated_at > date_to_filter:
             continue
 
         results.append({

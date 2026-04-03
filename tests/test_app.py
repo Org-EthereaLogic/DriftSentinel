@@ -126,6 +126,17 @@ class TestAppImportHygiene:
 
 
 class TestAppHelpers:
+    def test_only_registry_tab_preloads_on_app_load(self) -> None:
+        from app.app import build_app
+
+        app = build_app()
+        load_dependencies = [
+            dep for dep in app.config.get("dependencies", [])
+            if dep.get("targets") == [(52, "load")]
+        ]
+
+        assert len(load_dependencies) == 1
+
     def test_load_registry_table_missing_file(self) -> None:
         from app.app import load_registry_table
 

@@ -101,6 +101,16 @@ class TestListEvidence:
         assert len(results) == 1
         assert results[0]["dataset_id"] == "ds_b"
 
+    def test_filter_by_same_day_uses_inclusive_bounds(self, tmp_path: Path) -> None:
+        self._write_artifacts(tmp_path)
+        results = list_evidence(
+            tmp_path,
+            date_from="2026-04-02",
+            date_to="2026-04-02",
+        )
+        assert len(results) == 1
+        assert results[0]["dataset_id"] == "ds_b"
+
     def test_empty_directory(self, tmp_path: Path) -> None:
         results = list_evidence(tmp_path)
         assert results == []

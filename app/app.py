@@ -511,15 +511,6 @@ def build_app():  # type: ignore[no-untyped-def]
             fn=_load_registry_with_status, inputs=[reg_path],
             outputs=[reg_table, reg_status],
         )
-        app.load(
-            fn=_query_with_summary,
-            inputs=[ev_dir, ds_filter, kind_filter, rid_filter, from_filter, to_filter],
-            outputs=[status_table, run_summary],
-        )
-        app.load(
-            fn=_refresh_analytics, inputs=[ana_dir, color_theme],
-            outputs=[verdict_plot, kind_plot, volume_plot, health_plot, ana_status],
-        )
 
     return app
 
