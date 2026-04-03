@@ -25,7 +25,7 @@ except ImportError:  # allow test imports without gradio installed
 
 from driftsentinel.config.loader import DatasetRegistry, RegistryError
 from driftsentinel.evidence.writer import list_evidence, load_evidence
-from driftsentinel.paths import PathSecurityError, resolve_trusted_child, resolve_trusted_file
+from driftsentinel.paths import PathSecurityError, resolve_trusted_child, trusted_roots
 
 REGISTRY_PATH = os.environ.get("REGISTRY_PATH", "/tmp/driftsentinel_registry.json")
 EVIDENCE_DIR = os.environ.get("EVIDENCE_DIR", "/tmp/driftsentinel_evidence")
@@ -120,11 +120,11 @@ def load_registry_table(registry_path: str) -> list[list[str]]:
     """Load the registry and return rows for the Gradio table."""
     path = registry_path.strip() or REGISTRY_PATH
     try:
-        registry_file = resolve_trusted_file(
-            path,
-            context="Registry file",
-            allowed_suffixes=(".json",),
-        )
+        normalized = os.path.abspath(os.path.normpath(os.path.expanduser(path)))
+        roots = trusted_roots()
+        if not any(normalized == root or normalized.startswith(f"{root}{os.sep}") for root in roots):
+            raise PathSecurityError(f"Registry file escapes trusted roots: {path}")
+        registry_file = Path(normalized)
         if not registry_file.is_file():
             return [["(no registry file found)", "", "", "", ""]]
         reg = DatasetRegistry.load(registry_file)

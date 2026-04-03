@@ -11,6 +11,7 @@ Phase 4 adds an in-memory metadata cache for O(1) repeated lookups.
 from __future__ import annotations
 
 import json
+import os
 import threading
 import uuid
 from dataclasses import asdict
@@ -19,9 +20,10 @@ from pathlib import Path
 from typing import Any
 
 from driftsentinel.paths import (
+    PathSecurityError,
     resolve_trusted_child,
     resolve_trusted_dir,
-    resolve_trusted_file,
+    trusted_roots,
     validate_simple_filename,
 )
 
@@ -348,7 +350,11 @@ def list_evidence(
     Returns:
         A list of summary dicts sorted by generated_at descending.
     """
-    d = resolve_trusted_dir(evidence_dir, context="Evidence directory")
+    raw_dir = os.path.abspath(os.path.normpath(os.path.expanduser(os.fspath(evidence_dir))))
+    roots = trusted_roots()
+    if not any(raw_dir == root or raw_dir.startswith(f"{root}{os.sep}") for root in roots):
+        raise PathSecurityError(f"Evidence directory escapes trusted roots: {evidence_dir}")
+    d = Path(raw_dir)
     if not d.is_dir():
         return []
 
@@ -404,11 +410,11 @@ def load_evidence(path: str | Path) -> dict[str, Any]:
     Raises FileNotFoundError if the file does not exist.
     Raises ValueError if the file is not valid JSON.
     """
-    p = resolve_trusted_file(
-        path,
-        context="Evidence artifact",
-        allowed_suffixes=(".json",),
-    )
+    raw_path = os.path.abspath(os.path.normpath(os.path.expanduser(os.fspath(path))))
+    roots = trusted_roots()
+    if not any(raw_path == root or raw_path.startswith(f"{root}{os.sep}") for root in roots):
+        raise PathSecurityError(f"Evidence artifact escapes trusted roots: {path}")
+    p = Path(raw_path)
     if not p.is_file():
         raise FileNotFoundError(f"Evidence file not found: {p}")
     try:

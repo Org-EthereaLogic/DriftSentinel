@@ -121,6 +121,7 @@ class TestAppImportHygiene:
             "load_evidence",
             "resolve_trusted_child",
             "resolve_trusted_file",
+            "trusted_roots",
         }
         for imp in ds_imports:
             assert imp in allowed, f"Unexpected driftsentinel import: {imp}"

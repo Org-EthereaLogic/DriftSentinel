@@ -11,6 +11,7 @@ and policy-to-dataset compatibility checks.
 from __future__ import annotations
 
 import json
+import os
 from importlib import resources
 from importlib.resources.abc import Traversable
 from pathlib import Path
@@ -18,7 +19,7 @@ from typing import Any
 
 import yaml
 
-from driftsentinel.paths import resolve_trusted_file
+from driftsentinel.paths import PathSecurityError, resolve_trusted_file, trusted_roots
 
 
 class ConfigError(Exception):
@@ -328,11 +329,11 @@ class DatasetRegistry:
     @classmethod
     def load(cls, path: str | Path) -> DatasetRegistry:
         """Deserialize a registry from a JSON file."""
-        p = resolve_trusted_file(
-            path,
-            context="Registry file",
-            allowed_suffixes=(".json",),
-        )
+        raw_path = os.path.abspath(os.path.normpath(os.path.expanduser(os.fspath(path))))
+        roots = trusted_roots()
+        if not any(raw_path == root or raw_path.startswith(f"{root}{os.sep}") for root in roots):
+            raise PathSecurityError(f"Registry file escapes trusted roots: {path}")
+        p = Path(raw_path)
         if not p.is_file():
             raise RegistryError(f"Registry file not found: {p}")
         with open(p, encoding="utf-8") as f:
