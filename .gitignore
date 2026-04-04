@@ -41,6 +41,7 @@ logs/
 
 # Playwright CLI session artifacts
 .playwright-cli/
+output/
 
 # Implementation session tracking (contains local paths)
 progress.json

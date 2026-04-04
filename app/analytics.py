@@ -323,7 +323,13 @@ def build_plotly_health_trend(
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
         margin=dict(l=40, r=20, t=60, b=30),
-        showlegend=False,
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1,
+        ),
         height=320,
     )
     fig.update_xaxes(showgrid=False, type="category")

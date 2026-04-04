@@ -362,14 +362,29 @@ def list_evidence(
     date_to_filter = _normalize_date_filter(date_to, end_of_day=True)
     has_filters = any(v is not None for v in (dataset_id, run_kind, run_id, date_from, date_to))
 
+    import concurrent.futures
+
     # Glob directory and parse only uncached files (append-only, so cache is stable)
     all_paths = sorted(d.glob("*.json"))
 
+    uncached_paths = []
     with _cache_lock:
         for p in all_paths:
             key = str(p)
             if key not in _metadata_cache:
-                _metadata_cache[key] = _parse_evidence_file(p)
+                uncached_paths.append(p)
+
+    if uncached_paths:
+        parsed_results = {}
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            future_to_path = {executor.submit(_parse_evidence_file, p): p for p in uncached_paths}
+            for future in concurrent.futures.as_completed(future_to_path):
+                p = future_to_path[future]
+                parsed_results[str(p)] = future.result()
+
+        with _cache_lock:
+            for key, result in parsed_results.items():
+                _metadata_cache[key] = result
 
     # Build results from cache — filter in-memory without touching disk
     results: list[dict[str, Any]] = []
