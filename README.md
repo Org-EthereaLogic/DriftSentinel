@@ -91,7 +91,7 @@ These are not hypothetical gaps. They are the operational reality of any team th
 | `resources/` | Databricks Asset Bundle pipeline, job, and app resource definitions |
 | `templates/` | Dataset contract, drift policy, and benchmark policy templates |
 | `specs/` | Canonical SDLC documents governing the product |
-| `tests/` | 308-test suite covering domain logic, packaging, and governance |
+| `tests/` | 310-test suite covering domain logic, packaging, and governance |
 
 Every directory above contains a `README.md` describing its contents, including each submodule under `src/driftsentinel/`.
 
@@ -162,7 +162,7 @@ git clone https://github.com/Org-EthereaLogic/DriftSentinel.git
 cd DriftSentinel
 
 make sync   # installs runtime + dev dependencies via uv
-make test   # runs the 308-test suite
+make test   # runs the 310-test suite
 ```
 
 ### Databricks Bundle and App Deployment
@@ -226,14 +226,14 @@ Please complete these steps in order. Stop at any failure and report it before c
    make sync
    If uv is not installed: pip install uv
 
-3. Run the full test suite. All 308 tests must pass before proceeding:
+3. Run the full test suite. All 310 tests must pass before proceeding:
    make test
 
 4. Read these files to understand the configuration model before deployment:
    - README.md
-   - templates/dataset_contract.yaml
-   - templates/drift_policy.yaml
-   - templates/benchmark_policy.yaml
+   - templates/dataset_contract.yml
+   - templates/drift_policy.yml
+   - templates/benchmark_policy.yml
 
 5. Ask me for my Databricks setup details:
    - My Unity Catalog catalog name
