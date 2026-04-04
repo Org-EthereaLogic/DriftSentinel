@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "etherealogic-driftsentinel"
-version = "0.2.0"
+version = "0.3.0"
 description = "Enterprise Data Trust — Chapter 4: Unified Drift Monitoring Application"
 readme = "README.md"
 license = "MIT"
