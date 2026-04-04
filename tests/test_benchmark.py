@@ -8,12 +8,20 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 from driftsentinel.benchmark.drift_detectors import baseline_drift_check, challenger_drift_check
 from driftsentinel.benchmark.gates import GateVerdict, evaluate_gates_from_dicts
 from driftsentinel.benchmark.orchestrator import run_benchmark
 from driftsentinel.benchmark.quality_detectors import baseline_quality_check, challenger_quality_check
+from driftsentinel.benchmark.reference_data import (
+    ORDER_COLUMN,
+    _inject_gradual_decay,
+    _inject_new_category,
+    _inject_quality_faults,
+    _inject_sudden_shift,
+)
 from driftsentinel.benchmark.scoring import score_drift, score_quality
 from driftsentinel.benchmark.synthetic import generate_dataset
 
@@ -169,3 +177,97 @@ def test_run_benchmark_with_reference_data() -> None:
     assert result["execution_mode"] == "reference_data"
     assert result["reference_row_count"] == 4
     assert result["overall_verdict"] in (GateVerdict.PASS, GateVerdict.WARN, GateVerdict.FAIL)
+
+
+def test_run_benchmark_with_boolean_columns() -> None:
+    """Benchmark fault injection must handle boolean dtype columns without crashing."""
+    reference_df = pd.DataFrame({
+        "id": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+        "batch_id": ["B-1"] * 10,
+        "is_active": [True, False, True, True, False, True, False, True, False, True],
+        "is_verified": [False, True, False, True, True, False, True, False, True, False],
+        "amount": [10.0, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0],
+    })
+    assert pd.api.types.is_bool_dtype(reference_df["is_active"])
+
+    result = run_benchmark(
+        seed=SEED,
+        n_rows=10,
+        reference_df=reference_df,
+        expected_columns=list(reference_df.columns),
+        monitored_columns=["is_active", "is_verified", "amount"],
+        business_key=["id"],
+        quality_faults=[
+            {"type": "null_injection", "columns": ["is_active"], "rate": 0.30},
+            {"type": "duplicate_inflation", "rate": 0.10},
+            {"type": "type_corruption", "columns": ["is_verified"], "rate": 0.20},
+        ],
+        drift_patterns=[
+            {"type": "sudden_shift", "columns": ["is_active"]},
+            {"type": "gradual_decay", "columns": ["is_verified"]},
+            {"type": "new_category", "columns": ["is_active"]},
+        ],
+    )
+
+    assert result["execution_mode"] == "reference_data"
+    assert result["overall_verdict"] in (GateVerdict.PASS, GateVerdict.WARN, GateVerdict.FAIL)
+
+
+# --- Boolean dtype fault injection (unit tests) ---
+
+
+def _bool_df() -> pd.DataFrame:
+    """Return a small DataFrame with boolean columns for injection testing."""
+    df = pd.DataFrame({
+        "id": range(20),
+        "flag_a": [True, False] * 10,
+        "flag_b": [False, True, True, False] * 5,
+        "amount": [float(i) for i in range(20)],
+        ORDER_COLUMN: range(20),
+    })
+    assert pd.api.types.is_bool_dtype(df["flag_a"])
+    assert pd.api.types.is_bool_dtype(df["flag_b"])
+    return df
+
+
+def test_null_injection_on_bool_column() -> None:
+    """Null injection into a boolean column must not raise TypeError."""
+    df = _bool_df()
+    rng = np.random.default_rng(42)
+    faulted, manifest = _inject_quality_faults(
+        df,
+        quality_faults=[{"type": "null_injection", "columns": ["flag_a"], "rate": 0.30}],
+        business_key=["id"],
+        rng=rng,
+    )
+    null_indices = manifest["null_indices"]["flag_a"]
+    assert len(null_indices) > 0
+    assert faulted.loc[null_indices, "flag_a"].isna().all()
+    non_null_mask = ~faulted.index.isin(null_indices)
+    assert faulted.loc[non_null_mask, "flag_a"].notna().all()
+
+
+def test_sudden_shift_on_bool_column() -> None:
+    """Sudden shift on a boolean column must not raise TypeError."""
+    df = _bool_df()
+    shifted, info = _inject_sudden_shift(df, ["flag_a"])
+    assert "flag_a" in info["columns"]
+    assert shifted["flag_a"].nunique() == 1
+
+
+def test_gradual_decay_on_bool_column() -> None:
+    """Gradual decay on a boolean column must not raise TypeError."""
+    df = _bool_df()
+    rng = np.random.default_rng(42)
+    decayed, info = _inject_gradual_decay(df, ["flag_b"], rng=rng)
+    assert "flag_b" in info["columns"]
+    assert info["changed_rows"]["flag_b"] > 0
+
+
+def test_new_category_on_bool_column() -> None:
+    """New category injection on a boolean column must not raise TypeError."""
+    df = _bool_df()
+    rng = np.random.default_rng(42)
+    injected, info = _inject_new_category(df, ["flag_a"], rng=rng)
+    assert "flag_a" in info["columns"]
+    assert (injected["flag_a"] == "__NEW_CATEGORY__").any()

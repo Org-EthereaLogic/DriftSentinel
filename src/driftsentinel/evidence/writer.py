@@ -424,9 +424,10 @@ def list_evidence(
     )
 
     import concurrent.futures
+    import os as _os
 
     # Glob directory and parse only uncached files (append-only, so cache is stable)
-    all_paths = sorted(d.glob("*.json"))
+    all_paths = sorted(p for p in d.iterdir() if p.suffix == ".json")
 
     uncached_paths = []
     with _cache_lock:
@@ -437,7 +438,8 @@ def list_evidence(
 
     if uncached_paths:
         parsed_results = {}
-        with concurrent.futures.ThreadPoolExecutor() as executor:
+        max_workers = min(len(uncached_paths), _os.cpu_count() or 4)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
             future_to_path = {executor.submit(_parse_evidence_file, p): p for p in uncached_paths}
             for future in concurrent.futures.as_completed(future_to_path):
                 p = future_to_path[future]

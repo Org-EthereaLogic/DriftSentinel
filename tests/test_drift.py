@@ -5,6 +5,8 @@ All data is deterministic and local to DriftSentinel.
 
 from __future__ import annotations
 
+import math
+
 import pandas as pd
 
 from driftsentinel.drift.baseline import BaselineSnapshot
@@ -13,7 +15,7 @@ from driftsentinel.drift.detection import (
     DriftResult,
     detect_drift,
 )
-from driftsentinel.drift.entropy import column_stability_score
+from driftsentinel.drift.entropy import _shannon_entropy, column_stability_score
 from driftsentinel.drift.gates import (
     GateConfig,
     GateVerdict,
@@ -48,6 +50,33 @@ def test_partial_diversity() -> None:
     series = pd.Series(["A"] * 20 + ["B"] * 5)
     score = column_stability_score(series)
     assert 0.0 < score < 1.0
+
+
+def test_vectorized_entropy_matches_loop_implementation() -> None:
+    """Verify the numpy-vectorized entropy matches a reference loop calculation."""
+
+    def _reference_entropy(series: pd.Series) -> float:
+        counts = series.value_counts(dropna=False)
+        total = counts.sum()
+        if total == 0:
+            return 0.0
+        probs = counts / total
+        return -sum(p * math.log2(p) for p in probs if p > 0)
+
+    test_cases = [
+        pd.Series(["A", "B", "C", "D", "E"] * 100),
+        pd.Series(["X"] * 500),
+        pd.Series(["A"] * 400 + ["B"] * 100),
+        pd.Series(list(range(200))),
+        pd.Series([1.0, 2.0, 3.0, None, 1.0, 2.0, None] * 50),
+        pd.Series([True, False, True, True, False] * 100),
+    ]
+    for series in test_cases:
+        vectorized = _shannon_entropy(series)
+        reference = _reference_entropy(series)
+        assert abs(vectorized - reference) < 1e-10, (
+            f"Entropy mismatch: vectorized={vectorized}, reference={reference}"
+        )
 
 
 # --- Baseline ---

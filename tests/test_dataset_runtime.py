@@ -129,6 +129,29 @@ def test_load_tabular_dataset_txt_with_sniffed_delimiter(tmp_path: Path) -> None
     assert loaded.frame.columns.tolist() == ["id", "batch_id", "amount"]
 
 
+def test_csv_mixed_types_no_warning(tmp_path: Path) -> None:
+    """CSV with mixed-type columns should load without DtypeWarning when low_memory=False."""
+    import warnings
+
+    lines = ["id,value,tag\n"]
+    for i in range(500):
+        # Alternate between int-like and string values in the 'value' column
+        val = str(i) if i % 100 != 0 else "N/A"
+        lines.append(f"{i},{val},cat_{i % 5}\n")
+    path = tmp_path / "mixed.csv"
+    path.write_text("".join(lines), encoding="utf-8")
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", category=FutureWarning)
+        # DtypeWarning is a subclass of FutureWarning in newer pandas;
+        # catch it as a regular warning too
+        warnings.filterwarnings("error", category=DeprecationWarning)
+        loaded = load_tabular_dataset(path, "csv", context="Mixed-type CSV")
+
+    assert loaded.frame.shape == (500, 3)
+    assert loaded.source_format == "csv"
+
+
 def test_load_tabular_dataset_excel(tmp_path: Path) -> None:
     path = tmp_path / "baseline.xlsx"
     expected = pd.DataFrame([
