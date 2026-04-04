@@ -23,7 +23,10 @@ class PathSecurityError(ValueError):
 
 def _normalized_path(value: str | Path) -> str:
     """Return a normalized absolute path string."""
-    return os.path.abspath(os.path.normpath(os.path.expanduser(os.fspath(value))))
+    raw = os.path.expanduser(os.fspath(value))
+    if raw.startswith("dbfs:/"):
+        raw = os.path.join("/dbfs", raw[len("dbfs:/"):].lstrip("/"))
+    return os.path.abspath(os.path.normpath(raw))
 
 
 def _resolved_root(value: str | Path) -> str:

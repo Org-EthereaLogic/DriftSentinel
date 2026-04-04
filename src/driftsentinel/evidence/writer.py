@@ -60,13 +60,32 @@ def _extract_overall_verdict(envelope: dict[str, Any]) -> str:
     payload = envelope.get("payload", {})
     if not isinstance(payload, dict):
         return ""
+    return _derive_overall_verdict_from_payload(payload)
+
+
+def _derive_overall_verdict_from_payload(payload: dict[str, Any]) -> str:
     if "overall_verdict" in payload:
         return str(payload["overall_verdict"])
 
-    for section in ("drift", "benchmark"):
+    if any(key in payload for key in ("ready", "quarantined", "schema_valid")):
+        schema_valid = bool(payload.get("schema_valid", True))
+        quarantined = int(payload.get("quarantined", 0) or 0)
+        return "PASS" if schema_valid and quarantined == 0 else "FAIL"
+
+    nested_verdicts: list[str] = []
+    for section in ("intake", "drift", "benchmark"):
         nested = payload.get(section)
-        if isinstance(nested, dict) and "overall_verdict" in nested:
-            return str(nested["overall_verdict"])
+        if isinstance(nested, dict):
+            verdict = _derive_overall_verdict_from_payload(nested).strip().upper()
+            if verdict:
+                nested_verdicts.append(verdict)
+
+    if "FAIL" in nested_verdicts:
+        return "FAIL"
+    if "WARN" in nested_verdicts:
+        return "WARN"
+    if "PASS" in nested_verdicts:
+        return "PASS"
     return ""
 
 

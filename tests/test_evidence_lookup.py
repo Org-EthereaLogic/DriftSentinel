@@ -165,6 +165,38 @@ class TestListEvidence:
         assert len(results) == 1
         assert results[0]["overall_verdict"] == "PASS"
 
+    def test_derives_intake_pass_verdict_when_missing(self, tmp_path: Path) -> None:
+        write_evidence(
+            tmp_path,
+            "intake.json",
+            {"ready": 10, "quarantined": 0, "schema_valid": True},
+            run_ts=FIXED_TS,
+            dataset_id="ds_a",
+            run_kind="intake",
+            run_id="r1",
+        )
+        results = list_evidence(tmp_path)
+        assert len(results) == 1
+        assert results[0]["overall_verdict"] == "PASS"
+
+    def test_derives_pipeline_fail_from_nested_stage_verdicts(self, tmp_path: Path) -> None:
+        write_evidence(
+            tmp_path,
+            "pipeline.json",
+            {
+                "intake": {"ready": 10, "quarantined": 0, "schema_valid": True},
+                "drift": {"overall_verdict": "PASS"},
+                "benchmark": {"overall_verdict": "FAIL"},
+            },
+            run_ts=FIXED_TS,
+            dataset_id="ds_a",
+            run_kind="pipeline",
+            run_id="r1",
+        )
+        results = list_evidence(tmp_path)
+        assert len(results) == 1
+        assert results[0]["overall_verdict"] == "FAIL"
+
     def test_missing_execution_mode_is_tagged_legacy_unknown(self, tmp_path: Path) -> None:
         path = write_evidence(tmp_path, "legacy.json", {"x": 1}, run_ts=FIXED_TS)
         data = json.loads(path.read_text())

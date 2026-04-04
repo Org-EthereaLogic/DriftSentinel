@@ -21,6 +21,8 @@
 # Resolve the bundle workspace root when this notebook is deployed through
 # Databricks Asset Bundles, then fall back to GitHub for manual imports.
 from pathlib import Path
+import subprocess
+import sys
 
 
 def _resolve_install_target() -> str:
@@ -42,14 +44,19 @@ def _resolve_install_target() -> str:
 
 
 install_target = _resolve_install_target()
-with open("/tmp/driftsentinel-bootstrap.txt", "w", encoding="utf-8") as fh:
-    fh.write(f"{install_target}\n")
-print(f"Installing DriftSentinel from: {install_target}")
+if install_target.startswith("/Workspace/"):
+    source_root = str(Path(install_target) / "src")
+    if source_root not in sys.path:
+        sys.path.insert(0, source_root)
+    print(f"Using DriftSentinel from workspace source tree: {source_root}")
+else:
+    print(f"Installing DriftSentinel from: {install_target}")
+    subprocess.check_call([sys.executable, "-m", "pip", "install", install_target])
+    dbutils.library.restartPython()
 
 # COMMAND ----------
 
-# MAGIC %pip install -r /tmp/driftsentinel-bootstrap.txt
-# MAGIC dbutils.library.restartPython()
+# Installation is handled in the previous cell so serverless runs do not rely on writing a temp file.
 
 # COMMAND ----------
 

@@ -83,19 +83,27 @@ def test_all_notebooks_have_databricks_header() -> None:
         )
 
 
-def test_all_notebooks_have_pip_install() -> None:
-    """Every notebook should include a pip install cell."""
+def test_all_notebooks_have_bootstrap_install_logic() -> None:
+    """Every notebook should bootstrap from the workspace tree or pip-install GitHub."""
     for name in NOTEBOOK_FILES:
         text = (NOTEBOOKS / name).read_text(encoding="utf-8")
-        assert "%pip install" in text, f"{name} missing %pip install cell"
+        assert "_resolve_install_target" in text, f"{name} missing install target resolver"
+        assert 'subprocess.check_call([sys.executable, "-m", "pip", "install", install_target])' in text, (
+            f"{name} missing pip bootstrap fallback"
+        )
 
 
 def test_all_notebooks_support_bundle_local_bootstrap() -> None:
-    """Bundle-deployed notebooks should install the uploaded bundle before GitHub."""
+    """Bundle-deployed notebooks should prefer the workspace source tree."""
     for name in NOTEBOOK_FILES:
         text = (NOTEBOOKS / name).read_text(encoding="utf-8")
-        assert "driftsentinel-bootstrap.txt" in text, f"{name} missing bootstrap requirements file"
         assert 'Path("/Workspace")' in text, f"{name} missing workspace bundle bootstrap logic"
+        assert 'source_root = str(Path(install_target) / "src")' in text, (
+            f"{name} missing src-layout bootstrap logic"
+        )
+        assert "serverless runs do not rely on writing a temp file" in text, (
+            f"{name} missing serverless bootstrap guard comment"
+        )
 
 
 def test_all_notebooks_have_command_separators() -> None:
@@ -418,6 +426,18 @@ def test_notebooks_expose_template_override_and_evidence_widgets() -> None:
     assert 'dbutils.widgets.text("contract_path", "",' in register_text
     assert 'dbutils.widgets.text("policy_path", "",' in benchmark_text
     assert 'dbutils.widgets.text("evidence_dir", "/tmp/driftsentinel_evidence",' in benchmark_text
+
+
+def test_public_docs_describe_current_enterprise_ingest_surface() -> None:
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    notebooks_readme = (ROOT / "notebooks" / "README.md").read_text(encoding="utf-8")
+    templates_readme = (ROOT / "templates" / "README.md").read_text(encoding="utf-8")
+
+    assert "Spark/Unity Catalog tables" in readme
+    assert "csv" in readme and "orc" in readme and "excel" in readme
+    assert "source.table_name" in notebooks_readme
+    assert "baseline.table_name" in notebooks_readme
+    assert "read_options" in templates_readme
 
 
 # --- Phase 3: Dataset selection and evidence query widgets ---

@@ -91,6 +91,7 @@ databricks bundle deploy -p <profile> --var="catalog=my_catalog,schema=my_schema
 ## Option 2: Direct Notebook Import with pip Install
 
 If you prefer to run notebooks directly without the bundle CLI, each notebook
+prefers the bundle-synced workspace source tree when present and otherwise
 installs DriftSentinel from GitHub on first run.
 
 1. Clone or download the repository.
@@ -100,12 +101,14 @@ installs DriftSentinel from GitHub on first run.
 4. Open `00_quickstart_setup.py` to verify installation and run a health check.
 5. Follow notebooks in order: register dataset, seed baseline, run controls.
 
-Each notebook includes a `%pip install` cell that pulls the package directly
-from the deployed bundle files when available and falls back to the GitHub
-repository for standalone imports. No prior installation is required on the
-cluster. The package includes read-only example templates for the notebook
-bootstrap path, while `01_register_dataset.py` and
-`05_run_control_benchmark.py` also accept optional workspace YAML paths.
+Each notebook resolves the deployed workspace root under `/Workspace/...`,
+adds the repository `src/` tree to `sys.path` when present, and falls back to
+installing the GitHub repository when running standalone. No prior
+installation is required on the cluster. The package includes read-only
+example templates for the notebook bootstrap path, while
+`01_register_dataset.py` and `05_run_control_benchmark.py` also accept
+optional workspace YAML paths. For notebook widget paths backed by Databricks
+Volumes, prefer `/Volumes/...` rather than `/dbfs/Volumes/...`.
 
 ## Notebook Sequence
 

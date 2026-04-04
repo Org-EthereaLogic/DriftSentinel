@@ -10,6 +10,8 @@
 # Resolve the bundle workspace root when this notebook is deployed through
 # Databricks Asset Bundles, then fall back to GitHub for manual imports.
 from pathlib import Path
+import subprocess
+import sys
 
 
 def _resolve_install_target() -> str:
@@ -31,14 +33,19 @@ def _resolve_install_target() -> str:
 
 
 install_target = _resolve_install_target()
-with open("/tmp/driftsentinel-bootstrap.txt", "w", encoding="utf-8") as fh:
-    fh.write(f"{install_target}\n")
-print(f"Installing DriftSentinel from: {install_target}")
+if install_target.startswith("/Workspace/"):
+    source_root = str(Path(install_target) / "src")
+    if source_root not in sys.path:
+        sys.path.insert(0, source_root)
+    print(f"Using DriftSentinel from workspace source tree: {source_root}")
+else:
+    print(f"Installing DriftSentinel from: {install_target}")
+    subprocess.check_call([sys.executable, "-m", "pip", "install", install_target])
+    dbutils.library.restartPython()
 
 # COMMAND ----------
 
-# MAGIC %pip install -r /tmp/driftsentinel-bootstrap.txt
-# MAGIC dbutils.library.restartPython()
+# Installation is handled in the previous cell so serverless runs do not rely on writing a temp file.
 
 # COMMAND ----------
 
@@ -70,6 +77,30 @@ if not schema:
 print(f"Benchmark config: seed={seed}, n_rows={n_rows}, target={catalog}.{schema}")
 if dataset_id:
     print(f"Dataset: {dataset_id}")
+
+# COMMAND ----------
+
+import os
+
+
+def _configure_trusted_roots(*raw_paths: str) -> None:
+    roots = {"/Workspace", "/Volumes", "/dbfs"}
+    for raw in raw_paths:
+        raw = str(raw or "").strip()
+        if not raw:
+            continue
+        candidate = Path(raw.replace("dbfs:/", "/dbfs/", 1)).expanduser()
+        if candidate.is_absolute():
+            roots.add(str(candidate.parent if candidate.suffix else candidate))
+    existing = {
+        item for item in os.environ.get("DRIFTSENTINEL_ALLOWED_PATH_ROOTS", "").split(os.pathsep) if item
+    }
+    os.environ["DRIFTSENTINEL_ALLOWED_PATH_ROOTS"] = os.pathsep.join(sorted(existing | roots))
+
+
+os.environ["REGISTRY_PATH"] = registry_path
+os.environ["EVIDENCE_DIR"] = evidence_dir
+_configure_trusted_roots(registry_path, drift_policy_path, policy_path, evidence_dir)
 
 # COMMAND ----------
 

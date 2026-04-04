@@ -9,6 +9,7 @@ from typing import Any
 import pytest
 import yaml
 
+from driftsentinel import paths as ds_paths
 from driftsentinel.config.loader import (
     ConfigError,
     DatasetRegistry,
@@ -197,6 +198,30 @@ class TestRegistrySerialization:
         with tempfile.TemporaryDirectory(dir=ROOT.parent) as temp_dir:
             with pytest.raises(PathSecurityError, match="trusted roots"):
                 reg.save(Path(temp_dir) / "registry.json")
+
+    def test_load_supports_dbfs_uri_when_root_is_allowed(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        reg = DatasetRegistry()
+        reg.register(_make_contract("ds_a", "1.0.0"))
+        dbfs_root = tmp_path / "dbfs"
+        registry_path = dbfs_root / "tmp" / "registry.json"
+        registry_path.parent.mkdir(parents=True, exist_ok=True)
+        reg.save(registry_path)
+
+        original_normalized_path = ds_paths._normalized_path
+
+        def _fake_normalized_path(value: str | Path) -> str:
+            if str(value) == "dbfs:/tmp/registry.json":
+                return str(registry_path)
+            return original_normalized_path(value)
+
+        monkeypatch.setattr(ds_paths, "_normalized_path", _fake_normalized_path)
+        loaded = DatasetRegistry.load("dbfs:/tmp/registry.json")
+
+        assert loaded.contains("ds_a", "1.0.0")
 
 
 # --- Policy Compatibility ---

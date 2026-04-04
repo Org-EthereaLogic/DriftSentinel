@@ -17,7 +17,9 @@ drift_policy:
   baseline:
     source: trusted_load
     path: /Volumes/example_catalog/default/baseline/example/
+    table_name: example_catalog.default.example_baseline  # optional when format: table; use a fully qualified catalog.schema.table name
     format: csv
+    read_options: {}  # optional override for baseline-specific reader options
     min_rows: 100
 
   gates:

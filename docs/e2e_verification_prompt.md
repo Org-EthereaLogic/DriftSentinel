@@ -17,7 +17,7 @@ You are performing a full end-to-end visualized verification of DriftSentinel,
 the Enterprise Data Trust Chapter 4 application.
 
 Repository: /Users/etherealogic-2/Dev/Databricks/DriftSentinel
-Product state: Phases 0–5 complete, 326 tests passing, dependency triage resolved.
+Product state: Phases 0–5 complete, the current pytest suite passing, dependency triage resolved.
 
 Your role: You are an executive at a mid-market construction company
 ("Meridian Infrastructure") who just discovered DriftSentinel on GitHub. You
@@ -65,7 +65,7 @@ TASK 1.1 — Clone and local install
 - Clone the repo (or use the existing local copy)
 - Run: make sync
 - Run: make test
-- VERIFY: All 326 tests pass. Screenshot the terminal output via Kapture.
+- VERIFY: The full pytest suite passes. Screenshot the terminal output via Kapture.
 - VERIFY: No errors during install. If there are dependency issues, log them.
 
 TASK 1.2 — Read the README and quickstart

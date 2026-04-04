@@ -242,6 +242,25 @@ class TestAppHelpers:
         assert rows[0][3] == "benchmark"
         assert rows[0][5] == "🟢 PASS"
 
+    def test_query_evidence_derives_intake_pass_verdict(self, tmp_path: Path) -> None:
+        from app.app import query_evidence
+        from driftsentinel.evidence.writer import write_evidence
+
+        write_evidence(
+            tmp_path,
+            "intake.json",
+            {"ready": 10, "quarantined": 0, "schema_valid": True},
+            run_ts="2026-04-02T00:00:00+00:00",
+            dataset_id="ds_a",
+            run_kind="intake",
+            run_id="r1",
+            execution_mode="dataset_backed",
+        )
+        rows = query_evidence(str(tmp_path), "", "", "", "", "", "")
+        assert len(rows) == 1
+        assert rows[0][3] == "intake"
+        assert rows[0][5] == "🟢 PASS"
+
     def test_query_evidence_honors_max_results(self, tmp_path: Path) -> None:
         from app.app import query_evidence
         from driftsentinel.evidence.writer import write_evidence

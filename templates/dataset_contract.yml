@@ -12,9 +12,12 @@ dataset:
 
 source:
   system: example_source
-  format: csv  # csv, parquet, json, delta
+  format: csv  # csv, tsv, txt, json, excel, parquet, avro, orc, delta, table
   landing_path: /Volumes/example_catalog/default/landing/example/
   baseline_path: /Volumes/example_catalog/default/baseline/example/  # optional fallback for drift baseline
+  table_name: example_catalog.default.example_table  # optional for format: table; use a fully qualified catalog.schema.table name
+  baseline_table_name: example_catalog.default.example_baseline  # optional fallback for table-backed drift baselines; fully qualified catalog.schema.table
+  read_options: {}  # optional reader options, e.g. {compression: infer}, {sheet_name: Sheet1}, {columns: [id, amount], limit: 500000} for table reads
 
 contract:
   required_columns:

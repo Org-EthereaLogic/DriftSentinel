@@ -218,14 +218,45 @@ def _drift_gate_configs(drift_policy: dict[str, Any]) -> list[GateConfig]:
     return configs
 
 
-def _validate_baseline_readiness(contract: dict[str, Any], baseline_df: pd.DataFrame) -> dict[str, Any]:
-    evaluation = evaluate_dataframe_contract(baseline_df, contract)
+def _validate_dataset_readiness(
+    contract: dict[str, Any],
+    frame: pd.DataFrame,
+    *,
+    dataset_label: str,
+) -> dict[str, Any]:
+    evaluation = evaluate_dataframe_contract(frame, contract)
     if not evaluation["schema_valid"] or evaluation["quarantined"] > 0:
+        missing_columns = list(evaluation.get("schema_missing_columns", []))
+        violation_counts = evaluation.get("violation_counts", {})
+        top_violations = ", ".join(
+            f"{name}={count}"
+            for name, count in sorted(
+                violation_counts.items(),
+                key=lambda item: (-int(item[1]), item[0]),
+            )[:3]
+        )
+        details: list[str] = [f"quarantined={evaluation['quarantined']}"]
+        if missing_columns:
+            details.append(f"missing_columns={missing_columns}")
+        if top_violations:
+            details.append(f"top_violations={top_violations}")
         raise ValueError(
-            "Trusted baseline data does not satisfy the registered contract. "
-            "Fix the baseline before running drift or benchmark."
+            f"{dataset_label} does not satisfy the registered contract. "
+            f"Fix the {dataset_label.lower()} before running drift or benchmark. "
+            + "; ".join(details)
         )
     return evaluation
+
+
+def _combine_stage_verdicts(*verdicts: str | None) -> str:
+    normalized = [str(verdict or "").strip().upper() for verdict in verdicts if str(verdict or "").strip()]
+    if "FAIL" in normalized:
+        return "FAIL"
+    if "WARN" in normalized:
+        return "WARN"
+    if "PASS" in normalized:
+        return "PASS"
+    return ""
 
 
 def run_dataset_intake(
@@ -241,8 +272,10 @@ def run_dataset_intake(
     """Run dataset-backed intake certification against a registered contract."""
     current = current_data or load_current_dataset(contract)
     result = evaluate_dataframe_contract(current.frame, contract)
+    intake_verdict = "PASS" if result["schema_valid"] and result["quarantined"] == 0 else "FAIL"
     payload = {
         **result,
+        "overall_verdict": intake_verdict,
         "execution_mode": "dataset_backed",
         "source": _loaded_trace(current),
     }
@@ -286,7 +319,8 @@ def run_dataset_drift(
     if baseline_loaded.frame.empty:
         raise ValueError("Baseline dataset is empty; drift execution requires at least one row.")
 
-    _validate_baseline_readiness(contract, baseline_loaded.frame)
+    _validate_dataset_readiness(contract, current.frame, dataset_label="Current dataset")
+    _validate_dataset_readiness(contract, baseline_loaded.frame, dataset_label="Trusted baseline data")
 
     min_rows = int(drift_policy["drift_policy"].get("baseline", {}).get("min_rows", 0) or 0)
     if min_rows and len(baseline_loaded.frame) < min_rows:
@@ -383,7 +417,7 @@ def run_dataset_benchmark(
 ) -> dict[str, Any]:
     """Run the benchmark against a trusted real-data reference sample."""
     baseline_loaded = baseline_data or load_baseline_dataset(contract, drift_policy)
-    _validate_baseline_readiness(contract, baseline_loaded.frame)
+    _validate_dataset_readiness(contract, baseline_loaded.frame, dataset_label="Trusted baseline data")
 
     bench_section = benchmark_policy["benchmark_policy"] if benchmark_policy is not None else {}
     benchmark_result = run_benchmark(
@@ -485,9 +519,15 @@ def run_dataset_pipeline(
         policy_version=bench_binding["policy_version"] if bench_binding else None,
         run_id=rid,
     )
+    overall_verdict = _combine_stage_verdicts(
+        intake_result.get("overall_verdict"),
+        drift_result.get("overall_verdict"),
+        benchmark_result.get("overall_verdict"),
+    )
 
     combined: dict[str, Any] = {
         "execution_mode": "dataset_backed",
+        "overall_verdict": overall_verdict,
         "dataset_id": dataset_id,
         "contract_version": contract_version,
         "run_id": rid,

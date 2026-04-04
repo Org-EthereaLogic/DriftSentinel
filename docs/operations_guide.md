@@ -19,7 +19,7 @@ App for operator dashboard access without editing notebooks.
    CATALOG=<catalog> PROFILE=<profile>`.
 5. Run the notebooks directly from GitHub using bundled example templates or
    optional workspace YAML paths, with bundle-deployed notebooks preferring
-   the uploaded bundle files.
+   the workspace source tree under `/Workspace/.../src`.
 6. Register multiple datasets via `01_register_dataset.py` with a serializable
    JSON registry.
 7. Execute intake, drift, and benchmark runs for a selected dataset using the
@@ -55,6 +55,10 @@ App for operator dashboard access without editing notebooks.
 - **Evidence is missing in `06_review_evidence.py` after a job run**: the
   default `/tmp/driftsentinel_evidence` path is cluster-local. Use a volume
   path in the `evidence_dir` widget if you need persistence across clusters.
+- **Notebook widgets cannot read a Databricks Volume path**: use
+  `/Volumes/<catalog>/<schema>/<volume>/...` in notebook widgets. Avoid
+  `/dbfs/Volumes/...`, which is not the supported path surface for notebook
+  reads in this workflow.
 - **Duplicate dataset registration**: the registry rejects re-registration
   of the same dataset name and contract version. Bump the `contract_version`
   in your YAML or remove the prior entry.
