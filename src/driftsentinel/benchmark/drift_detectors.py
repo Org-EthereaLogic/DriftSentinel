@@ -81,6 +81,8 @@ def challenger_drift_check(
     columns: list[str],
     entropy_threshold: float = 0.25,
     trend_threshold: float = 0.10,
+    *,
+    order_column: str = "row_order",
 ) -> dict[str, Any]:
     """Entropy-based drift detection with windowed trend analysis."""
     column_results: dict[str, dict[str, Any]] = {}
@@ -100,8 +102,8 @@ def challenger_drift_check(
 
         n = len(test_df)
         mid = n // 2
-        if mid > 10 and "row_order" in test_df.columns:
-            sorted_df = test_df.sort_values("row_order")
+        if mid > 10 and order_column in test_df.columns:
+            sorted_df = test_df.sort_values(order_column)
             first_half = sorted_df.iloc[:mid]
             second_half = sorted_df.iloc[mid:]
             h_first = _normalized_entropy(first_half[col])

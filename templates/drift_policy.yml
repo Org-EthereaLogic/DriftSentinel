@@ -16,6 +16,8 @@ drift_policy:
 
   baseline:
     source: trusted_load
+    path: /Volumes/example_catalog/default/baseline/example/
+    format: csv
     min_rows: 100
 
   gates:

@@ -8,6 +8,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pandas as pd
+
 from driftsentinel.benchmark.drift_detectors import baseline_drift_check, challenger_drift_check
 from driftsentinel.benchmark.gates import GateVerdict, evaluate_gates_from_dicts
 from driftsentinel.benchmark.orchestrator import run_benchmark
@@ -145,3 +147,25 @@ def test_run_benchmark_with_evidence(tmp_path: Path) -> None:
     data = json.loads(result["evidence_path"].read_text())
     assert data["meta"]["generated_at"] == FIXED_TS
     assert "payload" in data
+
+
+def test_run_benchmark_with_reference_data() -> None:
+    reference_df = pd.DataFrame([
+        {"id": 1, "batch_id": "B-1", "category": "A", "amount": 10.0},
+        {"id": 2, "batch_id": "B-1", "category": "B", "amount": 15.0},
+        {"id": 3, "batch_id": "B-1", "category": "A", "amount": 20.0},
+        {"id": 4, "batch_id": "B-1", "category": "C", "amount": 25.0},
+    ])
+
+    result = run_benchmark(
+        seed=SEED,
+        n_rows=4,
+        reference_df=reference_df,
+        expected_columns=list(reference_df.columns),
+        monitored_columns=["category", "amount"],
+        business_key=["id"],
+    )
+
+    assert result["execution_mode"] == "reference_data"
+    assert result["reference_row_count"] == 4
+    assert result["overall_verdict"] in (GateVerdict.PASS, GateVerdict.WARN, GateVerdict.FAIL)

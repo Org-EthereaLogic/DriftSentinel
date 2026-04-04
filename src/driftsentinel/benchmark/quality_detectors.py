@@ -14,17 +14,23 @@ def baseline_quality_check(
     df: pd.DataFrame,
     reference_df: pd.DataFrame,
     expected_columns: list[str] | None = None,
+    *,
+    business_key: list[str] | None = None,
+    metadata_columns: list[str] | None = None,
 ) -> dict[str, Any]:
     """Industry-standard rule-based quality check."""
     flagged_indices: set[object] = set()
 
-    biz_cols = [c for c in df.columns if c not in ("record_id", "row_order")]
+    key_columns = business_key or ["record_id"]
+    excluded = set(key_columns) | set(metadata_columns or ["row_order"])
+    biz_cols = [c for c in df.columns if c not in excluded]
     for col in biz_cols:
         null_mask = df[col].isna()
         flagged_indices.update(df.index[null_mask].tolist())
 
-    dup_mask = df.duplicated(subset=["record_id"], keep="first")
-    flagged_indices.update(df.index[dup_mask].tolist())
+    if all(column in df.columns for column in key_columns):
+        dup_mask = df.duplicated(subset=key_columns, keep="first")
+        flagged_indices.update(df.index[dup_mask].tolist())
 
     schema_missing: list[str] = []
     if expected_columns:
@@ -43,18 +49,24 @@ def challenger_quality_check(
     df: pd.DataFrame,
     reference_df: pd.DataFrame,
     expected_columns: list[str] | None = None,
+    *,
+    business_key: list[str] | None = None,
+    metadata_columns: list[str] | None = None,
 ) -> dict[str, Any]:
     """Distribution-aware quality check -- catches what rule-based misses."""
     flagged_indices: set[object] = set()
 
-    biz_cols = [c for c in df.columns if c not in ("record_id", "row_order")]
+    key_columns = business_key or ["record_id"]
+    excluded = set(key_columns) | set(metadata_columns or ["row_order"])
+    biz_cols = [c for c in df.columns if c not in excluded]
 
     for col in biz_cols:
         null_mask = df[col].isna()
         flagged_indices.update(df.index[null_mask].tolist())
 
-    dup_mask = df.duplicated(subset=["record_id"], keep="first")
-    flagged_indices.update(df.index[dup_mask].tolist())
+    if all(column in df.columns for column in key_columns):
+        dup_mask = df.duplicated(subset=key_columns, keep="first")
+        flagged_indices.update(df.index[dup_mask].tolist())
 
     schema_missing: list[str] = []
     if expected_columns:

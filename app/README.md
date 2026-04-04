@@ -4,7 +4,7 @@ Databricks App UI for operator dashboard access.
 
 Four read-only views:
 - **Registry View** — browse registered datasets and contract metadata
-- **Run Status** — filter and summarize recent control runs by dataset, kind, date
+- **Run Status** — filter and summarize recent control runs by dataset, kind, date, with an adjustable result cap for large evidence directories
 - **Evidence Explorer** — inspect full evidence artifact JSON detail
 - **Analytics** — summarize verdict mix, run-kind breakdown, and timeline trends
 
@@ -16,6 +16,9 @@ Bundle-backed app deployments use the repository root as the source path so the
 local `driftsentinel` package is installed from this repo, not from an external
 package index. The `app/requirements.txt` file remains the local development
 entry point for running the app directly from this directory.
+Under high artifact volume, Run Status now defaults to the latest 250 rows and
+surfaces a `Visible Artifact Filename` picker so operators can open a displayed
+artifact in Evidence Explorer without retyping the filename.
 File inputs are constrained to trusted roots: the repository checkout, temp
 directories, the configured `REGISTRY_PATH` and `EVIDENCE_DIR`, plus any
 operator-supplied roots in `DRIFTSENTINEL_ALLOWED_PATH_ROOTS`.

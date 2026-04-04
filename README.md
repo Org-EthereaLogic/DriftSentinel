@@ -29,7 +29,7 @@ Three modules. One registry. Queryable evidence. No assumption that any run pass
 | Leadership question | Answer |
 | ------------------- | ------ |
 | What business risk does this address? | Enterprises with mature data quality patterns still lack a unified platform for running intake certification, drift gating, and control benchmarking across multiple datasets with governed, queryable evidence. |
-| What does this application prove? | A Databricks-deployable application that registers datasets against versioned contracts, runs all three control patterns through a single orchestration layer, and surfaces queryable evidence artifacts in a read-only operator dashboard. |
+| What does this application prove? | A Databricks-deployable application that registers datasets against versioned contracts, executes intake, drift, and benchmark runs against real file-backed dataset inputs, and surfaces queryable evidence artifacts in a read-only operator dashboard. |
 | Why does it matter? | Proving that controls work on one dataset, once, is a starting point. This chapter proves that the same evidence discipline applies across multiple datasets, in a governed deployment, with an audit trail the platform team can inspect without writing scripts. |
 
 ## Key Exhibits
@@ -91,7 +91,7 @@ These are not hypothetical gaps. They are the operational reality of any team th
 | `resources/` | Databricks Asset Bundle pipeline, job, and app resource definitions |
 | `templates/` | Dataset contract, drift policy, and benchmark policy templates |
 | `specs/` | Canonical SDLC documents governing the product |
-| `tests/` | 310-test suite covering domain logic, packaging, and governance |
+| `tests/` | 323-test suite covering domain logic, packaging, and governance |
 
 Every directory above contains a `README.md` describing its contents, including each submodule under `src/driftsentinel/`.
 
@@ -101,6 +101,7 @@ Every directory above contains a `README.md` describing its contents, including 
 | ---------------- | ----------------------------- |
 | Multi-dataset registry operates with version-aware contracts | 2 datasets registered at v1.0.0 — visible in the Registry tab with catalog and table location |
 | All three control patterns produce evidence through one orchestration layer | Intake, drift, and benchmark artifacts present in a single shared evidence directory |
+| Dataset-aware runs execute against real registered inputs | `source.landing_path` is loaded for current data, drift compares against an explicit trusted baseline path, and dataset-backed benchmark scenarios are injected into a deterministic sample of that trusted baseline |
 | Evidence artifacts are queryable without writing scripts | Run Status tab filters 48 artifacts by dataset, kind, verdict, and run ID |
 | FAIL verdicts surface measurable gate results | Drift FAIL artifact shows health score 0.2, 4 columns drifted, gate thresholds recorded |
 | Databricks deployment is reproducible from source | Asset Bundle validates, deploys, and runs via `make bundle-validate` and `make app-deploy` |
@@ -127,11 +128,12 @@ Every directory above contains a `README.md` describing its contents, including 
 
 ## How It Works
 
-1. **Register datasets.** Each dataset is registered with a contract YAML specifying the Unity Catalog location, schema contract, drift policy, and benchmark policy.
-2. **Run the control pipeline.** The orchestration layer runs intake certification, drift gating, and control benchmarking in sequence. Each module writes an append-only evidence artifact to the shared evidence directory.
-3. **Inspect run status.** The Run Status tab surfaces all artifacts with verdicts, timestamps, and run IDs. FAIL rows are immediately visible — no file parsing required.
-4. **Explore individual artifacts.** The Evidence Explorer loads any single artifact by filename and renders the full JSON payload, including gate results with measured values and thresholds.
-5. **Review analytics.** The Analytics tab scans the evidence directory and renders verdict distribution, runs-by-kind breakdown, daily activity volume, and health trend over time.
+1. **Register datasets.** Each dataset is registered with a contract YAML specifying the Unity Catalog location, schema contract, and raw `source.landing_path`.
+2. **Bind drift and benchmark policy.** Drift policies define monitored columns plus the explicit trusted baseline path; benchmark policies define the injected failure scenarios and gates.
+3. **Run the control pipeline.** The orchestration layer loads the registered raw dataset, runs intake certification, compares the current load to the trusted baseline for drift, and benchmarks the controls against injected scenarios on a trusted reference sample. Each module writes an append-only evidence artifact to the shared evidence directory.
+4. **Inspect run status.** The Run Status tab surfaces all artifacts with verdicts, timestamps, and run IDs. FAIL rows are immediately visible — no file parsing required.
+5. **Explore individual artifacts.** The Evidence Explorer loads any single artifact by filename and renders the full JSON payload, including gate results with measured values and thresholds.
+6. **Review analytics.** The Analytics tab scans the evidence directory and renders verdict distribution, runs-by-kind breakdown, daily activity volume, and health trend over time.
 
 ## Databricks Fit
 
@@ -162,7 +164,7 @@ git clone https://github.com/Org-EthereaLogic/DriftSentinel.git
 cd DriftSentinel
 
 make sync   # installs runtime + dev dependencies via uv
-make test   # runs the 310-test suite
+make test   # runs the 323-test suite
 ```
 
 ### Databricks Bundle and App Deployment
@@ -193,7 +195,11 @@ databricks apps get driftsentinel -p <profile> -o json
 
 ### Notebook Import
 
-Import the `notebooks/` directory into your Databricks workspace to run the control pipeline from the deployed bundle or standalone from GitHub. Notebooks ship with bundled example templates. `01_register_dataset.py` and `05_run_control_benchmark.py` also accept optional workspace YAML paths for customized contracts from `templates/`.
+Import the `notebooks/` directory into your Databricks workspace to run the control pipeline from the deployed bundle or standalone from GitHub. Notebooks ship with bundled example templates. Real dataset execution requires:
+
+- a registered dataset contract with `source.landing_path`
+- a drift policy with `baseline.path` (or `contract.source.baseline_path`)
+- an optional benchmark policy for dataset-specific injected scenarios and gates
 
 ## AI-Assisted Setup
 
@@ -226,7 +232,7 @@ Please complete these steps in order. Stop at any failure and report it before c
    make sync
    If uv is not installed: pip install uv
 
-3. Run the full test suite. All 310 tests must pass before proceeding:
+3. Run the full test suite. All 323 tests must pass before proceeding:
    make test
 
 4. Read these files to understand the configuration model before deployment:
@@ -257,7 +263,7 @@ error without explaining it and asking me how to continue.
 
 ## Scope Boundary
 
-DriftSentinel validates the unified control platform using registered datasets in a local and Databricks environment. It does not constitute production-scale proof across arbitrary schema shapes or multi-workspace deployments. The registry, evidence model, and orchestration pattern are dataset-agnostic; the Databricks deployment path requires a workspace with Unity Catalog enabled.
+DriftSentinel validates the unified control platform using registered datasets in a local and Databricks environment. It supports declarative, file-backed dataset execution across arbitrary contract schemas, but it does not yet constitute production-scale proof across every data size, every workspace topology, or every multi-workspace deployment pattern. The Databricks deployment path still requires a workspace with Unity Catalog enabled.
 
 ## Engineering Signals
 

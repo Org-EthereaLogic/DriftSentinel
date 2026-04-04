@@ -13,8 +13,10 @@ authors = [
     { name = "Anthony Johnson" },
 ]
 dependencies = [
+    "deltalake>=0.19",
     "pyyaml>=6.0",
     "pandas>=2.0",
+    "pyarrow>=16.0",
 ]
 
 [dependency-groups]

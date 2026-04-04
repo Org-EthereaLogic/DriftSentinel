@@ -47,6 +47,8 @@ dbutils.widgets.text("n_rows", "1000", "Number of synthetic rows")
 dbutils.widgets.text("catalog", "", "Unity Catalog name")
 dbutils.widgets.text("schema", "default", "Schema name")
 dbutils.widgets.text("dataset_id", "", "Optional dataset ID from registry")
+dbutils.widgets.text("registry_path", "/tmp/driftsentinel_registry.json", "Dataset registry JSON path")
+dbutils.widgets.text("drift_policy_path", "", "Optional workspace path to drift policy YAML")
 dbutils.widgets.text("policy_path", "", "Optional workspace path to benchmark policy YAML")
 dbutils.widgets.text("evidence_dir", "/tmp/driftsentinel_evidence", "Directory for benchmark evidence JSON")
 
@@ -57,6 +59,8 @@ n_rows = int(dbutils.widgets.get("n_rows"))
 catalog = dbutils.widgets.get("catalog").strip()
 schema = dbutils.widgets.get("schema").strip()
 dataset_id = dbutils.widgets.get("dataset_id").strip()
+registry_path = dbutils.widgets.get("registry_path").strip()
+drift_policy_path = dbutils.widgets.get("drift_policy_path").strip()
 policy_path = dbutils.widgets.get("policy_path").strip()
 evidence_dir = dbutils.widgets.get("evidence_dir").strip()
 if not catalog:
@@ -75,13 +79,48 @@ if dataset_id:
 # COMMAND ----------
 
 from driftsentinel.benchmark.orchestrator import run_benchmark
-
-result = run_benchmark(
-    seed=seed,
-    n_rows=n_rows,
-    evidence_dir=evidence_dir,
-    policy_path=policy_path or None,
+from driftsentinel.config.loader import (
+    DatasetRegistry,
+    check_policy_compatibility,
+    load_benchmark_policy,
+    load_drift_policy,
 )
+from driftsentinel.evidence.writer import generate_run_id
+from driftsentinel.orchestration.runner import run_dataset_benchmark
+
+if dataset_id:
+    if not drift_policy_path:
+        raise ValueError("Set drift_policy_path when running a dataset-backed benchmark.")
+    registry = DatasetRegistry.load(registry_path)
+    contract = registry.get(dataset_id)
+    drift_policy = load_drift_policy(drift_policy_path)
+    check_policy_compatibility(registry, drift_policy["drift_policy"], "Drift policy")
+    benchmark_policy = load_benchmark_policy(policy_path) if policy_path else None
+    policy_version = None
+    if benchmark_policy is not None:
+        binding = check_policy_compatibility(registry, benchmark_policy["benchmark_policy"], "Benchmark policy")
+        policy_version = binding["policy_version"]
+    result = run_dataset_benchmark(
+        contract,
+        drift_policy,
+        benchmark_policy,
+        evidence_dir=evidence_dir,
+        seed=seed,
+        n_rows=n_rows,
+        dataset_id=dataset_id,
+        contract_version=contract["dataset"].get("contract_version"),
+        policy_version=policy_version,
+        run_id=generate_run_id(),
+    )
+    print("Dataset-backed benchmark completed from trusted baseline reference data.")
+else:
+    result = run_benchmark(
+        seed=seed,
+        n_rows=n_rows,
+        evidence_dir=evidence_dir,
+        policy_path=policy_path or None,
+    )
+    print("Synthetic benchmark completed. Set dataset_id + registry_path + drift_policy_path for real-data mode.")
 
 # COMMAND ----------
 
@@ -119,8 +158,9 @@ display(metric_rows)
 # COMMAND ----------
 
 for gr in result["gate_results"]:
-    print(f"  {gr.config.name}: threshold={gr.config.threshold}, "
-          f"measured={gr.measured_value:.4f}, verdict={gr.verdict.value}")
+    if hasattr(gr, "config"):
+        print(f"  {gr.config.name}: threshold={gr.config.threshold}, "
+              f"measured={gr.measured_value:.4f}, verdict={gr.verdict.value}")
 
 # COMMAND ----------
 
@@ -129,7 +169,8 @@ for gr in result["gate_results"]:
 
 # COMMAND ----------
 
-print(f"Overall verdict: {result['overall_verdict'].value}")
+verdict = result["overall_verdict"].value if hasattr(result["overall_verdict"], "value") else result["overall_verdict"]
+print(f"Overall verdict: {verdict}")
 if result["evidence_path"] is None:
     print("Evidence artifact was not written.")
 else:

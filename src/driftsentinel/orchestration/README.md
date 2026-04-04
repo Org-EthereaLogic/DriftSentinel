@@ -6,8 +6,10 @@ Responsibilities:
 - Coordinating intake, drift, and benchmark stages in order
 - Managing run context and configuration propagation
 - Routing results to the evidence writer
-- Dataset-aware execution with registry-backed validation and version checks
+- Dataset-aware execution with registry-backed validation, trusted file loading,
+  explicit baseline handling, and version checks
 
-Key exports: `run_local_pipeline`, `run_dataset_pipeline`.
+Key exports: `run_local_pipeline`, `run_dataset_intake`, `run_dataset_drift`,
+`run_dataset_benchmark`, `run_dataset_pipeline`.
 
-Key file: `runner.py`.
+Key files: `runner.py`, `dataset_runtime.py`.

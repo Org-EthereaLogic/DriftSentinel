@@ -98,6 +98,41 @@ def _build_summary_line(rows: list[list[str]]) -> str:
         parts.append(f"other: {other}")
     return "  |  ".join(parts)
 
+
+def _trim_result_rows(rows: list[list[str]], max_results: int | None) -> list[list[str]]:
+    """Return the latest ``max_results`` rows without truncating empty/error states."""
+    if max_results is None or max_results <= 0:
+        return rows
+    if not rows:
+        return rows
+    first = rows[0][0]
+    if first.startswith("(error:") or "no artifacts" in first:
+        return rows
+    return rows[:max_results]
+
+
+def _parse_max_results(value: str) -> int | None:
+    """Convert a UI dropdown value into an optional integer result cap."""
+    raw = value.strip()
+    if not raw or raw.lower() == "all":
+        return None
+    try:
+        parsed = int(raw)
+    except ValueError:
+        return None
+    return parsed if parsed > 0 else None
+
+
+def _visible_artifact_choices(rows: list[list[str]]) -> tuple[list[str], str | None]:
+    """Extract visible artifact filenames for the Run Status handoff control."""
+    if not rows:
+        return [], None
+    first = rows[0][0]
+    if first.startswith("(error:") or "no artifacts" in first:
+        return [], None
+    files = [row[0] for row in rows if row and row[0]]
+    return files, None
+
 def _extract_artifact_meta(data: dict[str, Any]) -> dict[str, str]:
     """Extract key metadata fields from an evidence artifact for the preview line."""
     meta = data.get("meta", {}) or {}
@@ -159,7 +194,7 @@ def _registry_status_text(rows: list[list[str]]) -> str:
     count = len(rows)
     return f"**{count} dataset{'s' if count != 1 else ''} registered**"
 
-def query_evidence(
+def _query_evidence_rows(
     evidence_dir: str,
     dataset_id: str,
     run_kind: str,
@@ -199,6 +234,28 @@ def query_evidence(
         ])
     return rows
 
+
+def query_evidence(
+    evidence_dir: str,
+    dataset_id: str,
+    run_kind: str,
+    run_id: str,
+    date_from: str,
+    date_to: str,
+    *,
+    max_results: int | None = None,
+) -> list[list[str]]:
+    """Query evidence and optionally return only the latest ``max_results`` rows."""
+    rows = _query_evidence_rows(
+        evidence_dir,
+        dataset_id,
+        run_kind,
+        run_id,
+        date_from,
+        date_to,
+    )
+    return _trim_result_rows(rows, max_results)
+
 def _resolve_artifact_path(evidence_dir: str, filename: str) -> Path | None:
     """Resolve an artifact filename to a concrete path, or None if not found."""
     fname = filename.strip()
@@ -212,34 +269,36 @@ def _resolve_artifact_path(evidence_dir: str, filename: str) -> Path | None:
     )
 
 
-def load_artifact_detail(evidence_dir: str, filename: str) -> str:
+def load_artifact_detail(evidence_dir: str, filename: str | None) -> str:
     """Load and return the full JSON of an evidence artifact."""
-    if not filename.strip():
+    raw_name = filename.strip() if isinstance(filename, str) else ""
+    if not raw_name:
         return "(select an artifact filename)"
     try:
-        path = _resolve_artifact_path(evidence_dir, filename)
+        path = _resolve_artifact_path(evidence_dir, raw_name)
     except ValueError as exc:
         return f"(error: {exc})"
     if path is None:
-        return f"(file not found: {filename})"
+        return f"(file not found: {raw_name})"
     try:
         data = load_evidence(path)
         return json.dumps(data, indent=2, default=str)
     except FileNotFoundError:
-        return f"(file not found: {filename})"
+        return f"(file not found: {raw_name})"
     except ValueError as exc:
         return f"(error: {exc})"
 
-def load_artifact_meta(evidence_dir: str, filename: str) -> str:
+def load_artifact_meta(evidence_dir: str, filename: str | None) -> str:
     """Return a Markdown one-line metadata summary for an evidence artifact."""
-    if not filename.strip():
+    raw_name = filename.strip() if isinstance(filename, str) else ""
+    if not raw_name:
         return "_Enter an artifact filename above and click Load Artifact._"
     try:
-        path = _resolve_artifact_path(evidence_dir, filename)
+        path = _resolve_artifact_path(evidence_dir, raw_name)
     except ValueError as exc:
         return f"_Error reading artifact: {exc}_"
     if path is None:
-        return f"_File not found: `{filename}`_"
+        return f"_File not found: `{raw_name}`_"
     try:
         meta = _extract_artifact_meta(load_evidence(path))
         raw_verdict = meta["verdict"] or ""
@@ -252,7 +311,7 @@ def load_artifact_meta(evidence_dir: str, filename: str) -> str:
             f"**Verdict:** {verdict}"
         )
     except FileNotFoundError:
-        return f"_File not found: `{filename}`_"
+        return f"_File not found: `{raw_name}`_"
     except ValueError as exc:
         return f"_Error reading artifact: {exc}_"
 
@@ -298,6 +357,12 @@ _DS_CSS = """
     .ds-tab-desc { color: var(--body-text-color-subdued); font-size: 0.9em; margin-bottom: 12px; }
     .ds-empty-state { text-align: center; padding: 24px 16px;
         font-size: 0.95em; color: var(--body-text-color-subdued); }
+    .ds-readonly-dataframe [aria-label*="Drop CSV or TSV files here to import data into dataframe"] {
+        pointer-events: none !important;
+    }
+    .ds-readonly-dataframe [aria-label*="Drop CSV or TSV files here to import data into dataframe"] * {
+        pointer-events: auto !important;
+    }
     #ds-logo-dark { display: none !important; }
     .dark #ds-logo-dark, :root.dark #ds-logo-dark, body.dark #ds-logo-dark { display: block !important; }
     .dark #ds-logo-light, :root.dark #ds-logo-light, body.dark #ds-logo-light { display: none !important; }
@@ -351,7 +416,9 @@ def build_app():  # type: ignore[no-untyped-def]
                 )
                 reg_table = gr.Dataframe(
                     headers=["Dataset ID", "Version", "Catalog", "Schema", "Table"],
-                    interactive=False, wrap=False,
+                    interactive=False,
+                    wrap=False,
+                    elem_classes=["ds-readonly-dataframe"],
                 )
 
                 def _load_registry_with_status(rp: str) -> tuple[list[list[str]], str]:
@@ -370,6 +437,12 @@ def build_app():  # type: ignore[no-untyped-def]
                 )
                 with gr.Row():
                     ev_dir = gr.Textbox(label="Evidence Directory", value=EVIDENCE_DIR, scale=4)
+                    max_results = gr.Dropdown(
+                        label="Max Results",
+                        choices=["100", "250", "500", "1000", "All"],
+                        value="250",
+                        scale=1,
+                    )
                     query_btn = gr.Button("Query", variant="primary", scale=1)
                 with gr.Accordion("Filters", open=False):
                     with gr.Row():
@@ -389,15 +462,27 @@ def build_app():  # type: ignore[no-untyped-def]
                 status_table = gr.Dataframe(
                     headers=["File", "Dataset", "Kind", "Timestamp", "Verdict", "Run ID"],
                     column_count=6,
-                    interactive=False, wrap=True,
+                    interactive=False,
+                    wrap=True,
+                    elem_classes=["ds-readonly-dataframe"],
+                )
+                visible_artifacts = gr.Dropdown(
+                    label="Visible Artifact Filename",
+                    choices=[],
+                    value=None,
+                    allow_custom_value=False,
+                    info="Use this picker to open a result in Evidence Explorer without retyping the filename.",
                 )
 
                 def _query_with_summary(
-                    ed: str, ds: str, rk: str, ri: str, df: str, dt: str,
-                ) -> tuple[list[list[str]], str]:
-                    rows = query_evidence(ed, ds, rk, ri, df, dt)
-                    is_empty = len(rows) == 1 and "no artifacts" in rows[0][0]
-                    is_error = len(rows) == 1 and rows[0][0].startswith("(error:")
+                    ed: str, mr: str, ds: str, rk: str, ri: str, df: str, dt: str,
+                ) -> tuple[list[list[str]], str, gr.Dropdown]:
+                    all_rows = _query_evidence_rows(ed, ds, rk, ri, df, dt)
+                    rows = _trim_result_rows(all_rows, _parse_max_results(mr))
+                    artifact_files, default_artifact = _visible_artifact_choices(rows)
+                    artifact_update = gr.Dropdown(choices=artifact_files, value=default_artifact)
+                    is_empty = len(all_rows) == 1 and "no artifacts" in all_rows[0][0]
+                    is_error = len(all_rows) == 1 and all_rows[0][0].startswith("(error:")
                     if is_error:
                         summary = (
                             "Evidence query blocked. Confirm the path stays inside the trusted "
@@ -410,13 +495,18 @@ def build_app():  # type: ignore[no-untyped-def]
                             "at least one control run has completed."
                         )
                     else:
-                        summary = _build_summary_line(rows)
-                    return rows, summary
+                        summary = _build_summary_line(all_rows)
+                        if len(rows) < len(all_rows):
+                            summary = (
+                                f"{summary}  |  displaying latest {len(rows)} rows "
+                                f"(adjust `Max Results` to load more)"
+                            )
+                    return rows, summary, artifact_update
 
                 query_btn.click(
                     fn=_query_with_summary,
-                    inputs=[ev_dir, ds_filter, kind_filter, rid_filter, from_filter, to_filter],
-                    outputs=[status_table, run_summary],
+                    inputs=[ev_dir, max_results, ds_filter, kind_filter, rid_filter, from_filter, to_filter],
+                    outputs=[status_table, run_summary, visible_artifacts],
                 )
 
             # ---- Evidence Explorer ----
@@ -444,6 +534,18 @@ def build_app():  # type: ignore[no-untyped-def]
 
                 exp_btn.click(fn=_load_with_meta, inputs=[exp_dir, exp_file],
                               outputs=[exp_json, exp_meta])
+
+                def _open_visible_artifact(current_dir: str, filename: str | None):
+                    if not filename or not filename.strip():
+                        return gr.skip(), gr.skip(), gr.skip(), gr.skip(), gr.skip()
+                    detail, meta = _load_with_meta(current_dir, filename)
+                    return current_dir, filename, detail, meta, gr.Tabs(selected="evidence_explorer")
+
+                visible_artifacts.change(
+                    fn=_open_visible_artifact,
+                    inputs=[ev_dir, visible_artifacts],
+                    outputs=[exp_dir, exp_file, exp_json, exp_meta, tabs],
+                )
 
                 def _sync_evidence_dir(current_dir: str) -> str:
                     return current_dir

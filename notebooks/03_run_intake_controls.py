@@ -45,6 +45,7 @@ print(f"Installing DriftSentinel from: {install_target}")
 dbutils.widgets.text("catalog", "", "Unity Catalog name")
 dbutils.widgets.text("schema", "default", "Schema name")
 dbutils.widgets.text("dataset_id", "", "Optional dataset ID from registry")
+dbutils.widgets.text("registry_path", "/tmp/driftsentinel_registry.json", "Dataset registry JSON path")
 dbutils.widgets.text("evidence_dir", "/tmp/driftsentinel_evidence", "Directory for evidence artifacts")
 
 # COMMAND ----------
@@ -52,6 +53,7 @@ dbutils.widgets.text("evidence_dir", "/tmp/driftsentinel_evidence", "Directory f
 catalog = dbutils.widgets.get("catalog").strip()
 schema = dbutils.widgets.get("schema").strip()
 dataset_id = dbutils.widgets.get("dataset_id").strip()
+registry_path = dbutils.widgets.get("registry_path").strip()
 evidence_dir = dbutils.widgets.get("evidence_dir").strip()
 if not catalog:
     raise ValueError("Set the catalog widget to an existing Unity Catalog catalog before running this notebook.")
@@ -69,22 +71,26 @@ if dataset_id:
 # COMMAND ----------
 
 import json
-from driftsentinel.orchestration.runner import run_intake_demo
-from driftsentinel.evidence.writer import generate_run_id, write_evidence
+from driftsentinel.config.loader import DatasetRegistry
+from driftsentinel.evidence.writer import generate_run_id
+from driftsentinel.orchestration.runner import run_dataset_intake, run_intake_demo
 
-result = run_intake_demo()
-
-if dataset_id and evidence_dir:
+if dataset_id:
+    registry = DatasetRegistry.load(registry_path)
+    contract = registry.get(dataset_id)
     run_id = generate_run_id()
-    write_evidence(
-        evidence_dir,
-        f"intake_{dataset_id}.json",
-        result,
+    result = run_dataset_intake(
+        contract,
+        evidence_dir=evidence_dir,
+        run_ts=None,
         dataset_id=dataset_id,
+        contract_version=contract["dataset"].get("contract_version"),
         run_id=run_id,
-        run_kind="intake",
     )
-    print(f"Evidence written for dataset={dataset_id}, run_id={run_id}")
+    print(f"Dataset-backed intake completed for dataset={dataset_id}, run_id={run_id}")
+else:
+    result = run_intake_demo()
+    print("Demo intake completed. Set dataset_id + registry_path to run against real registered data.")
 
 print(json.dumps(result, indent=2))
 

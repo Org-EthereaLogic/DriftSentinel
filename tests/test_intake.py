@@ -8,6 +8,7 @@ from __future__ import annotations
 from driftsentinel.intake.contracts import (
     ContractViolation,
     evaluate_batch,
+    evaluate_dataframe_contract,
     evaluate_row,
 )
 from driftsentinel.intake.demo_metrics import compute_demo_metrics
@@ -91,6 +92,55 @@ def test_batch_004_partial_failures() -> None:
     ready, quarantined, violations = evaluate_batch(rows)
     assert len(quarantined) == 5
     assert len(ready) == 0
+
+
+def test_evaluate_dataframe_contract_detects_duplicates_and_batch_gaps() -> None:
+    import pandas as pd
+
+    df = pd.DataFrame([
+        {"id": 1, "batch_id": "B-1", "amount": 10.0},
+        {"id": 1, "batch_id": "B-1", "amount": 11.0},
+        {"id": 2, "batch_id": None, "amount": 12.0},
+    ])
+    contract = {
+        "contract": {
+            "required_columns": [
+                {"column_name": "id", "type": "long", "nullable": False},
+                {"column_name": "amount", "type": "double", "nullable": False},
+            ],
+            "business_key": ["id"],
+            "batch_identifier": "batch_id",
+        }
+    }
+
+    result = evaluate_dataframe_contract(df, contract)
+
+    assert result["quarantined"] == 3
+    assert result["duplicate_rows"] == 2
+    assert result["violation_counts"]["business_key_unique"] == 2
+    assert result["violation_counts"]["batch_identifier_not_null"] == 1
+
+
+def test_evaluate_dataframe_contract_detects_missing_required_columns() -> None:
+    import pandas as pd
+
+    df = pd.DataFrame([{"id": 1, "batch_id": "B-1"}])
+    contract = {
+        "contract": {
+            "required_columns": [
+                {"column_name": "id", "type": "long", "nullable": False},
+                {"column_name": "amount", "type": "double", "nullable": False},
+            ],
+            "business_key": ["id"],
+            "batch_identifier": "batch_id",
+        }
+    }
+
+    result = evaluate_dataframe_contract(df, contract)
+
+    assert result["schema_valid"] is False
+    assert result["schema_missing_columns"] == ["amount"]
+    assert result["quarantined"] == 1
 
 
 # --- Demo metrics ---

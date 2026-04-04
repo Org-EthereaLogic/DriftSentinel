@@ -45,6 +45,8 @@ print(f"Installing DriftSentinel from: {install_target}")
 dbutils.widgets.text("catalog", "", "Unity Catalog name")
 dbutils.widgets.text("schema", "default", "Schema name")
 dbutils.widgets.text("dataset_id", "", "Optional dataset ID from registry")
+dbutils.widgets.text("registry_path", "/tmp/driftsentinel_registry.json", "Dataset registry JSON path")
+dbutils.widgets.text("drift_policy_path", "", "Optional workspace path to drift policy YAML")
 dbutils.widgets.text("evidence_dir", "/tmp/driftsentinel_evidence", "Directory for evidence artifacts")
 
 # COMMAND ----------
@@ -52,6 +54,8 @@ dbutils.widgets.text("evidence_dir", "/tmp/driftsentinel_evidence", "Directory f
 catalog = dbutils.widgets.get("catalog").strip()
 schema = dbutils.widgets.get("schema").strip()
 dataset_id = dbutils.widgets.get("dataset_id").strip()
+registry_path = dbutils.widgets.get("registry_path").strip()
+drift_policy_path = dbutils.widgets.get("drift_policy_path").strip()
 evidence_dir = dbutils.widgets.get("evidence_dir").strip()
 if not catalog:
     raise ValueError("Set the catalog widget to an existing Unity Catalog catalog before running this notebook.")
@@ -69,22 +73,31 @@ if dataset_id:
 # COMMAND ----------
 
 import json
-from driftsentinel.orchestration.runner import run_drift_demo
-from driftsentinel.evidence.writer import generate_run_id, write_evidence
+from driftsentinel.config.loader import DatasetRegistry, check_policy_compatibility, load_drift_policy
+from driftsentinel.evidence.writer import generate_run_id
+from driftsentinel.orchestration.runner import run_dataset_drift, run_drift_demo
 
-result = run_drift_demo()
-
-if dataset_id and evidence_dir:
+if dataset_id:
+    if not drift_policy_path:
+        raise ValueError("Set drift_policy_path when running drift for a registered dataset.")
+    registry = DatasetRegistry.load(registry_path)
+    contract = registry.get(dataset_id)
+    drift_policy = load_drift_policy(drift_policy_path)
+    binding = check_policy_compatibility(registry, drift_policy["drift_policy"], "Drift policy")
     run_id = generate_run_id()
-    write_evidence(
-        evidence_dir,
-        f"drift_{dataset_id}.json",
-        result["provenance"],
+    result = run_dataset_drift(
+        contract,
+        drift_policy,
+        evidence_dir=evidence_dir,
         dataset_id=dataset_id,
+        contract_version=contract["dataset"].get("contract_version"),
+        policy_version=binding["policy_version"],
         run_id=run_id,
-        run_kind="drift",
     )
-    print(f"Evidence written for dataset={dataset_id}, run_id={run_id}")
+    print(f"Dataset-backed drift completed for dataset={dataset_id}, run_id={run_id}")
+else:
+    result = run_drift_demo()
+    print("Demo drift completed. Set dataset_id + registry_path + drift_policy_path to run against real data.")
 
 # COMMAND ----------
 

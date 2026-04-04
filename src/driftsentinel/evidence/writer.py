@@ -227,6 +227,10 @@ def write_benchmark_bundle(
     contract_version: str | None = None,
     policy_version: str | None = None,
     run_id: str | None = None,
+    execution_mode: str | None = None,
+    reference_row_count: int | None = None,
+    business_key: list[str] | None = None,
+    monitored_columns: list[str] | None = None,
 ) -> Path:
     """Write a structured benchmark evidence bundle.
 
@@ -252,6 +256,10 @@ def write_benchmark_bundle(
     payload = {
         "seed": seed,
         "n_rows": n_rows,
+        "execution_mode": execution_mode or "synthetic",
+        "reference_row_count": reference_row_count,
+        "business_key": business_key or [],
+        "monitored_columns": monitored_columns or [],
         "quality_track": {
             "baseline": _serialize(baseline_quality),
             "challenger": _serialize(challenger_quality),

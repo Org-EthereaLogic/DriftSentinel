@@ -131,13 +131,31 @@ class TestAppImportHygiene:
 
 
 class TestAppHelpers:
+    def test_visible_artifact_choices_ignore_empty_state(self) -> None:
+        from app.app import _visible_artifact_choices
+
+        choices, default = _visible_artifact_choices([["(no artifacts found)", "", "", "", "", ""]])
+        assert choices == []
+        assert default is None
+
+    def test_visible_artifact_choices_return_first_filename(self) -> None:
+        from app.app import _visible_artifact_choices
+
+        rows = [
+            ["newest.json", "ds_a", "benchmark", "Apr 03, 00:00 UTC", "🟢 PASS", "newest"],
+            ["older.json", "ds_a", "benchmark", "Apr 02, 00:00 UTC", "🔴 FAIL", "older"],
+        ]
+        choices, default = _visible_artifact_choices(rows)
+        assert choices == ["newest.json", "older.json"]
+        assert default is None
+
     def test_only_registry_tab_preloads_on_app_load(self) -> None:
         from app.app import build_app
 
         app = build_app()
         load_dependencies = [
             dep for dep in app.config.get("dependencies", [])
-            if dep.get("targets") == [(52, "load")]
+            if any(event == "load" for _, event in dep.get("targets", []))
         ]
 
         assert len(load_dependencies) == 1
@@ -222,6 +240,34 @@ class TestAppHelpers:
         assert rows[0][2] == "benchmark"
         assert rows[0][4] == "🟢 PASS"
 
+    def test_query_evidence_honors_max_results(self, tmp_path: Path) -> None:
+        from app.app import query_evidence
+        from driftsentinel.evidence.writer import write_evidence
+
+        write_evidence(
+            tmp_path,
+            "older.json",
+            {"overall_verdict": "PASS"},
+            run_ts="2026-04-02T00:00:00+00:00",
+            dataset_id="ds_a",
+            run_kind="benchmark",
+            run_id="older",
+        )
+        write_evidence(
+            tmp_path,
+            "newer.json",
+            {"overall_verdict": "FAIL"},
+            run_ts="2026-04-03T00:00:00+00:00",
+            dataset_id="ds_a",
+            run_kind="benchmark",
+            run_id="newer",
+        )
+
+        rows = query_evidence(str(tmp_path), "", "", "", "", "", max_results=1)
+        assert len(rows) == 1
+        assert rows[0][0] == "newer.json"
+        assert rows[0][4] == "🔴 FAIL"
+
     def test_query_evidence_with_malformed_file(self, tmp_path: Path) -> None:
         from app.app import query_evidence
 
@@ -234,6 +280,12 @@ class TestAppHelpers:
 
         result = load_artifact_detail("/tmp", "nonexistent.json")
         assert "not found" in result
+
+    def test_load_artifact_detail_none_filename(self) -> None:
+        from app.app import load_artifact_detail
+
+        result = load_artifact_detail("/tmp", None)
+        assert "select an artifact filename" in result
 
     def test_load_artifact_detail_valid(self, tmp_path: Path) -> None:
         from app.app import load_artifact_detail
@@ -261,6 +313,12 @@ class TestAppHelpers:
         )
         result = load_artifact_detail(str(tmp_path), str(artifact))
         assert "bare filename" in result
+
+    def test_load_artifact_meta_none_filename(self) -> None:
+        from app.app import load_artifact_meta
+
+        result = load_artifact_meta("/tmp", None)
+        assert "Enter an artifact filename" in result
 
 
 class TestAnalyticsHelpers:

@@ -44,11 +44,15 @@ print(f"Installing DriftSentinel from: {install_target}")
 
 dbutils.widgets.text("catalog", "", "Unity Catalog name")
 dbutils.widgets.text("schema", "default", "Schema name")
+dbutils.widgets.text("contract_path", "", "Optional workspace path to dataset contract YAML")
+dbutils.widgets.text("drift_policy_path", "", "Optional workspace path to drift policy YAML")
 
 # COMMAND ----------
 
 catalog = dbutils.widgets.get("catalog").strip()
 schema = dbutils.widgets.get("schema").strip()
+contract_path = dbutils.widgets.get("contract_path").strip()
+drift_policy_path = dbutils.widgets.get("drift_policy_path").strip()
 if not catalog:
     raise ValueError("Set the catalog widget to an existing Unity Catalog catalog before running this notebook.")
 if not schema:
@@ -63,12 +67,30 @@ print(f"Target: {catalog}.{schema}")
 # COMMAND ----------
 
 import pandas as pd
+from driftsentinel.config.loader import load_dataset_contract, load_drift_policy
 from driftsentinel.drift.sample_data import MONITORED_COLUMNS, generate_baseline
+from driftsentinel.orchestration.dataset_runtime import load_baseline_dataset
 
-baseline_rows = generate_baseline()
-baseline_df = pd.DataFrame(baseline_rows)
+if contract_path and drift_policy_path:
+    contract = load_dataset_contract(contract_path)
+    drift_policy = load_drift_policy(drift_policy_path)
+    loaded = load_baseline_dataset(contract, drift_policy)
+    baseline_df = loaded.frame
+    monitored_columns = [
+        item["column_name"]
+        for item in drift_policy["drift_policy"].get("monitored_columns", [])
+        if item.get("column_name")
+    ] or MONITORED_COLUMNS
+    print(f"Imported trusted baseline from: {loaded.source_path}")
+    print(f"Files loaded:        {len(loaded.files_loaded)}")
+else:
+    baseline_rows = generate_baseline()
+    baseline_df = pd.DataFrame(baseline_rows)
+    monitored_columns = MONITORED_COLUMNS
+    print("Using bundled demo baseline. Set contract_path + drift_policy_path to inspect a real baseline.")
+
 print(f"Baseline rows:       {len(baseline_df)}")
-print(f"Monitored columns:   {MONITORED_COLUMNS}")
+print(f"Monitored columns:   {monitored_columns}")
 print(f"All columns:         {list(baseline_df.columns)}")
 
 # COMMAND ----------
@@ -80,10 +102,8 @@ print(f"All columns:         {list(baseline_df.columns)}")
 
 from driftsentinel.drift.baseline import BaselineSnapshot
 
-snapshot = BaselineSnapshot.from_dataframe(baseline_df, MONITORED_COLUMNS)
+snapshot = BaselineSnapshot.from_dataframe(baseline_df, monitored_columns)
 print(f"Row count:           {snapshot.row_count}")
-print(f"Columns tracked:     {list(snapshot.distributions.keys())}")
-for col, dist in snapshot.distributions.items():
-    top_values = sorted(dist.items(), key=lambda x: x[1], reverse=True)[:3]
-    top_str = ", ".join(f"{v}: {round(p, 3)}" for v, p in top_values)
-    print(f"  {col}: {top_str}")
+print(f"Columns tracked:     {list(snapshot.columns)}")
+for col in snapshot.columns:
+    print(f"  {col}: stability_score={round(snapshot.scores.get(col, 0.0), 4)}")

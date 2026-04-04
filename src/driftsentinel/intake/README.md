@@ -7,6 +7,7 @@ Responsibilities:
 - Duplicate replay blocking
 - Contract validation
 - Quarantine routing for non-conforming records
+- Generic DataFrame evaluation against declarative column, key, and batch rules
 
 Implemented in DS-IP-001 Phase 1. Key files: `contracts.py`, `sample_data.py`,
 `demo_metrics.py`.

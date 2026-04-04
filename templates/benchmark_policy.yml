@@ -2,6 +2,8 @@
 #
 # Copy this file and customize for control effectiveness evaluation.
 # Gate definitions use the explicit schema expected by the evaluator.
+# In dataset-backed runs, scenarios are injected into a deterministic sample
+# of the trusted baseline data for this dataset.
 
 benchmark_policy:
   name: example_benchmark_policy
