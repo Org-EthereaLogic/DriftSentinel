@@ -63,7 +63,7 @@ def test_vectorized_entropy_matches_loop_implementation() -> None:
         probs = counts / total
         return -sum(p * math.log2(p) for p in probs if p > 0)
 
-    test_cases = [
+    test_cases: list[pd.Series] = [  # type: ignore[type-arg]
         pd.Series(["A", "B", "C", "D", "E"] * 100),
         pd.Series(["X"] * 500),
         pd.Series(["A"] * 400 + ["B"] * 100),

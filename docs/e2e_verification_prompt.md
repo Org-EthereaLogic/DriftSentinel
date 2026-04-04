@@ -565,7 +565,7 @@ TASK 5.8 — Packaged template loading
 
 TASK 5.9 — Run full test suite one final time
 - Run: make test
-- VERIFY: All tests still pass (should be 256 or more if you added fixes).
+- VERIFY: All tests still pass (should be 355 or more if you added fixes).
 - Screenshot.
 
 TASK 5.10 — Final Gradio app visual audit

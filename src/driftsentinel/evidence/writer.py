@@ -409,11 +409,7 @@ def list_evidence(
     Returns:
         A list of summary dicts sorted by generated_at descending.
     """
-    raw_dir = os.path.abspath(os.path.normpath(os.path.expanduser(os.fspath(evidence_dir))))
-    roots = trusted_roots()
-    if not any(raw_dir == root or raw_dir.startswith(f"{root}{os.sep}") for root in roots):
-        raise PathSecurityError(f"Evidence directory escapes trusted roots: {evidence_dir}")
-    d = Path(raw_dir)
+    d = resolve_trusted_dir(evidence_dir, context="Evidence directory")
     if not d.is_dir():
         return []
 
@@ -426,7 +422,7 @@ def list_evidence(
     import concurrent.futures
     import os as _os
 
-    # Glob directory and parse only uncached files (append-only, so cache is stable)
+    # List directory contents — d is already validated against trusted roots
     all_paths = sorted(p for p in d.iterdir() if p.suffix == ".json")
 
     uncached_paths = []

@@ -200,7 +200,9 @@ for gr in result["gate_results"]:
 
 # COMMAND ----------
 
-verdict = result["overall_verdict"].value if hasattr(result["overall_verdict"], "value") else result["overall_verdict"]
+_raw_verdict = result["overall_verdict"].value if hasattr(result["overall_verdict"], "value") else result["overall_verdict"]
+_SAFE_VERDICTS = {"PASS", "FAIL", "WARN", "UNKNOWN"}
+verdict = str(_raw_verdict).strip().upper() if str(_raw_verdict).strip().upper() in _SAFE_VERDICTS else "UNKNOWN"
 print(f"Overall verdict: {verdict}")
 if result["evidence_path"] is None:
     print("Evidence artifact was not written.")
