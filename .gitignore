@@ -43,6 +43,9 @@ logs/
 .playwright-cli/
 output/
 
+# Large test fixtures (stress-test parquet data)
+tests/data/
+
 # Implementation session tracking (contains local paths)
 progress.json
 progress.txt

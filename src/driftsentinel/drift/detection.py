@@ -76,27 +76,23 @@ def detect_drift(
     Returns a DriftResult with per-column classifications and an aggregate
     health score.
     """
-    column_results: list[ColumnDriftResult] = []
-    current_scores: list[float] = []
+    import concurrent.futures
 
-    for col in baseline.columns:
+    def _score_col(col: str) -> ColumnDriftResult:
         baseline_score = baseline.scores.get(col, 0.0)
-
-        if col in current_df.columns:
-            current_score = column_stability_score(current_df[col])
-        else:
-            current_score = 0.0
-
-        current_scores.append(current_score)
-        classification = _classify(baseline_score, current_score, collapse_threshold)
-
-        column_results.append(ColumnDriftResult(
+        current_score = column_stability_score(current_df[col]) if col in current_df.columns else 0.0
+        return ColumnDriftResult(
             column=col,
             baseline_score=baseline_score,
             current_score=current_score,
             delta=round(current_score - baseline_score, 4),
-            classification=classification,
-        ))
+            classification=_classify(baseline_score, current_score, collapse_threshold),
+        )
+
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        column_results = list(executor.map(_score_col, baseline.columns))
+
+    current_scores = [r.current_score for r in column_results]
 
     columns_drifted = sum(
         1 for r in column_results if r.classification != DriftClassification.STABLE
