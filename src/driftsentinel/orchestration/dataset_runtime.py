@@ -297,9 +297,12 @@ def _read_delimited_files(
     options.setdefault("compression", "infer")
     if default_separator is not None:
         options.setdefault("sep", default_separator)
+        options.setdefault("low_memory", False)
     elif sniff_delimiter and "sep" not in options and "delimiter" not in options:
         options.setdefault("sep", None)
         options.setdefault("engine", "python")
+    else:
+        options.setdefault("low_memory", False)
     return _concat_named_frames(
         [(str(file), pd.read_csv(file, **options)) for file in files],
         context=context,

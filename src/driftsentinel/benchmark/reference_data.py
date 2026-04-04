@@ -96,6 +96,8 @@ def _inject_quality_faults(
                 if column not in faulted.columns or count == 0:
                     continue
                 indices = sorted(int(i) for i in rng.choice(total_rows, size=count, replace=False).tolist())
+                if pd.api.types.is_bool_dtype(faulted[column]):
+                    faulted[column] = faulted[column].astype(object)
                 faulted.loc[indices, column] = None
                 manifest["null_indices"][column] = indices
 
@@ -147,7 +149,11 @@ def _inject_sudden_shift(
         if column not in drifted.columns or column == ORDER_COLUMN:
             continue
         series = drifted[column]
-        if pd.api.types.is_numeric_dtype(series):
+        if pd.api.types.is_bool_dtype(series):
+            drifted[column] = drifted[column].astype(object)
+            dominant = series.dropna().mode()
+            drifted[column] = str(dominant.iloc[0]) if not dominant.empty else "__SUDDEN_SHIFT__"
+        elif pd.api.types.is_numeric_dtype(series):
             non_null = series.dropna()
             drifted[column] = float(non_null.median()) if not non_null.empty else 0.0
         else:
@@ -171,7 +177,9 @@ def _inject_gradual_decay(
         if column not in drifted.columns or column == ORDER_COLUMN:
             continue
         affected.append(column)
-        if pd.api.types.is_numeric_dtype(drifted[column]):
+        if pd.api.types.is_bool_dtype(drifted[column]):
+            drifted[column] = drifted[column].astype(object)
+        if pd.api.types.is_numeric_dtype(drifted[column]) and not pd.api.types.is_bool_dtype(drifted[column]):
             delta = pd.Series(np.linspace(0.0, 1.5, num=len(drifted)), index=drifted.index)
             drifted[column] = pd.to_numeric(drifted[column], errors="coerce").fillna(0) + delta
             changed_rows[column] = int(len(drifted))
@@ -179,11 +187,8 @@ def _inject_gradual_decay(
 
         values = drifted[column].dropna().tolist()
         target = str(values[-1]) if values else "__GRADUAL_SHIFT__"
-        mask = pd.Series(False, index=drifted.index)
-        for position in range(len(drifted)):
-            probability = position / max(len(drifted) - 1, 1)
-            if rng.random() < probability:
-                mask.iloc[position] = True
+        probabilities = np.arange(len(drifted)) / max(len(drifted) - 1, 1)
+        mask = pd.Series(rng.random(len(drifted)) < probabilities, index=drifted.index)
         drifted.loc[mask, column] = target
         changed_rows[column] = int(mask.sum())
 
@@ -205,7 +210,10 @@ def _inject_new_category(
         if column not in drifted.columns or column == ORDER_COLUMN:
             continue
         affected.append(column)
-        if pd.api.types.is_numeric_dtype(drifted[column]):
+        if pd.api.types.is_bool_dtype(drifted[column]):
+            drifted[column] = drifted[column].astype(object)
+            drifted.loc[indices, column] = "__NEW_CATEGORY__"
+        elif pd.api.types.is_numeric_dtype(drifted[column]):
             base = pd.to_numeric(drifted[column], errors="coerce").max()
             next_value = float(base) + 9999 if pd.notna(base) else 9999.0
             drifted.loc[indices, column] = next_value
