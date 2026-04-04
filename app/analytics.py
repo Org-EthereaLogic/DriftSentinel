@@ -223,44 +223,60 @@ def build_plotly_pie(kind_rows: list[list[Any]], theme_name: str = "Brand") -> A
     return fig
 
 
-def build_plotly_daily_volume(
-    timeline_rows: list[list[Any]],
+def verdict_by_kind_data(records: list[dict[str, str]]) -> dict[str, dict[str, int]]:
+    """Return {kind: {verdict: count}} for a grouped bar chart."""
+    result: dict[str, dict[str, int]] = {}
+    for rec in records:
+        kind = rec["run_kind"]
+        verdict = rec["verdict"]
+        if kind not in result:
+            result[kind] = {"PASS": 0, "FAIL": 0, "WARN": 0}
+        if verdict in result[kind]:
+            result[kind][verdict] += 1
+    return result
+
+
+def build_plotly_verdict_by_kind(
+    records: list[dict[str, str]],
     theme_name: str = "Brand",
-    *,
-    daily_summary: tuple[list[str], dict[str, dict[str, int]], dict[str, int], dict[str, int]] | None = None,
 ) -> Any:
-    """Build a Plotly Stacked Bar chart for daily artifact volume by verdict."""
-    if not timeline_rows:
+    """Build a Plotly grouped bar chart showing verdict breakdown per run kind."""
+    if not records:
         return None
     try:
         import plotly.graph_objects as go
     except ImportError:
         return None
 
-    dates, daily_counts, _, _ = daily_summary or _daily_verdict_summary(timeline_rows)
+    data = verdict_by_kind_data(records)
+    if not data:
+        return None
 
+    kinds = sorted(data.keys())
     colors = COLOR_SCHEMES.get(theme_name, COLOR_SCHEMES["Brand"])["verdict"]
 
     traces = []
-    # Sort verdicts to have FAIL/WARN stacked above PASS
-    for verdict in ["PASS", "WARN", "FAIL", "UNKNOWN"]:
-        y_vals = [daily_counts[d][verdict] for d in dates]
+    for verdict in ["PASS", "WARN", "FAIL"]:
+        y_vals = [data[k].get(verdict, 0) for k in kinds]
         if sum(y_vals) == 0:
             continue
         traces.append(
             go.Bar(
                 name=verdict,
-                x=dates,
+                x=kinds,
                 y=y_vals,
                 marker_color=colors[verdict],
-                hovertemplate="%{x}<br>" + verdict + ": %{y}<extra></extra>"
+                text=y_vals,
+                textposition="outside",
+                cliponaxis=False,
+                hovertemplate="%{x}<br>" + verdict + ": %{y}<extra></extra>",
             )
         )
 
     fig = go.Figure(data=traces)
     fig.update_layout(
-        title="Daily Activity Volume",
-        barmode="stack",
+        title="Verdict by Run Kind",
+        barmode="group",
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
         margin=dict(l=40, r=20, t=60, b=30),
@@ -273,7 +289,7 @@ def build_plotly_daily_volume(
         ),
         height=320,
     )
-    fig.update_xaxes(showgrid=False, type="category")
+    fig.update_xaxes(showgrid=False)
     fig.update_yaxes(rangemode="tozero", automargin=True)
     return fig
 

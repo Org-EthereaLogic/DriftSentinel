@@ -613,9 +613,9 @@ def build_app():  # type: ignore[no-untyped-def]
                         _daily_verdict_summary,
                         build_analytics_data,
                         build_plotly_bar,
-                        build_plotly_daily_volume,
                         build_plotly_health_trend,
                         build_plotly_pie,
+                        build_plotly_verdict_by_kind,
                         kind_pie_data,
                         timeline_data,
                         verdict_bar_data,
@@ -625,9 +625,9 @@ def build_app():  # type: ignore[no-untyped-def]
                         _daily_verdict_summary,
                         build_analytics_data,
                         build_plotly_bar,
-                        build_plotly_daily_volume,
                         build_plotly_health_trend,
                         build_plotly_pie,
+                        build_plotly_verdict_by_kind,
                         kind_pie_data,
                         timeline_data,
                         verdict_bar_data,
@@ -656,7 +656,7 @@ def build_app():  # type: ignore[no-untyped-def]
                     verdict_plot = gr.Plot(label="Verdict Distribution")
                     kind_plot = gr.Plot(label="Runs by Kind")
                 with gr.Row():
-                    volume_plot = gr.Plot(label="Daily Activity Volume")
+                    volume_plot = gr.Plot(label="Verdict by Run Kind")
                     health_plot = gr.Plot(label="Daily Health Trend")
 
                 def _refresh_analytics(edir: str, theme: str):  # type: ignore[no-untyped-def]
@@ -670,10 +670,9 @@ def build_app():  # type: ignore[no-untyped-def]
                     verdict_fig = build_plotly_bar(vrows, theme)
                     krows = kind_pie_data(records)
                     pie_fig = build_plotly_pie(krows, theme)
+                    volume_fig = build_plotly_verdict_by_kind(records, theme)
                     trows = timeline_data(records)
-                    # Compute daily summary once and pass to both chart builders
                     summary = _daily_verdict_summary(trows)
-                    volume_fig = build_plotly_daily_volume(trows, theme, daily_summary=summary)
                     health_fig = build_plotly_health_trend(trows, theme, daily_summary=summary)
                     total = len(records)
                     legacy = sum(1 for record in records if record.get("execution_mode") == "legacy_or_unknown")

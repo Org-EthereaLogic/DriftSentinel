@@ -383,15 +383,18 @@ class TestAnalyticsHelpers:
             "PASS",
         ]]
 
-    def test_build_plotly_daily_volume(self) -> None:
-        from app.analytics import build_plotly_daily_volume
+    def test_build_plotly_verdict_by_kind(self) -> None:
+        from app.analytics import build_plotly_verdict_by_kind
 
-        fig = build_plotly_daily_volume([
-            ["2026-04-02T22:00:00+00:00", "benchmark", "ds_a", "PASS"]
-        ])
+        rec = {"dataset_id": "ds_a", "execution_mode": "demo", "generated_at": ""}
+        records = [
+            {**rec, "run_kind": "benchmark", "verdict": "PASS"},
+            {**rec, "run_kind": "drift", "verdict": "FAIL"},
+        ]
+        fig = build_plotly_verdict_by_kind(records)
 
         assert fig is not None
-        assert fig.layout.title.text == "Daily Activity Volume"
+        assert fig.layout.title.text == "Verdict by Run Kind"
 
 
     def test_build_plotly_health_trend(self) -> None:
