@@ -424,7 +424,7 @@ def list_evidence(
     )
 
     import concurrent.futures
-    import os as _os
+    import concurrent.futures
 
     # Glob directory and parse only uncached files (append-only, so cache is stable)
     all_paths = sorted(p for p in d.iterdir() if p.suffix == ".json")
