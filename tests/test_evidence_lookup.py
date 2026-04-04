@@ -32,6 +32,7 @@ class TestEvidenceMetadata:
             policy_version="1.0.0",
             run_id="run-123",
             run_kind="intake",
+            execution_mode="dataset_backed",
         )
         data = json.loads(path.read_text())
         meta = data["meta"]
@@ -40,6 +41,7 @@ class TestEvidenceMetadata:
         assert meta["policy_version"] == "1.0.0"
         assert meta["run_id"] == "run-123"
         assert meta["run_kind"] == "intake"
+        assert meta["execution_mode"] == "dataset_backed"
 
     def test_write_without_metadata_is_backward_compatible(self, tmp_path: Path) -> None:
         path = write_evidence(tmp_path, "test.json", {"x": 1}, run_ts=FIXED_TS)
@@ -58,17 +60,17 @@ class TestListEvidence:
         write_evidence(
             tmp_path, "a.json", {"v": 1},
             run_ts="2026-04-01T10:00:00+00:00",
-            dataset_id="ds_a", run_kind="intake", run_id="r1",
+            dataset_id="ds_a", run_kind="intake", run_id="r1", execution_mode="dataset_backed",
         )
         write_evidence(
             tmp_path, "b.json", {"v": 2},
             run_ts="2026-04-02T10:00:00+00:00",
-            dataset_id="ds_b", run_kind="drift", run_id="r2",
+            dataset_id="ds_b", run_kind="drift", run_id="r2", execution_mode="dataset_backed",
         )
         write_evidence(
             tmp_path, "c.json", {"v": 3},
             run_ts="2026-04-03T10:00:00+00:00",
-            dataset_id="ds_a", run_kind="benchmark", run_id="r3",
+            dataset_id="ds_a", run_kind="benchmark", run_id="r3", execution_mode="synthetic",
         )
 
     def test_list_all(self, tmp_path: Path) -> None:
@@ -87,6 +89,12 @@ class TestListEvidence:
         results = list_evidence(tmp_path, run_kind="drift")
         assert len(results) == 1
         assert results[0]["run_kind"] == "drift"
+
+    def test_filter_by_execution_mode(self, tmp_path: Path) -> None:
+        self._write_artifacts(tmp_path)
+        results = list_evidence(tmp_path, execution_mode="synthetic")
+        assert len(results) == 1
+        assert results[0]["execution_mode"] == "synthetic"
 
     def test_filter_by_run_id(self, tmp_path: Path) -> None:
         self._write_artifacts(tmp_path)
@@ -156,6 +164,13 @@ class TestListEvidence:
         results = list_evidence(tmp_path)
         assert len(results) == 1
         assert results[0]["overall_verdict"] == "PASS"
+
+    def test_missing_execution_mode_is_tagged_legacy_unknown(self, tmp_path: Path) -> None:
+        path = write_evidence(tmp_path, "legacy.json", {"x": 1}, run_ts=FIXED_TS)
+        data = json.loads(path.read_text())
+        assert "execution_mode" not in data["meta"]
+        results = list_evidence(tmp_path)
+        assert results[0]["execution_mode"] == "legacy_or_unknown"
 
 
 class TestLoadEvidence:

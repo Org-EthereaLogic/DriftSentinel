@@ -4,7 +4,7 @@ Databricks App UI for operator dashboard access.
 
 Four read-only views:
 - **Registry View** — browse registered datasets and contract metadata
-- **Run Status** — filter and summarize recent control runs by dataset, kind, date, with an adjustable result cap for large evidence directories
+- **Run Status** — filter and summarize recent control runs by dataset, execution mode, kind, and date, with an adjustable result cap for large evidence directories
 - **Evidence Explorer** — inspect full evidence artifact JSON detail
 - **Analytics** — summarize verdict mix, run-kind breakdown, and timeline trends
 
@@ -19,6 +19,8 @@ entry point for running the app directly from this directory.
 Under high artifact volume, Run Status now defaults to the latest 250 rows and
 surfaces a `Visible Artifact Filename` picker so operators can open a displayed
 artifact in Evidence Explorer without retyping the filename.
+The app also surfaces evidence execution mode so legacy or ambiguous artifacts
+are visibly distinct from dataset-backed or reference-sample runs.
 File inputs are constrained to trusted roots: the repository checkout, temp
 directories, the configured `REGISTRY_PATH` and `EVIDENCE_DIR`, plus any
 operator-supplied roots in `DRIFTSENTINEL_ALLOWED_PATH_ROOTS`.

@@ -1,6 +1,6 @@
 # tests
 
-Product test suite for DriftSentinel. 323 tests across 16 files.
+Product test suite for DriftSentinel. 326 tests across 16 files.
 
 | File | Tests | Purpose |
 | --- | --- | --- |

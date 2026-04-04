@@ -39,6 +39,13 @@ _DRIFT_AMBER = "#F59E0B"
 _ALERT_CORAL = "#F97316"
 _GATE_SLATE = "#8AA3B6"
 _VERDICT_CIRCLES = {"PASS": "🟢 PASS", "FAIL": "🔴 FAIL", "WARN": "🟡 WARN"}
+_MODE_LABELS = {
+    "dataset_backed": "Dataset-Backed",
+    "demo": "Demo",
+    "legacy_or_unknown": "Legacy/Unknown",
+    "reference_data": "Reference Sample",
+    "synthetic": "Synthetic",
+}
 
 _ASSETS = Path(__file__).parent.parent / "assets" / "driftsentinel-brand-system"
 _LOGO_PATH = _ASSETS / "variants" / "logo-dark.png"
@@ -78,15 +85,18 @@ def _build_summary_line(rows: list[list[str]]) -> str:
         return ""
     total = len(rows)
     counts: dict[str, int] = {"PASS": 0, "FAIL": 0, "WARN": 0}
+    legacy_unknown = 0
     other = 0
     for row in rows:
-        raw = (row[4].strip() if len(row) > 4 else "")
+        raw = (row[5].strip() if len(row) > 5 else "")
         # Strip colored-circle prefix if present (e.g. "🟢 PASS" -> "PASS")
         v = raw.split()[-1].upper() if raw else ""
         if v in counts:
             counts[v] += 1
         else:
             other += 1
+        if len(row) > 2 and row[2].strip() == _MODE_LABELS["legacy_or_unknown"]:
+            legacy_unknown += 1
     parts = [f"**{total} artifact{'s' if total != 1 else ''}**"]
     if counts["PASS"]:
         parts.append(f"🟢 PASS: {counts['PASS']}")
@@ -94,6 +104,8 @@ def _build_summary_line(rows: list[list[str]]) -> str:
         parts.append(f"🟡 WARN: {counts['WARN']}")
     if counts["FAIL"]:
         parts.append(f"🔴 FAIL: {counts['FAIL']}")
+    if legacy_unknown:
+        parts.append(f"legacy/unknown mode: {legacy_unknown}")
     if other:
         parts.append(f"other: {other}")
     return "  |  ".join(parts)
@@ -143,8 +155,15 @@ def _extract_artifact_meta(data: dict[str, Any]) -> dict[str, str]:
         or (payload.get("benchmark", {}) or {}).get("overall_verdict", "")
     )
     run_id = meta.get("run_id", "") or data.get("run_id", "") or ""
+    execution_mode = (
+        meta.get("execution_mode", "")
+        or payload.get("execution_mode", "")
+        or (payload.get("benchmark", {}) or {}).get("execution_mode", "")
+        or "legacy_or_unknown"
+    )
     return {
         "dataset_id": meta.get("dataset_id", "") or data.get("dataset_id", "") or "",
+        "execution_mode": str(execution_mode),
         "run_kind": meta.get("run_kind", "") or data.get("run_kind", "") or "",
         "run_id": run_id[:8] if len(run_id) > 8 else run_id,
         "generated_at": _fmt_timestamp(meta.get("generated_at", "") or data.get("generated_at", "") or ""),
@@ -197,6 +216,7 @@ def _registry_status_text(rows: list[list[str]]) -> str:
 def _query_evidence_rows(
     evidence_dir: str,
     dataset_id: str,
+    execution_mode: str,
     run_kind: str,
     run_id: str,
     date_from: str,
@@ -208,25 +228,27 @@ def _query_evidence_rows(
         results = list_evidence(
             edir,
             dataset_id=dataset_id.strip() or None,
+            execution_mode=execution_mode.strip() or None,
             run_kind=run_kind.strip() or None,
             run_id=run_id.strip() or None,
             date_from=date_from.strip() or None,
             date_to=date_to.strip() or None,
         )
     except PathSecurityError as exc:
-        return [[f"(error: {exc})", "", "", "", "", ""]]
+        return [[f"(error: {exc})", "", "", "", "", "", ""]]
     if not results:
-        return [["(no artifacts found)", "", "", "", "", ""]]
+        return [["(no artifacts found)", "", "", "", "", "", ""]]
     rows: list[list[str]] = []
     for r in results:
         if r.get("parse_error"):
-            rows.append([Path(r["file"]).name, "", "parse_error", "", "(malformed)", ""])
+            rows.append([Path(r["file"]).name, "", "Legacy/Unknown", "parse_error", "", "(malformed)", ""])
             continue
         raw_verdict = str(r.get("overall_verdict", "") or "").strip().upper()
         verdict = _VERDICT_CIRCLES.get(raw_verdict, raw_verdict)
         rows.append([
             Path(r["file"]).name,
             r.get("dataset_id", "") or "",
+            _MODE_LABELS.get(str(r.get("execution_mode") or ""), str(r.get("execution_mode") or "")),
             r.get("run_kind", "") or "",
             _fmt_timestamp(r.get("generated_at", "") or ""),
             verdict,
@@ -238,6 +260,7 @@ def _query_evidence_rows(
 def query_evidence(
     evidence_dir: str,
     dataset_id: str,
+    execution_mode: str,
     run_kind: str,
     run_id: str,
     date_from: str,
@@ -249,6 +272,7 @@ def query_evidence(
     rows = _query_evidence_rows(
         evidence_dir,
         dataset_id,
+        execution_mode,
         run_kind,
         run_id,
         date_from,
@@ -303,8 +327,10 @@ def load_artifact_meta(evidence_dir: str, filename: str | None) -> str:
         meta = _extract_artifact_meta(load_evidence(path))
         raw_verdict = meta["verdict"] or ""
         verdict = _VERDICT_CIRCLES.get(raw_verdict.strip().upper(), raw_verdict) or "—"
+        mode = _MODE_LABELS.get(meta["execution_mode"], meta["execution_mode"]) or "—"
         return (
             f"**Dataset:** `{meta['dataset_id'] or '—'}`  "
+            f"**Mode:** `{mode}`  "
             f"**Kind:** `{meta['run_kind'] or '—'}`  "
             f"**Run ID:** `{meta['run_id'] or '—'}`  "
             f"**Generated:** {meta['generated_at'] or '—'}  "
@@ -432,7 +458,8 @@ def build_app():  # type: ignore[no-untyped-def]
             with gr.Tab("Run Status", id="run_status"):
                 gr.Markdown(
                     "Filter and inspect recent control run evidence. "
-                    "Each row is one artifact from an intake, drift, benchmark, or pipeline run.",
+                    "Each row is one artifact from an intake, drift, benchmark, or pipeline run, "
+                    "with explicit execution mode labeling.",
                     elem_classes=["ds-tab-desc"],
                 )
                 with gr.Row():
@@ -448,6 +475,11 @@ def build_app():  # type: ignore[no-untyped-def]
                     with gr.Row():
                         ds_filter = gr.Textbox(label="Dataset ID", value="",
                                                placeholder="e.g. customer_profiles")
+                        mode_filter = gr.Dropdown(
+                            label="Execution Mode",
+                            choices=["", "dataset_backed", "reference_data", "synthetic", "demo", "legacy_or_unknown"],
+                            value="",
+                        )
                         kind_filter = gr.Dropdown(
                             label="Run Kind",
                             choices=["", "intake", "drift", "benchmark", "pipeline"], value="",
@@ -460,8 +492,8 @@ def build_app():  # type: ignore[no-untyped-def]
                 run_summary = gr.Markdown("_Click Query to load evidence artifacts._",
                                           elem_classes=["ds-summary", "ds-empty-state"])
                 status_table = gr.Dataframe(
-                    headers=["File", "Dataset", "Kind", "Timestamp", "Verdict", "Run ID"],
-                    column_count=6,
+                    headers=["File", "Dataset", "Mode", "Kind", "Timestamp", "Verdict", "Run ID"],
+                    column_count=7,
                     interactive=False,
                     wrap=True,
                     elem_classes=["ds-readonly-dataframe"],
@@ -475,9 +507,9 @@ def build_app():  # type: ignore[no-untyped-def]
                 )
 
                 def _query_with_summary(
-                    ed: str, mr: str, ds: str, rk: str, ri: str, df: str, dt: str,
+                    ed: str, mr: str, ds: str, mode: str, rk: str, ri: str, df: str, dt: str,
                 ) -> tuple[list[list[str]], str, gr.Dropdown]:
-                    all_rows = _query_evidence_rows(ed, ds, rk, ri, df, dt)
+                    all_rows = _query_evidence_rows(ed, ds, mode, rk, ri, df, dt)
                     rows = _trim_result_rows(all_rows, _parse_max_results(mr))
                     artifact_files, default_artifact = _visible_artifact_choices(rows)
                     artifact_update = gr.Dropdown(choices=artifact_files, value=default_artifact)
@@ -505,7 +537,16 @@ def build_app():  # type: ignore[no-untyped-def]
 
                 query_btn.click(
                     fn=_query_with_summary,
-                    inputs=[ev_dir, max_results, ds_filter, kind_filter, rid_filter, from_filter, to_filter],
+                    inputs=[
+                        ev_dir,
+                        max_results,
+                        ds_filter,
+                        mode_filter,
+                        kind_filter,
+                        rid_filter,
+                        from_filter,
+                        to_filter,
+                    ],
                     outputs=[status_table, run_summary, visible_artifacts],
                 )
 
@@ -635,7 +676,14 @@ def build_app():  # type: ignore[no-untyped-def]
                     volume_fig = build_plotly_daily_volume(trows, theme, daily_summary=summary)
                     health_fig = build_plotly_health_trend(trows, theme, daily_summary=summary)
                     total = len(records)
-                    return verdict_fig, pie_fig, volume_fig, health_fig, f"**{total} artifacts** analyzed"
+                    legacy = sum(1 for record in records if record.get("execution_mode") == "legacy_or_unknown")
+                    status = f"**{total} artifacts** analyzed"
+                    if legacy:
+                        status += (
+                            f"  |  **{legacy} legacy/unknown artifacts** lack explicit execution mode "
+                            "and should not be treated as proof of real-data execution"
+                        )
+                    return verdict_fig, pie_fig, volume_fig, health_fig, status
 
             ana_btn.click(
                 fn=_refresh_analytics, inputs=[ana_dir, color_theme],

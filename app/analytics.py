@@ -65,7 +65,7 @@ COLOR_SCHEMES = {
 def build_analytics_data(evidence_dir: str) -> list[dict[str, str]]:
     """Scan evidence artifacts and return a list of summary records.
 
-    Each record has: dataset_id, run_kind, generated_at, verdict.
+    Each record has: dataset_id, execution_mode, run_kind, generated_at, verdict.
     Malformed files are tagged UNKNOWN. Fields are extracted directly
     from the cached list_evidence output to avoid redundant work.
     """
@@ -75,6 +75,7 @@ def build_analytics_data(evidence_dir: str) -> list[dict[str, str]]:
         is_malformed = r.get("parse_error")
         records.append({
             "dataset_id": r.get("dataset_id") or "untagged",
+            "execution_mode": r.get("execution_mode") or "legacy_or_unknown",
             "run_kind": r.get("run_kind") or "unknown",
             "generated_at": r.get("generated_at", ""),
             "verdict": "UNKNOWN" if is_malformed else (r.get("overall_verdict") or "UNKNOWN").strip().upper(),

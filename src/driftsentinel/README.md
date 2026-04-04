@@ -22,7 +22,9 @@ clone dependencies. The config surface includes a serializable dataset registry
 with semver-aware version resolution, explicit policy-to-dataset compatibility
 checks, and version metadata on all templates. The evidence surface supports
 queryable lookup by dataset, date range, and run ID with parallelized parsing.
-The orchestration surface provides dataset-aware execution alongside the
-original deterministic demo helpers. The Databricks App UI (Phase 4) provides a
-four-tab Gradio operator dashboard. Marketplace distribution preparation
-(Phase 5) is complete.
+Evidence metadata includes explicit execution mode tagging so operators can
+distinguish dataset-backed, demo, synthetic, reference-sample, and
+legacy/unknown artifacts during review. The orchestration surface provides
+dataset-aware execution alongside the original deterministic demo helpers. The
+Databricks App UI (Phase 4) provides a four-tab Gradio operator dashboard.
+Marketplace distribution preparation (Phase 5) is complete.

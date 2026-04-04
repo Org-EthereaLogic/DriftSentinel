@@ -208,7 +208,7 @@ class TestAppHelpers:
     def test_query_evidence_empty_dir(self, tmp_path: Path) -> None:
         from app.app import query_evidence
 
-        rows = query_evidence(str(tmp_path), "", "", "", "", "")
+        rows = query_evidence(str(tmp_path), "", "", "", "", "", "")
         assert len(rows) == 1
         assert "no artifacts" in rows[0][0]
 
@@ -216,7 +216,7 @@ class TestAppHelpers:
         from app.app import query_evidence
 
         with tempfile.TemporaryDirectory(dir=ROOT.parent) as temp_dir:
-            rows = query_evidence(temp_dir, "", "", "", "", "")
+            rows = query_evidence(temp_dir, "", "", "", "", "", "")
 
         assert rows[0][0].startswith("(error:")
         assert "trusted roots" in rows[0][0]
@@ -233,12 +233,14 @@ class TestAppHelpers:
             dataset_id="ds_a",
             run_kind="benchmark",
             run_id="r1",
+            execution_mode="dataset_backed",
         )
-        rows = query_evidence(str(tmp_path), "", "", "", "", "")
+        rows = query_evidence(str(tmp_path), "", "", "", "", "", "")
         assert len(rows) == 1
         assert rows[0][1] == "ds_a"
-        assert rows[0][2] == "benchmark"
-        assert rows[0][4] == "🟢 PASS"
+        assert rows[0][2] == "Dataset-Backed"
+        assert rows[0][3] == "benchmark"
+        assert rows[0][5] == "🟢 PASS"
 
     def test_query_evidence_honors_max_results(self, tmp_path: Path) -> None:
         from app.app import query_evidence
@@ -252,6 +254,7 @@ class TestAppHelpers:
             dataset_id="ds_a",
             run_kind="benchmark",
             run_id="older",
+            execution_mode="dataset_backed",
         )
         write_evidence(
             tmp_path,
@@ -261,19 +264,20 @@ class TestAppHelpers:
             dataset_id="ds_a",
             run_kind="benchmark",
             run_id="newer",
+            execution_mode="dataset_backed",
         )
 
-        rows = query_evidence(str(tmp_path), "", "", "", "", "", max_results=1)
+        rows = query_evidence(str(tmp_path), "", "", "", "", "", "", max_results=1)
         assert len(rows) == 1
         assert rows[0][0] == "newer.json"
-        assert rows[0][4] == "🔴 FAIL"
+        assert rows[0][5] == "🔴 FAIL"
 
     def test_query_evidence_with_malformed_file(self, tmp_path: Path) -> None:
         from app.app import query_evidence
 
         (tmp_path / "bad.json").write_text("not json", encoding="utf-8")
-        rows = query_evidence(str(tmp_path), "", "", "", "", "")
-        assert rows == [["bad.json", "", "parse_error", "", "(malformed)", ""]]
+        rows = query_evidence(str(tmp_path), "", "", "", "", "", "")
+        assert rows == [["bad.json", "", "Legacy/Unknown", "parse_error", "", "(malformed)", ""]]
 
     def test_load_artifact_detail_missing(self) -> None:
         from app.app import load_artifact_detail
@@ -320,6 +324,24 @@ class TestAppHelpers:
         result = load_artifact_meta("/tmp", None)
         assert "Enter an artifact filename" in result
 
+    def test_load_artifact_meta_shows_execution_mode(self, tmp_path: Path) -> None:
+        from app.app import load_artifact_meta
+        from driftsentinel.evidence.writer import write_evidence
+
+        write_evidence(
+            tmp_path,
+            "mode.json",
+            {"overall_verdict": "PASS"},
+            run_ts="2026-04-02T00:00:00+00:00",
+            dataset_id="ds_a",
+            run_kind="benchmark",
+            run_id="run-1",
+            execution_mode="reference_data",
+        )
+        result = load_artifact_meta(str(tmp_path), "mode.json")
+        assert "Mode:" in result
+        assert "Reference Sample" in result
+
 
 class TestAnalyticsHelpers:
     def test_timeline_data_preserves_event_level_context(self) -> None:
@@ -328,6 +350,7 @@ class TestAnalyticsHelpers:
         rows = timeline_data([
             {
                 "dataset_id": "ds_a",
+                "execution_mode": "dataset_backed",
                 "generated_at": "2026-04-02T22:00:00+00:00",
                 "run_kind": "benchmark",
                 "verdict": "PASS",

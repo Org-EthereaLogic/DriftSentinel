@@ -70,6 +70,31 @@ def _extract_overall_verdict(envelope: dict[str, Any]) -> str:
     return ""
 
 
+def _extract_execution_mode(envelope: dict[str, Any]) -> str:
+    """Best-effort extraction of execution mode from an evidence envelope."""
+    meta = envelope.get("meta", {})
+    if isinstance(meta, dict):
+        mode = str(meta.get("execution_mode", "") or "").strip()
+        if mode:
+            return mode
+
+    payload = envelope.get("payload", {})
+    if not isinstance(payload, dict):
+        return "legacy_or_unknown"
+
+    direct = str(payload.get("execution_mode", "") or "").strip()
+    if direct:
+        return direct
+
+    for section in ("benchmark", "drift", "intake"):
+        nested = payload.get(section)
+        if isinstance(nested, dict):
+            mode = str(nested.get("execution_mode", "") or "").strip()
+            if mode:
+                return mode
+    return "legacy_or_unknown"
+
+
 def _normalize_date_filter(raw: str | None, *, end_of_day: bool) -> str | None:
     """Normalize `YYYY-MM-DD` inputs into full-day ISO boundaries."""
     if raw is None:
@@ -100,6 +125,7 @@ def write_evidence(
     policy_version: str | None = None,
     run_id: str | None = None,
     run_kind: str | None = None,
+    execution_mode: str | None = None,
 ) -> Path:
     """Write a single evidence artifact as JSON.
 
@@ -141,6 +167,8 @@ def write_evidence(
         meta["run_id"] = run_id
     if run_kind is not None:
         meta["run_kind"] = run_kind
+    if execution_mode is not None:
+        meta["execution_mode"] = execution_mode
 
     envelope: dict[str, Any] = {
         "meta": meta,
@@ -283,6 +311,7 @@ def write_benchmark_bundle(
         policy_version=policy_version,
         run_id=run_id,
         run_kind="benchmark",
+        execution_mode=execution_mode or "synthetic",
     )
 
 
@@ -308,6 +337,7 @@ def _parse_evidence_file(p: Path) -> dict[str, Any] | None:
         "generated_at": meta.get("generated_at", ""),
         "dataset_id": meta.get("dataset_id"),
         "contract_version": meta.get("contract_version"),
+        "execution_mode": _extract_execution_mode(data),
         "overall_verdict": _extract_overall_verdict(data).strip().upper(),
         "policy_version": meta.get("policy_version"),
         "run_id": meta.get("run_id"),
@@ -336,6 +366,7 @@ def list_evidence(
     evidence_dir: str | Path,
     *,
     dataset_id: str | None = None,
+    execution_mode: str | None = None,
     run_kind: str | None = None,
     run_id: str | None = None,
     date_from: str | None = None,
@@ -350,6 +381,7 @@ def list_evidence(
     Args:
         evidence_dir: Directory containing evidence JSON artifacts.
         dataset_id: Filter to artifacts for this dataset.
+        execution_mode: Filter to artifacts with this execution mode.
         run_kind: Filter to artifacts of this run kind.
         run_id: Filter to artifacts with this run ID.
         date_from: ISO date string; include artifacts generated at or after.
@@ -368,7 +400,9 @@ def list_evidence(
 
     date_from_filter = _normalize_date_filter(date_from, end_of_day=False)
     date_to_filter = _normalize_date_filter(date_to, end_of_day=True)
-    has_filters = any(v is not None for v in (dataset_id, run_kind, run_id, date_from, date_to))
+    has_filters = any(
+        v is not None for v in (dataset_id, execution_mode, run_kind, run_id, date_from, date_to)
+    )
 
     import concurrent.futures
 
@@ -409,6 +443,8 @@ def list_evidence(
                 continue
 
             if dataset_id is not None and entry.get("dataset_id") != dataset_id:
+                continue
+            if execution_mode is not None and entry.get("execution_mode") != execution_mode:
                 continue
             if run_kind is not None and entry.get("run_kind") != run_kind:
                 continue

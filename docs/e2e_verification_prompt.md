@@ -17,7 +17,7 @@ You are performing a full end-to-end visualized verification of DriftSentinel,
 the Enterprise Data Trust Chapter 4 application.
 
 Repository: /Users/etherealogic-2/Dev/Databricks/DriftSentinel
-Product state: Phases 0–5 complete, 323 tests passing, dependency triage resolved.
+Product state: Phases 0–5 complete, 326 tests passing, dependency triage resolved.
 
 Your role: You are an executive at a mid-market construction company
 ("Meridian Infrastructure") who just discovered DriftSentinel on GitHub. You
@@ -65,7 +65,7 @@ TASK 1.1 — Clone and local install
 - Clone the repo (or use the existing local copy)
 - Run: make sync
 - Run: make test
-- VERIFY: All 323 tests pass. Screenshot the terminal output via Kapture.
+- VERIFY: All 326 tests pass. Screenshot the terminal output via Kapture.
 - VERIFY: No errors during install. If there are dependency issues, log them.
 
 TASK 1.2 — Read the README and quickstart
@@ -220,16 +220,23 @@ TASK 2.6 — Run the local pipeline with evidence
 
 TASK 2.7 — Run the dataset-aware pipeline
 - Run in Python:
-    from driftsentinel.config.loader import DatasetRegistry
+    from driftsentinel.config.loader import (
+        DatasetRegistry, load_drift_policy, load_benchmark_policy
+    )
     from driftsentinel.orchestration.runner import run_dataset_pipeline
     reg = DatasetRegistry.load("/tmp/driftsentinel_registry.json")
+    dp = load_drift_policy("/tmp/meridian_drift_policy.yml")
+    bp = load_benchmark_policy("/tmp/meridian_benchmark_policy.yml")
     result = run_dataset_pipeline(
         reg, "meridian_project_costs",
         evidence_dir="/tmp/driftsentinel_evidence",
+        drift_policy=dp,
+        benchmark_policy=bp,
     )
     import json; print(json.dumps(result, indent=2, default=str))
 - VERIFY: Result includes dataset_id, contract_version, run_id.
 - VERIFY: Evidence file written with dataset metadata in the envelope.
+- VERIFY: Evidence includes explicit execution mode and does not appear as legacy/unknown.
 - Screenshot.
 
 TASK 2.8 — Verify evidence in the Gradio app
@@ -239,6 +246,8 @@ TASK 2.8 — Verify evidence in the Gradio app
 - VERIFY: Multiple evidence artifacts appear in the table.
 - VERIFY: The "Dataset" column shows "meridian_project_costs" for the
   dataset-aware run.
+- VERIFY: The "Mode" column distinguishes dataset-backed or reference-sample
+  artifacts from demo/synthetic/legacy ones.
 - VERIFY: The "Kind" column shows correct run kinds.
 - VERIFY: The "Verdict" column shows actual verdicts (PASS/FAIL/WARN).
 - Screenshot.
@@ -284,23 +293,33 @@ TASK 3.1 — Run drift demo and inspect provenance
 - VERIFY: The overall_verdict is "FAIL" because the demo data includes drift.
 - Screenshot.
 
-TASK 3.2 — Write drift evidence for the registered dataset
+TASK 3.2 — Run dataset-backed drift and write evidence
 - Run in Python:
-    from driftsentinel.evidence.writer import generate_run_id, write_evidence
-    from driftsentinel.orchestration.runner import run_drift_demo
-    result = run_drift_demo()
-    rid = generate_run_id()
-    write_evidence(
-        "/tmp/driftsentinel_evidence",
-        "drift_meridian_project_costs.json",
-        result["provenance"],
-        dataset_id="meridian_project_costs",
-        contract_version="1.0.0",
-        run_id=rid,
-        run_kind="drift",
+    from driftsentinel.config.loader import DatasetRegistry, load_drift_policy
+    from driftsentinel.orchestration.dataset_runtime import (
+        load_baseline_dataset, load_current_dataset,
     )
-    print(f"Written with run_id={rid}")
-- VERIFY: File created in evidence dir.
+    from driftsentinel.orchestration.runner import run_dataset_drift
+    reg = DatasetRegistry.load("/tmp/driftsentinel_registry.json")
+    contract = reg.get("meridian_project_costs")
+    dp = load_drift_policy("/tmp/meridian_drift_policy.yml")
+    current = load_current_dataset(contract)
+    baseline = load_baseline_dataset(contract, dp)
+    result = run_dataset_drift(
+        contract,
+        dp,
+        current_data=current,
+        baseline_data=baseline,
+        evidence_dir="/tmp/driftsentinel_evidence",
+        dataset_id="meridian_project_costs",
+        contract_version=contract["dataset"]["contract_version"],
+    )
+    import json; print(json.dumps(result, indent=2, default=str))
+- VERIFY: `result["overall_verdict"]` reflects the registered dataset comparison,
+  not demo drift.
+- VERIFY: `result["evidence_path"]` points to `drift_meridian_project_costs.json`.
+- VERIFY: The written artifact has dataset metadata and explicit
+  `execution_mode=dataset_backed`.
 - Screenshot.
 
 TASK 3.3 — Filter evidence by date range

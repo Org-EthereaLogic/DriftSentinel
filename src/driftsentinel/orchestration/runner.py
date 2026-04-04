@@ -152,6 +152,7 @@ def run_local_pipeline(
             "pipeline_summary.json",
             combined,
             run_ts=run_ts,
+            execution_mode="demo",
         )
 
     return combined
@@ -257,6 +258,7 @@ def run_dataset_intake(
             contract_version=contract_version,
             run_id=run_id,
             run_kind="intake",
+            execution_mode="dataset_backed",
         )
     payload["evidence_path"] = _stage_evidence_payload_path(evidence_path)
     return payload
@@ -358,6 +360,7 @@ def run_dataset_drift(
             policy_version=policy_version,
             run_id=run_id,
             run_kind="drift",
+            execution_mode="dataset_backed",
         )
     payload["evidence_path"] = _stage_evidence_payload_path(evidence_path)
     return payload
@@ -511,6 +514,7 @@ def run_dataset_pipeline(
             policy_version=drift_binding["policy_version"],
             run_id=rid,
             run_kind="pipeline",
+            execution_mode="dataset_backed",
         )
         combined["evidence_path"] = str(summary_path)
 

@@ -44,10 +44,13 @@ The operator dashboard loads the active registry and shows every registered data
 
 ### Exhibit 2: Control Run Evidence at a Glance
 
-The Run Status tab surfaces 48 evidence artifacts across intake, drift, and benchmark runs — 27 PASS, 20 FAIL, and 1 other. Every row is one artifact: dataset, kind, timestamp, verdict, and run ID. The verdict column makes failures immediately visible without opening a single file.
+The Run Status tab surfaces evidence artifacts across intake, drift, benchmark,
+and pipeline runs. Every row is one artifact: dataset, execution mode, kind,
+timestamp, verdict, and run ID. The verdict column makes failures immediately
+visible without opening a single file.
 
 <p align="center">
-  <img src="assets/driftsentinel-brand-system/marketplace/screenshots/02-run-status.png" alt="Run Status tab showing 48 artifacts with PASS and FAIL verdicts, dataset names, run kinds, and run IDs" width="900"/>
+  <img src="assets/driftsentinel-brand-system/marketplace/screenshots/02-run-status.png" alt="Run Status tab showing evidence artifacts with PASS and FAIL verdicts, dataset names, execution modes, run kinds, and run IDs" width="900"/>
 </p>
 
 ### Exhibit 3: Full Evidence Artifact Inspection
@@ -60,10 +63,14 @@ The Evidence Explorer loads a single evidence artifact by filename and renders t
 
 ### Exhibit 4: Visual Analytics Across All Control Runs
 
-The Analytics tab scans the evidence directory and renders four charts: verdict distribution, runs by kind (intake, drift, benchmark), daily activity volume, and daily health trend. 48 artifacts analyzed from a single shared evidence directory — no manual aggregation.
+The Analytics tab scans the evidence directory and renders four charts: verdict
+distribution, runs by kind, daily activity volume, and daily health trend. It
+also flags legacy or unknown artifacts that lack explicit execution-mode
+metadata, so operators do not mistake ambiguous historical evidence for
+dataset-backed proof.
 
 <p align="center">
-  <img src="assets/driftsentinel-brand-system/marketplace/screenshots/04-analytics.png" alt="Analytics tab showing verdict distribution bar chart and runs-by-kind donut chart across 48 control run artifacts" width="900"/>
+  <img src="assets/driftsentinel-brand-system/marketplace/screenshots/04-analytics.png" alt="Analytics tab showing verdict distribution bar chart and runs-by-kind donut chart for control run artifacts" width="900"/>
 </p>
 
 ## The Business Problem
@@ -91,7 +98,7 @@ These are not hypothetical gaps. They are the operational reality of any team th
 | `resources/` | Databricks Asset Bundle pipeline, job, and app resource definitions |
 | `templates/` | Dataset contract, drift policy, and benchmark policy templates |
 | `specs/` | Canonical SDLC documents governing the product |
-| `tests/` | 323-test suite covering domain logic, packaging, and governance |
+| `tests/` | 326-test suite covering domain logic, packaging, and governance |
 
 Every directory above contains a `README.md` describing its contents, including each submodule under `src/driftsentinel/`.
 
@@ -99,12 +106,12 @@ Every directory above contains a `README.md` describing its contents, including 
 
 | Verified outcome | Evidence from this repository |
 | ---------------- | ----------------------------- |
-| Multi-dataset registry operates with version-aware contracts | 2 datasets registered at v1.0.0 — visible in the Registry tab with catalog and table location |
+| Multi-dataset registry operates with version-aware contracts | Registry and tests show registered dataset IDs, contract versions, and Unity Catalog locations |
 | All three control patterns produce evidence through one orchestration layer | Intake, drift, and benchmark artifacts present in a single shared evidence directory |
 | Dataset-aware runs execute against real registered inputs | `source.landing_path` is loaded for current data, drift compares against an explicit trusted baseline path, and dataset-backed benchmark scenarios are injected into a deterministic sample of that trusted baseline |
-| Evidence artifacts are queryable without writing scripts | Run Status tab filters 48 artifacts by dataset, kind, verdict, and run ID |
-| FAIL verdicts surface measurable gate results | Drift FAIL artifact shows health score 0.2, 4 columns drifted, gate thresholds recorded |
-| Databricks deployment is reproducible from source | Asset Bundle validates, deploys, and runs via `make bundle-validate` and `make app-deploy` |
+| Evidence artifacts are queryable without writing scripts | Run Status filters artifacts by dataset, execution mode, kind, verdict, date range, and run ID |
+| FAIL verdicts surface measurable gate results | Demo and dataset-backed drift artifacts record health score, drifted columns, and gate thresholds in append-only evidence |
+| Databricks deployment workflow is defined for a configured workspace | Asset Bundle resources and deployment docs cover validate, deploy, and app status checks; replay still requires Databricks credentials and Unity Catalog |
 
 ## Decision / KPI Contract
 
@@ -141,7 +148,7 @@ Every directory above contains a `README.md` describing its contents, including 
 - **Databricks Apps (Gradio)** for a governed, read-only operator dashboard with no custom web infrastructure required.
 - **Unity Catalog** for governed table publication and the evidence volume backing the operator dashboard.
 - **Databricks Lakeflow / Jobs** for scheduled control pipeline execution across registered datasets.
-- DriftSentinel is dataset-agnostic — the registry and policy binding handle per-dataset configuration regardless of schema shape or source system.
+- DriftSentinel is contract-driven rather than domain-hardcoded. Registered datasets can vary by schema and source system, but supported execution still depends on the declared file format, trusted baseline availability, and the control logic implemented in this repository.
 
 ## Quickstart
 
@@ -164,7 +171,7 @@ git clone https://github.com/Org-EthereaLogic/DriftSentinel.git
 cd DriftSentinel
 
 make sync   # installs runtime + dev dependencies via uv
-make test   # runs the 323-test suite
+make test   # runs the 326-test suite
 ```
 
 ### Databricks Bundle and App Deployment
@@ -232,7 +239,7 @@ Please complete these steps in order. Stop at any failure and report it before c
    make sync
    If uv is not installed: pip install uv
 
-3. Run the full test suite. All 323 tests must pass before proceeding:
+3. Run the full test suite. All 326 tests must pass before proceeding:
    make test
 
 4. Read these files to understand the configuration model before deployment:
@@ -263,7 +270,7 @@ error without explaining it and asking me how to continue.
 
 ## Scope Boundary
 
-DriftSentinel validates the unified control platform using registered datasets in a local and Databricks environment. It supports declarative, file-backed dataset execution across arbitrary contract schemas, but it does not yet constitute production-scale proof across every data size, every workspace topology, or every multi-workspace deployment pattern. The Databricks deployment path still requires a workspace with Unity Catalog enabled.
+DriftSentinel validates the unified control platform using registered datasets in a local and Databricks environment. It supports contract-driven, file-backed execution for heterogeneous tabular schemas across the runtime's supported source formats (`csv`, `json`, `parquet`, `delta`), but it does not yet constitute production-scale proof across every data size, every workspace topology, or every multi-workspace deployment pattern. The Databricks deployment path still requires a workspace with Unity Catalog enabled.
 
 ## Engineering Signals
 

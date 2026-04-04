@@ -19,10 +19,11 @@ FIXED_TS = "2026-04-02T00:00:00+00:00"
 
 def test_write_evidence_creates_file(tmp_path: Path) -> None:
     payload = {"result": "ok", "score": 0.95}
-    path = write_evidence(tmp_path, "test.json", payload, run_ts=FIXED_TS)
+    path = write_evidence(tmp_path, "test.json", payload, run_ts=FIXED_TS, execution_mode="dataset_backed")
     assert path.exists()
     data = json.loads(path.read_text())
     assert data["meta"]["generated_at"] == FIXED_TS
+    assert data["meta"]["execution_mode"] == "dataset_backed"
     assert data["payload"]["result"] == "ok"
 
 
@@ -94,3 +95,4 @@ def test_write_benchmark_bundle(tmp_path: Path) -> None:
     data = json.loads(path.read_text())
     assert data["payload"]["overall_verdict"] == "PASS"
     assert data["payload"]["seed"] == 42
+    assert data["meta"]["execution_mode"] == "synthetic"
