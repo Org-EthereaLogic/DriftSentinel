@@ -46,6 +46,10 @@ output/
 # Large test fixtures (stress-test parquet data)
 tests/data/
 
+# Large binary assets (videos, presentations)
+*.mp4
+*.pptx
+
 # Implementation session tracking (contains local paths)
 progress.json
 progress.txt
