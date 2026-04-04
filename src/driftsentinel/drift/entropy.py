@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import math
 
+import numpy as np
 import pandas as pd
 
 
@@ -20,8 +21,9 @@ def _shannon_entropy(series: pd.Series) -> float:  # type: ignore[type-arg]
     total = counts.sum()
     if total == 0:
         return 0.0
-    probs = counts / total
-    return -sum(p * math.log2(p) for p in probs if p > 0)
+    probs = (counts / total).to_numpy()
+    positive = probs[probs > 0]
+    return -float(np.sum(positive * np.log2(positive)))
 
 
 def _max_entropy(n_values: int) -> float:
@@ -38,10 +40,16 @@ def column_stability_score(series: pd.Series) -> float:  # type: ignore[type-arg
       - 1.0 = full diversity (entropy at maximum for the observed cardinality)
       - 0.0 = collapsed to a single value (zero entropy)
     """
-    n_unique = series.nunique(dropna=False)
+    counts = series.value_counts(dropna=False)
+    n_unique = len(counts)
     if n_unique <= 1:
         return 0.0
-    h = _shannon_entropy(series)
+    total = counts.sum()
+    if total == 0:
+        return 0.0
+    probs = (counts / total).to_numpy()
+    positive = probs[probs > 0]
+    h = -float(np.sum(positive * np.log2(positive)))
     h_max = _max_entropy(n_unique)
     if h_max == 0:
         return 0.0
