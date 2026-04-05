@@ -1,16 +1,27 @@
 ---
-# Scope hosted Codacy analysis to product-relevant code. Repository evidence,
-# prompt libraries, local Codacy helper files, and Databricks notebooks are
-# verified through dedicated repo checks and otherwise dominate the grade with
-# low-signal findings.
+# Scope hosted Codacy analysis to product-relevant runtime and deployable
+# surfaces. SDLC specs, governance docs, prompts, evidence artifacts, and
+# generated/non-runtime assets are verified through dedicated repo checks and
+# otherwise dominate the grade with low-signal findings.
 exclude_paths:
   - ".claude/**"
   - ".codacy/**"
+  - ".github/instructions/**"
   - ".github/prompts/**"
+  - "AGENTS.md"
+  - "CLAUDE.md"
+  - "CONSTITUTION.md"
+  - "CONTRIBUTING.md"
+  - "DIRECTIVES.md"
+  - "README.md"
+  - "SECURITY.md"
+  - "adws/**"
   - "assets/**"
+  - "docs/**"
   - "docs/prompts/**"
   - "notebooks/**"
   - "report/**"
+  - "specs/**"
   - "uv.lock"
 
 engines:
