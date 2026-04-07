@@ -18,6 +18,10 @@ Built by Anthony Johnson | EthereaLogic LLC
 
 ---
 
+> If this platform is useful to your team, consider [starring the repo](https://github.com/Org-EthereaLogic/DriftSentinel) — it helps others in the Databricks community find it.
+
+---
+
 The first three chapters of Enterprise Data Trust prove three things: data can be certified at intake, distribution drift can be gated before publication, and control effectiveness can be measured against known failure scenarios. Each chapter solves one problem in isolation.
 
 DriftSentinel solves the next one: running all three control patterns together, across multiple registered datasets, in a production Databricks environment — with append-only evidence for every run and an operator dashboard the platform team can actually use.
