@@ -129,7 +129,6 @@ _configure_trusted_roots(registry_path, drift_policy_path, policy_path, evidence
 
 # COMMAND ----------
 
-import json
 from driftsentinel.config.loader import DatasetRegistry, load_benchmark_policy, load_drift_policy
 from driftsentinel.evidence.writer import generate_run_id
 from driftsentinel.orchestration.runner import run_dataset_pipeline
@@ -151,7 +150,7 @@ result = run_dataset_pipeline(
 )
 
 print(f"Dataset pipeline completed for dataset={dataset_id}, run_id={run_id}")
-print(json.dumps(result, indent=2, default=str))
+print("Detailed pipeline payload logging is suppressed to avoid exposing sensitive data.")
 
 # COMMAND ----------
 
