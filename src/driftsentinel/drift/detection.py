@@ -11,7 +11,7 @@ from enum import Enum
 import pandas as pd
 
 from driftsentinel.drift.baseline import BaselineSnapshot
-from driftsentinel.drift.entropy import column_stability_score
+from driftsentinel.drift.scoring import DriftMethod, drift_stability_score
 
 
 class DriftClassification(str, Enum):
@@ -27,6 +27,7 @@ class ColumnDriftResult:
     """Drift result for a single column."""
 
     column: str
+    method: str
     baseline_score: float
     current_score: float
     delta: float
@@ -70,6 +71,8 @@ def detect_drift(
     baseline: BaselineSnapshot,
     current_df: pd.DataFrame,
     collapse_threshold: float = 0.3,
+    *,
+    baseline_df: pd.DataFrame | None = None,
 ) -> DriftResult:
     """Compare a current load against a trusted baseline.
 
@@ -79,10 +82,19 @@ def detect_drift(
     import concurrent.futures
 
     def _score_col(col: str) -> ColumnDriftResult:
+        method = baseline.methods.get(col, DriftMethod.SHANNON_ENTROPY)
         baseline_score = baseline.scores.get(col, 0.0)
-        current_score = column_stability_score(current_df[col]) if col in current_df.columns else 0.0
+        if col in current_df.columns:
+            current_score = drift_stability_score(
+                current_df[col],
+                method=method,
+                reference_series=baseline_df[col] if baseline_df is not None and col in baseline_df.columns else None,
+            )
+        else:
+            current_score = 0.0
         return ColumnDriftResult(
             column=col,
+            method=method.value,
             baseline_score=baseline_score,
             current_score=current_score,
             delta=round(current_score - baseline_score, 4),

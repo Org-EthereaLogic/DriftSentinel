@@ -8,6 +8,7 @@ from __future__ import annotations
 import math
 
 import pandas as pd
+import pytest
 
 from driftsentinel.drift.baseline import BaselineSnapshot
 from driftsentinel.drift.detection import (
@@ -26,6 +27,7 @@ from driftsentinel.drift.sample_data import (
     generate_baseline,
     generate_drifted,
 )
+from driftsentinel.drift.scoring import DriftMethod
 from driftsentinel.evidence.writer import build_provenance_envelope
 
 FIXED_TS = "2026-04-02T00:00:00+00:00"
@@ -110,11 +112,40 @@ def test_detect_drift_collapsed() -> None:
     baseline_df = pd.DataFrame(baseline_rows)
     drifted_df = pd.DataFrame(drifted_rows)
     baseline = BaselineSnapshot.from_dataframe(baseline_df, MONITORED_COLUMNS)
-    result = detect_drift(baseline, drifted_df)
+    result = detect_drift(baseline, drifted_df, baseline_df=baseline_df)
     assert result.columns_drifted == 4
     assert result.health_score < 1.0
     collapsed = [r for r in result.column_results if r.classification == DriftClassification.COLLAPSED]
     assert len(collapsed) == 4
+
+
+def test_detect_drift_wasserstein_respects_policy_method() -> None:
+    baseline_df = pd.DataFrame({"amount": [10.0, 11.0, 12.0, 13.0, 14.0]})
+    current_df = pd.DataFrame({"amount": [100.0, 101.0, 102.0, 103.0, 104.0]})
+    baseline = BaselineSnapshot.from_dataframe(
+        baseline_df,
+        ["amount"],
+        methods={"amount": DriftMethod.WASSERSTEIN},
+    )
+
+    result = detect_drift(baseline, current_df, baseline_df=baseline_df)
+
+    assert result.columns_drifted == 1
+    assert result.column_results[0].method == "wasserstein"
+    assert result.column_results[0].current_score < 0.7
+
+
+def test_detect_drift_requires_reference_frame_for_wasserstein() -> None:
+    baseline_df = pd.DataFrame({"amount": [10.0, 11.0, 12.0]})
+    current_df = pd.DataFrame({"amount": [100.0, 101.0, 102.0]})
+    baseline = BaselineSnapshot.from_dataframe(
+        baseline_df,
+        ["amount"],
+        methods={"amount": DriftMethod.WASSERSTEIN},
+    )
+
+    with pytest.raises(ValueError, match="requires a reference baseline series"):
+        detect_drift(baseline, current_df)
 
 
 def test_drift_result_ratio() -> None:
@@ -186,6 +217,7 @@ def test_provenance_envelope_from_drift_run() -> None:
         {
             "column": cr.column, "baseline_score": cr.baseline_score,
             "current_score": cr.current_score, "classification": cr.classification.value,
+            "method": cr.method,
         }
         for cr in drift_result.column_results
     ]

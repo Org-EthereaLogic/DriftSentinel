@@ -141,7 +141,7 @@ Every directory above contains a `README.md` describing its contents, including 
 ## How It Works
 
 1. **Register datasets.** Each dataset is registered with a contract YAML specifying the Unity Catalog location, schema contract, and source reference. File-backed datasets use `source.landing_path`; table-backed datasets use `source.table_name` or the `dataset.catalog/schema/table` triplet.
-2. **Bind drift and benchmark policy.** Drift policies define monitored columns plus the explicit trusted baseline reference. File-backed baselines use `baseline.path`; table-backed baselines use `baseline.table_name`.
+2. **Bind drift and benchmark policy.** Drift policies define monitored columns, a per-column drift `method`, and the explicit trusted baseline reference. Supported drift methods are `shannon_entropy` and `wasserstein` for numeric or datetime columns. File-backed baselines use `baseline.path`; table-backed baselines use `baseline.table_name`.
 3. **Run the control pipeline.** The orchestration layer loads the registered raw dataset, runs intake certification, compares the current load to the trusted baseline for drift, and benchmarks the controls against injected scenarios on a trusted reference sample. Each module writes an append-only evidence artifact to the shared evidence directory.
 4. **Inspect run status.** The Run Status tab surfaces all artifacts with verdicts, timestamps, and run IDs. FAIL rows are immediately visible — no file parsing required.
 5. **Explore individual artifacts.** The Evidence Explorer loads any single artifact by filename and renders the full JSON payload, including gate results with measured values and thresholds.
@@ -223,7 +223,7 @@ databricks bundle run benchmark_job -p <profile> --target dev \
 Import the `notebooks/` directory into your Databricks workspace to run the control pipeline from the deployed bundle or standalone from GitHub. Notebooks prefer the workspace source tree when bundle-synced under `/Workspace/...` and otherwise install DriftSentinel from GitHub. Real dataset execution requires:
 
 - a registered dataset contract with `source.format` and either `source.landing_path` or `source.table_name`
-- a drift policy with `baseline.format` and either `baseline.path` or `baseline.table_name` (or the contract fallbacks)
+- a drift policy with `monitored_columns` entries that declare `column_name` plus a supported `method` (`shannon_entropy` or `wasserstein`), and `baseline.format` plus either `baseline.path` or `baseline.table_name` (or the contract fallbacks)
 - an optional benchmark policy for dataset-specific injected scenarios and gates
 - blank `registry_path` and `evidence_dir` widgets resolve to `/Volumes/<catalog>/<schema>/driftsentinel_runtime/...`
 - for Databricks volume-backed files, use `/Volumes/...` notebook paths; avoid `/dbfs/Volumes/...`

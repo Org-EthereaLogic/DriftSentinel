@@ -105,17 +105,20 @@ if contract_path and drift_policy_path:
     drift_policy = load_drift_policy(drift_policy_path)
     loaded = load_baseline_dataset(contract, drift_policy)
     baseline_df = loaded.frame
-    monitored_columns = [
-        item["column_name"]
+    monitored_specs = [
+        (item["column_name"], item["method"])
         for item in drift_policy["drift_policy"].get("monitored_columns", [])
-        if item.get("column_name")
-    ] or MONITORED_COLUMNS
+        if item.get("column_name") and item.get("method")
+    ]
+    monitored_columns = [column_name for column_name, _ in monitored_specs] or MONITORED_COLUMNS
+    monitored_methods = {column_name: method for column_name, method in monitored_specs}
     print(f"Imported trusted baseline from: {loaded.source_path}")
     print(f"Files loaded:        {len(loaded.files_loaded)}")
 else:
     baseline_rows = generate_baseline()
     baseline_df = pd.DataFrame(baseline_rows)
     monitored_columns = MONITORED_COLUMNS
+    monitored_methods = {column_name: "shannon_entropy" for column_name in monitored_columns}
     print("Using bundled demo baseline. Set contract_path + drift_policy_path to inspect a real baseline.")
 
 print(f"Baseline rows:       {len(baseline_df)}")
@@ -131,8 +134,15 @@ print(f"All columns:         {list(baseline_df.columns)}")
 
 from driftsentinel.drift.baseline import BaselineSnapshot
 
-snapshot = BaselineSnapshot.from_dataframe(baseline_df, monitored_columns)
+snapshot = BaselineSnapshot.from_dataframe(
+    baseline_df,
+    monitored_columns,
+    methods=monitored_methods,
+)
 print(f"Row count:           {snapshot.row_count}")
 print(f"Columns tracked:     {list(snapshot.columns)}")
 for col in snapshot.columns:
-    print(f"  {col}: stability_score={round(snapshot.scores.get(col, 0.0), 4)}")
+    print(
+        f"  {col}: method={snapshot.methods[col].value}, "
+        f"stability_score={round(snapshot.scores.get(col, 0.0), 4)}"
+    )

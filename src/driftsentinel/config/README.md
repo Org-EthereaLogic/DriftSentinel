@@ -9,6 +9,7 @@ Responsibilities:
 - Supporting per-dataset policy overrides
 - Multi-dataset registry with serialization and collision prevention
 - Explicit policy-to-dataset version binding with compatibility checks
+- Validating per-column drift methods before execution
 - Restricting config and registry file access to trusted operator roots
 
 Key exports: `DatasetRegistry`, `RegistryError`, `check_policy_compatibility`,

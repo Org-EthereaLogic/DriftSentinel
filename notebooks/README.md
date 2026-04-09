@@ -23,7 +23,9 @@ surfaces set `require_dataset_backed=true` so they fail closed instead of
 quietly falling back to demo or synthetic execution.
 Real dataset execution requires a registered dataset contract with
 `source.format` plus either `source.landing_path` or `source.table_name`, and a
-drift policy with `baseline.format` plus either `baseline.path` or
-`baseline.table_name`. For volume-backed files in Databricks notebooks, use
-`/Volumes/...` paths rather than `/dbfs/Volumes/...`. Notebook logic is
-intentionally thin -- domain logic lives in `src/driftsentinel/`.
+drift policy with `monitored_columns` entries that declare `column_name` plus a
+supported `method` (`shannon_entropy` or `wasserstein`), and `baseline.format`
+plus either `baseline.path` or `baseline.table_name`. For volume-backed files
+in Databricks notebooks, use `/Volumes/...` paths rather than
+`/dbfs/Volumes/...`. Notebook logic is intentionally thin -- domain logic
+lives in `src/driftsentinel/`.

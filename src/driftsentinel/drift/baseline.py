@@ -6,10 +6,11 @@ Ported from Chapter 2 (silent-failure-prevention) as first-party DriftSentinel c
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import Mapping
 
 import pandas as pd
 
-from driftsentinel.drift.entropy import column_stability_score
+from driftsentinel.drift.scoring import DriftMethod, baseline_stability_score, normalize_drift_method
 
 
 @dataclass(frozen=True)
@@ -25,18 +26,31 @@ class BaselineSnapshot:
     scores: dict[str, float] = field(default_factory=dict)
     row_count: int = 0
     columns: tuple[str, ...] = ()
+    methods: dict[str, DriftMethod] = field(default_factory=dict)
 
     @classmethod
-    def from_dataframe(cls, df: pd.DataFrame, columns: list[str]) -> "BaselineSnapshot":
+    def from_dataframe(
+        cls,
+        df: pd.DataFrame,
+        columns: list[str],
+        *,
+        methods: Mapping[str, DriftMethod | str] | None = None,
+    ) -> "BaselineSnapshot":
         """Create a baseline snapshot from a DataFrame and list of columns to monitor."""
         scores: dict[str, float] = {}
+        resolved_methods: dict[str, DriftMethod] = {}
         for col in columns:
+            method = normalize_drift_method(
+                (methods or {}).get(col, DriftMethod.SHANNON_ENTROPY.value)
+            )
+            resolved_methods[col] = method
             if col in df.columns:
-                scores[col] = column_stability_score(df[col])
+                scores[col] = baseline_stability_score(df[col], method=method)
             else:
                 scores[col] = 0.0
         return cls(
             scores=scores,
             row_count=len(df),
             columns=tuple(columns),
+            methods=resolved_methods,
         )

@@ -82,6 +82,24 @@ def test_load_drift_policy_missing_required(tmp_path: Path) -> None:
         load_drift_policy(bad)
 
 
+def test_load_drift_policy_rejects_unknown_monitored_column_method(tmp_path: Path) -> None:
+    bad = tmp_path / "bad.yml"
+    bad.write_text(
+        yaml.dump(
+            {
+                "drift_policy": {
+                    "name": "x",
+                    "dataset": "orders",
+                    "monitored_columns": [{"column_name": "amount", "method": "not_real"}],
+                    "gates": {"health_score_threshold": 0.7},
+                }
+            }
+        )
+    )
+    with pytest.raises(ConfigError, match="Unsupported drift method 'not_real'"):
+        load_drift_policy(bad)
+
+
 # --- Benchmark policy ---
 
 

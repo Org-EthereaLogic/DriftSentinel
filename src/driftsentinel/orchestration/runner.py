@@ -17,6 +17,7 @@ from driftsentinel.drift.baseline import BaselineSnapshot
 from driftsentinel.drift.detection import detect_drift
 from driftsentinel.drift.gates import GateConfig, evaluate_gates
 from driftsentinel.drift.sample_data import MONITORED_COLUMNS, generate_baseline, generate_drifted
+from driftsentinel.drift.scoring import DriftMethod, normalize_drift_method
 from driftsentinel.evidence.writer import build_provenance_envelope, generate_run_id, write_evidence
 from driftsentinel.intake.contracts import evaluate_batch, evaluate_dataframe_contract
 from driftsentinel.intake.sample_data import ALL_BATCHES
@@ -60,7 +61,7 @@ def run_drift_demo(
     drifted_df = pd.DataFrame(drifted_rows)
 
     baseline = BaselineSnapshot.from_dataframe(baseline_df, MONITORED_COLUMNS)
-    drift_result = detect_drift(baseline, drifted_df)
+    drift_result = detect_drift(baseline, drifted_df, baseline_df=baseline_df)
 
     configs = [
         GateConfig(
@@ -96,6 +97,7 @@ def run_drift_demo(
     col_dicts = [
         {
             "column": result.column,
+            "method": result.method,
             "baseline_score": result.baseline_score,
             "current_score": result.current_score,
             "classification": result.classification.value,
@@ -171,16 +173,23 @@ def _loaded_trace(loaded: LoadedDataset) -> dict[str, Any]:
     }
 
 
-def _monitored_columns(drift_policy: dict[str, Any]) -> list[str]:
+def _monitored_column_specs(drift_policy: dict[str, Any]) -> list[tuple[str, DriftMethod]]:
     section = drift_policy["drift_policy"]
     monitored = [
-        str(item["column_name"])
+        (
+            str(item["column_name"]),
+            normalize_drift_method(item.get("method", DriftMethod.SHANNON_ENTROPY.value)),
+        )
         for item in section.get("monitored_columns", [])
         if item.get("column_name")
     ]
     if not monitored:
         raise ValueError("Drift policy must define at least one monitored column.")
     return monitored
+
+
+def _monitored_columns(drift_policy: dict[str, Any]) -> list[str]:
+    return [column_name for column_name, _ in _monitored_column_specs(drift_policy)]
 
 
 def _drift_gate_type(drift_policy: dict[str, Any]) -> str:
@@ -328,9 +337,19 @@ def run_dataset_drift(
             f"Baseline dataset has {len(baseline_loaded.frame)} rows, below required minimum {min_rows}."
         )
 
-    monitored = _monitored_columns(drift_policy)
-    baseline = BaselineSnapshot.from_dataframe(baseline_loaded.frame, monitored)
-    drift_result = detect_drift(baseline, current.frame)
+    column_specs = _monitored_column_specs(drift_policy)
+    monitored = [column_name for column_name, _ in column_specs]
+    methods = {column_name: method for column_name, method in column_specs}
+    baseline = BaselineSnapshot.from_dataframe(
+        baseline_loaded.frame,
+        monitored,
+        methods=methods,
+    )
+    drift_result = detect_drift(
+        baseline,
+        current.frame,
+        baseline_df=baseline_loaded.frame,
+    )
 
     measured = {
         "stability_health_score": drift_result.health_score,
@@ -349,6 +368,7 @@ def run_dataset_drift(
     col_dicts = [
         {
             "column": result.column,
+            "method": result.method,
             "baseline_score": result.baseline_score,
             "current_score": result.current_score,
             "classification": result.classification.value,
@@ -377,6 +397,9 @@ def run_dataset_drift(
         "overall_verdict": overall.value,
         "schema_match": drift_result.schema_match,
         "monitored_columns": monitored,
+        "monitored_column_methods": {
+            column_name: method.value for column_name, method in methods.items()
+        },
         "current_source": _loaded_trace(current),
         "baseline_source": _loaded_trace(baseline_loaded),
         "provenance": provenance,

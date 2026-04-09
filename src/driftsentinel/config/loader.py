@@ -18,6 +18,7 @@ from typing import Any
 
 import yaml
 
+from driftsentinel.drift.scoring import normalize_drift_method
 from driftsentinel.paths import resolve_trusted_file
 
 
@@ -98,6 +99,27 @@ def _validate_drift_policy(data: dict[str, Any], context: str) -> dict[str, Any]
         ["name", "dataset", "monitored_columns", "gates"],
         f"drift_policy section ({context})",
     )
+    monitored_columns = data["drift_policy"].get("monitored_columns", [])
+    if not isinstance(monitored_columns, list) or not monitored_columns:
+        raise ConfigError(f"Drift policy monitored_columns must be a non-empty list ({context})")
+    for index, item in enumerate(monitored_columns):
+        if not isinstance(item, dict):
+            raise ConfigError(
+                f"Drift policy monitored_columns[{index}] must be a mapping ({context})"
+            )
+        column_name = str(item.get("column_name", "")).strip()
+        if not column_name:
+            raise ConfigError(
+                f"Drift policy monitored_columns[{index}] must define column_name ({context})"
+            )
+        if "method" not in item:
+            raise ConfigError(
+                f"Drift policy monitored_columns[{index}] must define method ({context})"
+            )
+        try:
+            normalize_drift_method(item["method"])
+        except ValueError as exc:
+            raise ConfigError(f"{exc} ({context})") from exc
     return data
 
 

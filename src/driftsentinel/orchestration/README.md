@@ -7,7 +7,8 @@ Responsibilities:
 - Managing run context and configuration propagation
 - Routing results to the evidence writer
 - Dataset-aware execution with registry-backed validation, trusted file loading,
-  explicit baseline handling, and version checks
+  explicit baseline handling, monitored-column method dispatch, and version
+  checks
 
 Key exports: `run_local_pipeline`, `run_dataset_intake`, `run_dataset_drift`,
 `run_dataset_benchmark`, `run_dataset_pipeline`.

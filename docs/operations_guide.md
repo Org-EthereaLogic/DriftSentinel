@@ -87,4 +87,6 @@ is the shared runtime volume.
 
 All templates include `contract_version` and `policy_version` fields for
 explicit version binding. Policies must reference a registered dataset and
-matching contract version to pass compatibility checks.
+matching contract version to pass compatibility checks. Drift policies must
+also declare a supported method for each monitored column so the runtime and
+evidence artifacts stay traceable.
