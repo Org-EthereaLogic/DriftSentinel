@@ -159,10 +159,21 @@ print("Detailed pipeline payload logging is suppressed to avoid exposing sensiti
 
 # COMMAND ----------
 
+def _redact_path_for_log(path_value: object) -> str:
+    if not path_value:
+        return "(not available)"
+    name = Path(str(path_value)).name
+    return f".../{name}" if name else "(redacted)"
+
+
 print(f"Overall verdict: {result['overall_verdict']}")
-print(f"Current source:  {result['current_source']['path']}")
-print(f"Baseline source: {result['baseline_source']['path']}")
-print(f"Pipeline artifact: {result.get('evidence_path', '(not written)')}")
+print(f"Current source:  {_redact_path_for_log(result.get('current_source', {}).get('path'))}")
+print(f"Baseline source: {_redact_path_for_log(result.get('baseline_source', {}).get('path'))}")
+evidence_path = result.get("evidence_path")
+print(
+    "Pipeline artifact: "
+    + (_redact_path_for_log(evidence_path) if evidence_path else "(not written)")
+)
 for stage in ["intake", "drift", "benchmark"]:
     stage_result = result.get(stage, {})
     print(f"  {stage}: {stage_result.get('overall_verdict', '(no verdict)')}")
