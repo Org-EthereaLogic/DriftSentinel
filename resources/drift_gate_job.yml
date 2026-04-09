@@ -9,3 +9,8 @@ resources:
             base_parameters:
               catalog: "${var.catalog}"
               schema: "${var.schema}"
+              dataset_id: "${var.dataset_id}"
+              registry_path: "/Volumes/${var.catalog}/${var.schema}/${var.runtime_volume_name}/state/registry.json"
+              drift_policy_path: "${var.drift_policy_path}"
+              evidence_dir: "/Volumes/${var.catalog}/${var.schema}/${var.runtime_volume_name}/evidence"
+              require_dataset_backed: "true"

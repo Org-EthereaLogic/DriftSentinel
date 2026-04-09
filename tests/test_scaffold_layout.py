@@ -172,7 +172,9 @@ def test_report_readme_exists() -> None:
     "intake_pipeline.yml",
     "drift_gate_job.yml",
     "benchmark_job.yml",
+    "dataset_pipeline_job.yml",
     "driftsentinel_app.yml",
+    "runtime_volume.yml",
 ])
 def test_resource_exists(resource: str) -> None:
     assert (ROOT / "resources" / resource).is_file(), f"Missing resource: {resource}"
@@ -186,6 +188,7 @@ def test_resource_exists(resource: str) -> None:
     "04_run_drift_gate.py",
     "05_run_control_benchmark.py",
     "06_review_evidence.py",
+    "07_run_dataset_pipeline.py",
 ])
 def test_notebook_exists(notebook: str) -> None:
     assert (ROOT / "notebooks" / notebook).is_file(), f"Missing notebook: {notebook}"
@@ -217,6 +220,10 @@ def test_subpackage_exists(subpackage: str) -> None:
 
 def test_root_package_init() -> None:
     assert (ROOT / "src" / "driftsentinel" / "__init__.py").is_file()
+
+
+def test_runtime_paths_module_exists() -> None:
+    assert (ROOT / "src" / "driftsentinel" / "runtime_paths.py").is_file()
 
 
 def test_tests_init() -> None:

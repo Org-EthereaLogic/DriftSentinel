@@ -4,7 +4,7 @@
 # MAGIC
 # MAGIC Register a new dataset for DriftSentinel monitoring by loading a dataset
 # MAGIC contract from `templates/dataset_contract.yml` or providing inline config.
-# MAGIC Persists the registration to a local JSON registry.
+# MAGIC Persists the registration to the shared runtime registry or a chosen JSON path.
 
 # COMMAND ----------
 
@@ -53,7 +53,7 @@ else:
 dbutils.widgets.text("catalog", "", "Unity Catalog name")
 dbutils.widgets.text("schema", "default", "Schema name")
 dbutils.widgets.text("contract_path", "", "Optional workspace path to dataset contract YAML")
-dbutils.widgets.text("registry_path", "/tmp/driftsentinel_registry.json", "Path to dataset registry JSON")
+dbutils.widgets.text("registry_path", "", "Optional registry JSON path (blank uses shared runtime volume)")
 
 # COMMAND ----------
 
@@ -66,6 +66,18 @@ if not catalog:
 if not schema:
     raise ValueError("Set the schema widget to an existing schema before running this notebook.")
 print(f"Target: {catalog}.{schema}")
+
+# COMMAND ----------
+
+from driftsentinel.runtime_paths import runtime_registry_path, runtime_volume_root
+
+runtime_root = runtime_volume_root(catalog, schema)
+if not registry_path:
+    registry_path = runtime_registry_path(catalog, schema)
+    print(f"Using default shared registry path: {registry_path}")
+else:
+    print(f"Using custom registry path: {registry_path}")
+print(f"Runtime volume root: {runtime_root}")
 
 # COMMAND ----------
 

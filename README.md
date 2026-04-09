@@ -99,7 +99,7 @@ These are not hypothetical gaps. They are the operational reality of any team th
 | `src/driftsentinel/config/` | Dataset contract and policy configuration |
 | `app/` | Databricks App (Gradio) — four-tab read-only operator dashboard |
 | `notebooks/` | Onboarding, execution, and evidence-review notebooks for Databricks |
-| `resources/` | Databricks Asset Bundle pipeline, job, and app resource definitions |
+| `resources/` | Databricks Asset Bundle runtime volume, job, and app resource definitions |
 | `templates/` | Dataset contract, drift policy, and benchmark policy templates |
 | `specs/` | Canonical SDLC documents governing the product |
 | `tests/` | Pytest suite covering domain logic, packaging, and governance |
@@ -113,6 +113,7 @@ Every directory above contains a `README.md` describing its contents, including 
 | Multi-dataset registry operates with version-aware contracts | Registry and tests show registered dataset IDs, contract versions, and Unity Catalog locations |
 | All three control patterns produce evidence through one orchestration layer | Intake, drift, and benchmark artifacts present in a single shared evidence directory |
 | Dataset-aware runs execute against real registered inputs | The runtime loads either the declared file-backed source path or a fully qualified Spark/Unity Catalog table reference, drift compares against an explicit trusted baseline path or table, and dataset-backed benchmark scenarios are injected into a deterministic sample of that trusted baseline |
+| Shipped Databricks jobs fail closed instead of dropping to demo mode | Bundle jobs require `dataset_id` and policy paths for dataset-backed runs and use a shared Unity Catalog runtime volume for registry and evidence state |
 | Evidence artifacts are queryable without writing scripts | Run Status filters artifacts by dataset, execution mode, kind, verdict, date range, and run ID |
 | FAIL verdicts surface measurable gate results | Demo and dataset-backed drift artifacts record health score, drifted columns, and gate thresholds in append-only evidence |
 | Databricks deployment workflow is defined for a configured workspace | Asset Bundle resources and deployment docs cover validate, deploy, and app status checks; replay still requires Databricks credentials and Unity Catalog |
@@ -204,6 +205,19 @@ databricks apps get driftsentinel -p <profile> -o json
 
 `bundle validate` proves bundle, auth, and resource resolution. `databricks apps get` is the proof surface for `SUCCEEDED` plus `RUNNING`.
 
+Bundle deployment also creates a shared runtime volume at `/Volumes/<catalog>/<schema>/driftsentinel_runtime` unless you override `runtime_volume_name`. The shipped jobs are fail-closed and require dataset-backed inputs at run time, for example:
+
+```bash
+databricks bundle run intake_pipeline -p <profile> --target dev \
+  --var="catalog=my_catalog,dataset_id=my_dataset"
+
+databricks bundle run drift_gate_job -p <profile> --target dev \
+  --var="catalog=my_catalog,dataset_id=my_dataset,drift_policy_path=/Volumes/my_catalog/default/driftsentinel_runtime/policies/drift_policy.yml"
+
+databricks bundle run benchmark_job -p <profile> --target dev \
+  --var="catalog=my_catalog,dataset_id=my_dataset,drift_policy_path=/Volumes/my_catalog/default/driftsentinel_runtime/policies/drift_policy.yml,benchmark_policy_path=/Volumes/my_catalog/default/driftsentinel_runtime/policies/benchmark_policy.yml"
+```
+
 ### Notebook Import
 
 Import the `notebooks/` directory into your Databricks workspace to run the control pipeline from the deployed bundle or standalone from GitHub. Notebooks prefer the workspace source tree when bundle-synced under `/Workspace/...` and otherwise install DriftSentinel from GitHub. Real dataset execution requires:
@@ -211,6 +225,7 @@ Import the `notebooks/` directory into your Databricks workspace to run the cont
 - a registered dataset contract with `source.format` and either `source.landing_path` or `source.table_name`
 - a drift policy with `baseline.format` and either `baseline.path` or `baseline.table_name` (or the contract fallbacks)
 - an optional benchmark policy for dataset-specific injected scenarios and gates
+- blank `registry_path` and `evidence_dir` widgets resolve to `/Volumes/<catalog>/<schema>/driftsentinel_runtime/...`
 - for Databricks volume-backed files, use `/Volumes/...` notebook paths; avoid `/dbfs/Volumes/...`
 
 ## AI-Assisted Setup

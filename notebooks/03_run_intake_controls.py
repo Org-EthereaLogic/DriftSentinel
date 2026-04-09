@@ -52,8 +52,9 @@ else:
 dbutils.widgets.text("catalog", "", "Unity Catalog name")
 dbutils.widgets.text("schema", "default", "Schema name")
 dbutils.widgets.text("dataset_id", "", "Optional dataset ID from registry")
-dbutils.widgets.text("registry_path", "/tmp/driftsentinel_registry.json", "Dataset registry JSON path")
-dbutils.widgets.text("evidence_dir", "/tmp/driftsentinel_evidence", "Directory for evidence artifacts")
+dbutils.widgets.text("registry_path", "", "Optional registry JSON path (blank uses shared runtime volume)")
+dbutils.widgets.text("evidence_dir", "", "Optional evidence directory (blank uses shared runtime volume)")
+dbutils.widgets.dropdown("require_dataset_backed", "false", ["false", "true"], "Disable demo fallback")
 
 # COMMAND ----------
 
@@ -62,6 +63,7 @@ schema = dbutils.widgets.get("schema").strip()
 dataset_id = dbutils.widgets.get("dataset_id").strip()
 registry_path = dbutils.widgets.get("registry_path").strip()
 evidence_dir = dbutils.widgets.get("evidence_dir").strip()
+require_dataset_backed = dbutils.widgets.get("require_dataset_backed").strip().lower() == "true"
 if not catalog:
     raise ValueError("Set the catalog widget to an existing Unity Catalog catalog before running this notebook.")
 if not schema:
@@ -69,6 +71,23 @@ if not schema:
 print(f"Target: {catalog}.{schema}")
 if dataset_id:
     print(f"Dataset: {dataset_id}")
+
+# COMMAND ----------
+
+from driftsentinel.runtime_paths import runtime_evidence_dir, runtime_registry_path, runtime_volume_root
+
+runtime_root = runtime_volume_root(catalog, schema)
+if not registry_path:
+    registry_path = runtime_registry_path(catalog, schema)
+    print(f"Using default shared registry path: {registry_path}")
+else:
+    print(f"Using custom registry path: {registry_path}")
+if not evidence_dir:
+    evidence_dir = runtime_evidence_dir(catalog, schema)
+    print(f"Using default shared evidence directory: {evidence_dir}")
+else:
+    print(f"Using custom evidence directory: {evidence_dir}")
+print(f"Runtime volume root: {runtime_root}")
 
 # COMMAND ----------
 
@@ -105,6 +124,12 @@ import json
 from driftsentinel.config.loader import DatasetRegistry
 from driftsentinel.evidence.writer import generate_run_id
 from driftsentinel.orchestration.runner import run_dataset_intake, run_intake_demo
+
+if require_dataset_backed and not dataset_id:
+    raise ValueError(
+        "This execution surface requires dataset-backed mode. "
+        "Set dataset_id (and registry_path if you are not using the shared runtime volume)."
+    )
 
 if dataset_id:
     registry = DatasetRegistry.load(registry_path)

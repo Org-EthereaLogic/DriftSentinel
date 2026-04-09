@@ -27,8 +27,28 @@ from driftsentinel.config.loader import DatasetRegistry, RegistryError
 from driftsentinel.evidence.writer import list_evidence, load_evidence
 from driftsentinel.paths import PathSecurityError, resolve_trusted_child, trusted_roots
 
-REGISTRY_PATH = os.environ.get("REGISTRY_PATH", "/tmp/driftsentinel_registry.json")
-EVIDENCE_DIR = os.environ.get("EVIDENCE_DIR", "/tmp/driftsentinel_evidence")
+
+def _configured_surface_paths() -> tuple[str, str]:
+    """Return the registry/evidence defaults for the current app runtime."""
+    runtime_volume_path = os.environ.get("RUNTIME_VOLUME_PATH", "").strip()
+    registry_path = os.environ.get("REGISTRY_PATH", "").strip()
+    evidence_dir = os.environ.get("EVIDENCE_DIR", "").strip()
+
+    if runtime_volume_path:
+        volume_root = Path(runtime_volume_path)
+        if not registry_path:
+            registry_path = str(volume_root / "state" / "registry.json")
+        if not evidence_dir:
+            evidence_dir = str(volume_root / "evidence")
+
+    registry_path = registry_path or "/tmp/driftsentinel_registry.json"
+    evidence_dir = evidence_dir or "/tmp/driftsentinel_evidence"
+    os.environ["REGISTRY_PATH"] = registry_path
+    os.environ["EVIDENCE_DIR"] = evidence_dir
+    return registry_path, evidence_dir
+
+
+REGISTRY_PATH, EVIDENCE_DIR = _configured_surface_paths()
 
 _MIDNIGHT = "#071824"
 _DEEP_SLATE = "#0B2233"

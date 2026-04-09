@@ -67,7 +67,9 @@ DATABRICKS_CONFIG_PROFILE=<profile> databricks bundle validate --target dev --va
 Expected result in Phase 2: the bundle validates, resolves `resources/*.yml`,
 and requires an explicit existing Unity Catalog catalog instead of relying on
 an unsafe hard-coded default. `Validation OK!` proves bundle/auth/resource
-resolution only; it does not prove deploy or job execution.
+resolution only; it does not prove deploy or job execution. The bundle defines
+a shared runtime volume plus fail-closed job surfaces that require dataset and
+policy inputs at run time.
 
 ## 5. Deployment Activation
 
@@ -75,12 +77,14 @@ Deploy and run with the same catalog selection:
 
 ```bash
 databricks bundle deploy -p <profile> --target dev --var="catalog=<existing_uc_catalog>"
-databricks bundle run benchmark_job -p <profile> --target dev --var="catalog=<existing_uc_catalog>"
+databricks bundle run dataset_pipeline_job -p <profile> --target dev --var="catalog=<existing_uc_catalog>,dataset_id=<registered_dataset>,drift_policy_path=/Volumes/<existing_uc_catalog>/<schema>/driftsentinel_runtime/policies/drift_policy.yml,benchmark_policy_path=/Volumes/<existing_uc_catalog>/<schema>/driftsentinel_runtime/policies/benchmark_policy.yml"
 ```
 
-Expected result: the bundle deploys Databricks jobs and pipelines into the
-workspace and the benchmark job terminates successfully when the package and
-catalog inputs are valid.
+Expected result: the bundle deploys the runtime volume, Databricks jobs, and
+the app resource into the workspace. Dataset-backed jobs terminate
+successfully when the package, catalog, dataset, and policy inputs are valid.
+If required job inputs are omitted, the run must fail closed instead of
+silently using demo or synthetic execution.
 
 ## 6. Manual Workspace Import
 

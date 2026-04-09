@@ -1,0 +1,7 @@
+resources:
+  volumes:
+    runtime_volume:
+      catalog_name: "${var.catalog}"
+      schema_name: "${var.schema}"
+      name: "${var.runtime_volume_name}"
+      comment: "Shared DriftSentinel runtime state for registry, evidence, and policy files."

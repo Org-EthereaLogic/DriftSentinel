@@ -131,6 +131,18 @@ class TestAppImportHygiene:
 
 
 class TestAppHelpers:
+    def test_configured_surface_paths_prefers_runtime_volume(self, monkeypatch) -> None:
+        from app.app import _configured_surface_paths
+
+        monkeypatch.delenv("REGISTRY_PATH", raising=False)
+        monkeypatch.delenv("EVIDENCE_DIR", raising=False)
+        monkeypatch.setenv("RUNTIME_VOLUME_PATH", "/Volumes/main/default/driftsentinel_runtime")
+
+        registry_path, evidence_dir = _configured_surface_paths()
+
+        assert registry_path == "/Volumes/main/default/driftsentinel_runtime/state/registry.json"
+        assert evidence_dir == "/Volumes/main/default/driftsentinel_runtime/evidence"
+
     def test_visible_artifact_choices_ignore_empty_state(self) -> None:
         from app.app import _visible_artifact_choices
 
@@ -425,8 +437,13 @@ class TestAppBundleResource:
         app_def = data["resources"]["apps"]["driftsentinel_app"]
         assert app_def["name"] == "driftsentinel"
         assert app_def["source_code_path"] == ".."
+        resource = app_def["resources"][0]["uc_securable"]
+        assert resource["securable_type"] == "VOLUME"
+        assert resource["securable_full_name"] == (
+            "${var.catalog}.${var.schema}.${var.runtime_volume_name}"
+        )
+        assert resource["permission"] == "READ_VOLUME"
         assert app_def["config"]["command"] == ["gradio", "app/app.py"]
-        env = {item["name"]: item["value"] for item in app_def["config"]["env"]}
-        assert env["REGISTRY_PATH"] == "/tmp/driftsentinel_registry.json"
-        assert env["EVIDENCE_DIR"] == "/tmp/driftsentinel_evidence"
-        assert env["DRIFTSENTINEL_ALLOWED_PATH_ROOTS"] == ""
+        env = {item["name"]: item for item in app_def["config"]["env"]}
+        assert env["RUNTIME_VOLUME_PATH"]["value_from"] == "runtime_volume"
+        assert env["DRIFTSENTINEL_ALLOWED_PATH_ROOTS"]["value"] == ""

@@ -14,16 +14,17 @@ App for operator dashboard access without editing notebooks.
    `make test`).
 2. Prove a Unity Catalog catalog exists with `make bundle-catalog-check
    CATALOG=<catalog> PROFILE=<profile>`.
-3. Validate, deploy, and run the Databricks bundle with that catalog.
+3. Validate, deploy, and run the Databricks bundle with that catalog and a
+   shared runtime volume.
 4. Deploy and start the Databricks App with `make app-deploy
    CATALOG=<catalog> PROFILE=<profile>`.
 5. Run the notebooks directly from GitHub using bundled example templates or
    optional workspace YAML paths, with bundle-deployed notebooks preferring
    the workspace source tree under `/Workspace/.../src`.
 6. Register multiple datasets via `01_register_dataset.py` with a serializable
-   JSON registry.
-7. Execute intake, drift, and benchmark runs for a selected dataset using the
-   `dataset_id` widget in notebooks 03-05.
+   JSON registry stored in the shared runtime volume by default.
+7. Execute intake, drift, benchmark, or full pipeline runs for a selected
+   dataset using bundle variables or notebook widgets.
 8. Review historical evidence filtered by dataset, date range, or run ID in
    `06_review_evidence.py`.
 
@@ -52,9 +53,15 @@ App for operator dashboard access without editing notebooks.
 - **Notebook run fails before execution**: set the `catalog` widget to an
   existing Unity Catalog catalog. The notebooks now fail closed when the
   target catalog is blank.
+- **Bundle job fails with missing `dataset_id` or policy path**: the shipped
+  jobs are intentionally fail-closed. Pass `dataset_id` and the required
+  `drift_policy_path` (plus `benchmark_policy_path` when needed) through
+  `--var=...` instead of expecting a demo fallback.
 - **Evidence is missing in `06_review_evidence.py` after a job run**: the
-  default `/tmp/driftsentinel_evidence` path is cluster-local. Use a volume
-  path in the `evidence_dir` widget if you need persistence across clusters.
+  bundle-backed default is the shared runtime volume, not `/tmp`. Confirm the
+  job, notebook, and app all target the same `catalog`, `schema`, and
+  `runtime_volume_name`, or explicitly point `evidence_dir` at the correct
+  `/Volumes/...` path.
 - **Notebook widgets cannot read a Databricks Volume path**: use
   `/Volumes/<catalog>/<schema>/<volume>/...` in notebook widgets. Avoid
   `/dbfs/Volumes/...`, which is not the supported path surface for notebook
@@ -69,7 +76,8 @@ Evidence artifacts are append-only. Repository evidence in `report/` covers
 verification and sync history. Benchmark notebook and job runs write
 machine-readable JSON bundles to the configured `evidence_dir`. Each artifact
 carries dataset identity, run ID, run kind, and version metadata for
-structured lookup.
+structured lookup. In Databricks bundle deployments, the default evidence path
+is the shared runtime volume.
 
 ## Updating Policies
 

@@ -12,7 +12,8 @@
 ## Option 1: Databricks Asset Bundle Deploy
 
 The recommended deployment path uses Databricks Asset Bundles. The bundle
-defines an intake pipeline, drift gate job, and benchmark job.
+defines a shared runtime volume, fail-closed intake/drift/benchmark jobs, a
+full dataset pipeline job, and the Databricks App.
 
 ### Verify Catalog Access
 
@@ -65,15 +66,26 @@ Databricks App deployment from the uploaded source code.
 ### Run
 
 ```bash
-# Run the intake pipeline
-databricks bundle run intake_pipeline -p <profile> --target dev --var="catalog=my_catalog"
+# Run intake certification for one registered dataset
+databricks bundle run intake_pipeline -p <profile> --target dev \
+  --var="catalog=my_catalog,dataset_id=my_dataset"
 
 # Run the drift gate job
-databricks bundle run drift_gate_job -p <profile> --target dev --var="catalog=my_catalog"
+databricks bundle run drift_gate_job -p <profile> --target dev \
+  --var="catalog=my_catalog,dataset_id=my_dataset,drift_policy_path=/Volumes/my_catalog/default/driftsentinel_runtime/policies/drift_policy.yml"
 
 # Run the benchmark job
-databricks bundle run benchmark_job -p <profile> --target dev --var="catalog=my_catalog"
+databricks bundle run benchmark_job -p <profile> --target dev \
+  --var="catalog=my_catalog,dataset_id=my_dataset,drift_policy_path=/Volumes/my_catalog/default/driftsentinel_runtime/policies/drift_policy.yml,benchmark_policy_path=/Volumes/my_catalog/default/driftsentinel_runtime/policies/benchmark_policy.yml"
+
+# Run the full dataset-backed pipeline
+databricks bundle run dataset_pipeline_job -p <profile> --target dev \
+  --var="catalog=my_catalog,dataset_id=my_dataset,drift_policy_path=/Volumes/my_catalog/default/driftsentinel_runtime/policies/drift_policy.yml,benchmark_policy_path=/Volumes/my_catalog/default/driftsentinel_runtime/policies/benchmark_policy.yml"
 ```
+
+These bundle-run surfaces fail closed. If `dataset_id` or the required policy
+paths are blank, the jobs error instead of silently switching to demo or
+synthetic execution.
 
 ### Bundle Variables
 
@@ -81,11 +93,17 @@ databricks bundle run benchmark_job -p <profile> --target dev --var="catalog=my_
 | --- | --- | --- |
 | `catalog` | Existing Unity Catalog catalog name | Required |
 | `schema` | Unity Catalog schema name | `default` |
+| `runtime_volume_name` | Shared Unity Catalog volume for registry and evidence state | `driftsentinel_runtime` |
+| `dataset_id` | Registered dataset ID for job runs | `""` |
+| `drift_policy_path` | Workspace or volume path to drift policy YAML | `""` |
+| `benchmark_policy_path` | Optional workspace or volume path to benchmark policy YAML | `""` |
+| `seed` | Benchmark random seed | `42` |
+| `n_rows` | Benchmark reference sample size | `1000` |
 
 Override at deploy time:
 
 ```bash
-databricks bundle deploy -p <profile> --var="catalog=my_catalog,schema=my_schema"
+databricks bundle deploy -p <profile> --var="catalog=my_catalog,schema=my_schema,runtime_volume_name=my_runtime_volume"
 ```
 
 ## Option 2: Direct Notebook Import with pip Install
@@ -121,14 +139,17 @@ Volumes, prefer `/Volumes/...` rather than `/dbfs/Volumes/...`.
 | 4 | `04_run_drift_gate.py` | Measure drift and emit gate verdicts |
 | 5 | `05_run_control_benchmark.py` | Run dual-track benchmark with scoring |
 | 6 | `06_review_evidence.py` | Inspect evidence artifacts from prior runs |
+| 7 | `07_run_dataset_pipeline.py` | Run the full dataset-backed pipeline |
 
 ## Bundle Resources
 
 | Resource | Type | Surface |
 | --- | --- | --- |
-| `intake_pipeline` | Pipeline (DLT) | `03_run_intake_controls.py` |
+| `runtime_volume` | Volume | Shared `/Volumes/<catalog>/<schema>/<runtime_volume_name>` state |
+| `intake_pipeline` | Job | `03_run_intake_controls.py` |
 | `drift_gate_job` | Job | `04_run_drift_gate.py` |
 | `benchmark_job` | Job | `05_run_control_benchmark.py` |
+| `dataset_pipeline_job` | Job | `07_run_dataset_pipeline.py` |
 | `driftsentinel_app` | App (Gradio) | `app/` |
 
 ## Databricks App
@@ -136,6 +157,9 @@ Volumes, prefer `/Volumes/...` rather than `/dbfs/Volumes/...`.
 The `driftsentinel_app` resource defines a Gradio-based operator dashboard.
 It provides read-only views of the dataset registry, recent control run
 status, and evidence artifacts. The App requires a Premium workspace.
+Bundle-backed deployments inject the shared runtime volume path into the app
+environment so the dashboard reads the same registry and evidence directories as
+the bundle jobs.
 
 Deploy the app from the repository root so Databricks Apps installs the local
 `driftsentinel` package from this repository and starts the app runtime:
@@ -179,7 +203,11 @@ removes the app resource after proof.
 
 - `05_run_control_benchmark.py` writes JSON evidence bundles to the
   `evidence_dir` widget path.
-- The default `/tmp/driftsentinel_evidence` path is cluster-local and suitable
-  for a single-cluster evaluation flow.
+- Bundle-backed jobs and the Databricks App default to
+  `/Volumes/<catalog>/<schema>/<runtime_volume_name>/evidence`.
+- Direct local app runs and notebook sessions can still use
+  `/tmp/driftsentinel_evidence`, but that path is cluster-local and suitable
+  only for a single-cluster evaluation flow.
 - For evidence that must persist across job clusters or separate review
-  sessions, point `evidence_dir` at a Unity Catalog volume path.
+  sessions, keep the job, notebook, and app surfaces pointed at the same Unity
+  Catalog volume path.
