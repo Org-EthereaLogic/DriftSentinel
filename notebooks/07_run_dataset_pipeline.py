@@ -27,8 +27,8 @@ def _resolve_install_target() -> str:
         for parent in workspace_path.parents:
             if (parent / "pyproject.toml").exists() and (parent / "src" / "driftsentinel").exists():
                 return str(parent)
-    except Exception:
-        pass
+    except Exception as exc:
+        print(f"Could not resolve workspace install target; falling back to GitHub package ({exc}).")
     return "git+https://github.com/Org-EthereaLogic/DriftSentinel.git"
 
 
