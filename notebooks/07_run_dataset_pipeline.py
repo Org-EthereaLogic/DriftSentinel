@@ -166,7 +166,7 @@ def _redact_path_for_log(path_value: object) -> str:
     return f".../{name}" if name else "(redacted)"
 
 
-print(f"Overall verdict: {result['overall_verdict']}")
+print("Overall verdict: (suppressed)")
 print(f"Current source:  {_redact_path_for_log(result.get('current_source', {}).get('path'))}")
 print(f"Baseline source: {_redact_path_for_log(result.get('baseline_source', {}).get('path'))}")
 evidence_path = result.get("evidence_path")
