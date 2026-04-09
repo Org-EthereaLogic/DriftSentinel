@@ -28,6 +28,8 @@ DriftSentinel solves the next one: running all three control patterns together, 
 
 Three modules. One registry. Queryable evidence. No assumption that any run passed unless the artifact says so.
 
+> Important: If you used DriftSentinel `0.4.1` or earlier before April 9, 2026, read the [Customer Impact Advisory](docs/customer_impact_advisory.md). Prior bundle-driven control results should be treated as unverified until rerun on `0.4.2` or later.
+
 ## Executive Summary
 
 | Leadership question | Answer |
