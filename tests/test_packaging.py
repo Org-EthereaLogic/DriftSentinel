@@ -41,13 +41,16 @@ NOTEBOOK_FILES = [
     "04_run_drift_gate.py",
     "05_run_control_benchmark.py",
     "06_review_evidence.py",
+    "07_run_dataset_pipeline.py",
 ]
 
 RESOURCE_FILES = [
     "intake_pipeline.yml",
     "drift_gate_job.yml",
     "benchmark_job.yml",
+    "dataset_pipeline_job.yml",
     "driftsentinel_app.yml",
+    "runtime_volume.yml",
 ]
 
 COMMAND_DOC_FILES = [
@@ -131,11 +134,20 @@ def test_all_resources_contain_resources_key() -> None:
 def test_intake_pipeline_resource_structure() -> None:
     with open(RESOURCES / "intake_pipeline.yml", encoding="utf-8") as f:
         data = yaml.safe_load(f)
-    pipelines = data["resources"]["pipelines"]
-    assert "intake_pipeline" in pipelines
-    pipeline = pipelines["intake_pipeline"]
-    assert pipeline["name"] == "driftsentinel_intake"
-    assert len(pipeline["libraries"]) > 0
+    jobs = data["resources"]["jobs"]
+    assert "intake_pipeline" in jobs
+    job = jobs["intake_pipeline"]
+    assert job["name"] == "driftsentinel_intake"
+    assert len(job["tasks"]) > 0
+    params = job["tasks"][0]["notebook_task"]["base_parameters"]
+    assert params["dataset_id"] == "${var.dataset_id}"
+    assert params["registry_path"] == (
+        "/Volumes/${var.catalog}/${var.schema}/${var.runtime_volume_name}/state/registry.json"
+    )
+    assert params["evidence_dir"] == (
+        "/Volumes/${var.catalog}/${var.schema}/${var.runtime_volume_name}/evidence"
+    )
+    assert params["require_dataset_backed"] == "true"
 
 
 def test_drift_gate_job_resource_structure() -> None:
@@ -146,6 +158,10 @@ def test_drift_gate_job_resource_structure() -> None:
     job = jobs["drift_gate_job"]
     assert job["name"] == "driftsentinel_drift_gate"
     assert len(job["tasks"]) > 0
+    params = job["tasks"][0]["notebook_task"]["base_parameters"]
+    assert params["dataset_id"] == "${var.dataset_id}"
+    assert params["drift_policy_path"] == "${var.drift_policy_path}"
+    assert params["require_dataset_backed"] == "true"
 
 
 def test_benchmark_job_resource_structure() -> None:
@@ -159,7 +175,37 @@ def test_benchmark_job_resource_structure() -> None:
     params = job["tasks"][0]["notebook_task"]["base_parameters"]
     assert "seed" in params
     assert "n_rows" in params
-    assert params["evidence_dir"] == "/tmp/driftsentinel_evidence"
+    assert params["dataset_id"] == "${var.dataset_id}"
+    assert params["drift_policy_path"] == "${var.drift_policy_path}"
+    assert params["policy_path"] == "${var.benchmark_policy_path}"
+    assert params["evidence_dir"] == (
+        "/Volumes/${var.catalog}/${var.schema}/${var.runtime_volume_name}/evidence"
+    )
+    assert params["require_dataset_backed"] == "true"
+
+
+def test_dataset_pipeline_job_resource_structure() -> None:
+    with open(RESOURCES / "dataset_pipeline_job.yml", encoding="utf-8") as f:
+        data = yaml.safe_load(f)
+    jobs = data["resources"]["jobs"]
+    assert "dataset_pipeline_job" in jobs
+    job = jobs["dataset_pipeline_job"]
+    assert job["name"] == "driftsentinel_dataset_pipeline"
+    params = job["tasks"][0]["notebook_task"]["base_parameters"]
+    assert params["dataset_id"] == "${var.dataset_id}"
+    assert params["drift_policy_path"] == "${var.drift_policy_path}"
+    assert params["policy_path"] == "${var.benchmark_policy_path}"
+
+
+def test_runtime_volume_resource_structure() -> None:
+    with open(RESOURCES / "runtime_volume.yml", encoding="utf-8") as f:
+        data = yaml.safe_load(f)
+    volumes = data["resources"]["volumes"]
+    assert "runtime_volume" in volumes
+    volume = volumes["runtime_volume"]
+    assert volume["catalog_name"] == "${var.catalog}"
+    assert volume["schema_name"] == "${var.schema}"
+    assert volume["name"] == "${var.runtime_volume_name}"
 
 
 def test_bundle_requires_explicit_catalog_var() -> None:
@@ -168,6 +214,12 @@ def test_bundle_requires_explicit_catalog_var() -> None:
     catalog = data["variables"]["catalog"]
     assert "default" not in catalog
     assert data["variables"]["schema"]["default"] == "default"
+    assert data["variables"]["runtime_volume_name"]["default"] == "driftsentinel_runtime"
+    assert data["variables"]["dataset_id"]["default"] == ""
+    assert data["variables"]["drift_policy_path"]["default"] == ""
+    assert data["variables"]["benchmark_policy_path"]["default"] == ""
+    assert data["variables"]["seed"]["default"] == "42"
+    assert data["variables"]["n_rows"]["default"] == "1000"
 
 
 def test_makefile_exposes_catalog_check_and_profile_override() -> None:
@@ -420,12 +472,21 @@ def test_benchmark_policy_loads_and_normalizes() -> None:
         assert isinstance(gate["threshold"], float)
 
 
-def test_notebooks_expose_template_override_and_evidence_widgets() -> None:
+def test_notebooks_expose_template_override_and_runtime_widgets() -> None:
     register_text = (NOTEBOOKS / "01_register_dataset.py").read_text(encoding="utf-8")
+    intake_text = (NOTEBOOKS / "03_run_intake_controls.py").read_text(encoding="utf-8")
+    drift_text = (NOTEBOOKS / "04_run_drift_gate.py").read_text(encoding="utf-8")
     benchmark_text = (NOTEBOOKS / "05_run_control_benchmark.py").read_text(encoding="utf-8")
+    pipeline_text = (NOTEBOOKS / "07_run_dataset_pipeline.py").read_text(encoding="utf-8")
     assert 'dbutils.widgets.text("contract_path", "",' in register_text
+    assert 'dbutils.widgets.text("registry_path", "",' in register_text
+    assert "runtime_registry_path" in register_text
+    assert 'dbutils.widgets.dropdown("require_dataset_backed", "false"' in intake_text
+    assert 'dbutils.widgets.dropdown("require_dataset_backed", "false"' in drift_text
     assert 'dbutils.widgets.text("policy_path", "",' in benchmark_text
-    assert 'dbutils.widgets.text("evidence_dir", "/tmp/driftsentinel_evidence",' in benchmark_text
+    assert 'dbutils.widgets.dropdown("require_dataset_backed", "false"' in benchmark_text
+    assert "runtime_evidence_dir" in benchmark_text
+    assert 'dbutils.widgets.text("dataset_id", "", "Dataset ID from registry")' in pipeline_text
 
 
 def test_public_docs_describe_current_enterprise_ingest_surface() -> None:
@@ -459,12 +520,13 @@ def test_run_notebooks_have_dataset_id_widget() -> None:
 
 def test_review_notebook_has_filter_widgets() -> None:
     text = (NOTEBOOKS / "06_review_evidence.py").read_text(encoding="utf-8")
-    for widget in ["dataset_id", "run_kind", "run_id", "date_from", "date_to"]:
+    for widget in ["catalog", "schema", "evidence_dir", "dataset_id", "run_kind", "run_id", "date_from", "date_to"]:
         assert f'dbutils.widgets.text("{widget}"' in text, (
             f"06_review_evidence.py missing {widget} widget"
         )
     assert "list_evidence" in text
     assert "load_evidence" in text
+    assert "runtime_evidence_dir" in text
 
 
 def test_notebooks_delegate_to_package_code() -> None:

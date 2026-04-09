@@ -1,13 +1,15 @@
 resources:
-  pipelines:
+  jobs:
     intake_pipeline:
       name: "driftsentinel_intake"
-      catalog: "${var.catalog}"
-      target: "${var.schema}"
-      serverless: true
-      libraries:
-        - notebook:
-            path: ../notebooks/03_run_intake_controls.py
-      configuration:
-        catalog: "${var.catalog}"
-        schema: "${var.schema}"
+      tasks:
+        - task_key: run_intake
+          notebook_task:
+            notebook_path: ../notebooks/03_run_intake_controls.py
+            base_parameters:
+              catalog: "${var.catalog}"
+              schema: "${var.schema}"
+              dataset_id: "${var.dataset_id}"
+              registry_path: "/Volumes/${var.catalog}/${var.schema}/${var.runtime_volume_name}/state/registry.json"
+              evidence_dir: "/Volumes/${var.catalog}/${var.schema}/${var.runtime_volume_name}/evidence"
+              require_dataset_backed: "true"

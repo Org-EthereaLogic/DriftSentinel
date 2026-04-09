@@ -1,9 +1,9 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC # DriftSentinel — Run Drift Gate
+# MAGIC # DriftSentinel — Run Dataset Pipeline
 # MAGIC
-# MAGIC Measure distribution stability against the stored baseline and emit
-# MAGIC explicit gate verdicts before Gold publication.
+# MAGIC Execute intake, drift, and benchmark controls in sequence for one
+# MAGIC registered dataset using real registered inputs and a trusted baseline.
 
 # COMMAND ----------
 
@@ -27,8 +27,8 @@ def _resolve_install_target() -> str:
         for parent in workspace_path.parents:
             if (parent / "pyproject.toml").exists() and (parent / "src" / "driftsentinel").exists():
                 return str(parent)
-    except Exception:
-        pass
+    except Exception as exc:
+        print(f"Could not resolve workspace install target; falling back to GitHub package ({exc}).")
     return "git+https://github.com/Org-EthereaLogic/DriftSentinel.git"
 
 
@@ -51,11 +51,13 @@ else:
 
 dbutils.widgets.text("catalog", "", "Unity Catalog name")
 dbutils.widgets.text("schema", "default", "Schema name")
-dbutils.widgets.text("dataset_id", "", "Optional dataset ID from registry")
+dbutils.widgets.text("dataset_id", "", "Dataset ID from registry")
 dbutils.widgets.text("registry_path", "", "Optional registry JSON path (blank uses shared runtime volume)")
-dbutils.widgets.text("drift_policy_path", "", "Optional workspace path to drift policy YAML")
+dbutils.widgets.text("drift_policy_path", "", "Workspace path to drift policy YAML")
+dbutils.widgets.text("policy_path", "", "Optional workspace path to benchmark policy YAML")
 dbutils.widgets.text("evidence_dir", "", "Optional evidence directory (blank uses shared runtime volume)")
-dbutils.widgets.dropdown("require_dataset_backed", "false", ["false", "true"], "Disable demo fallback")
+dbutils.widgets.text("seed", "42", "Random seed for reproducibility")
+dbutils.widgets.text("n_rows", "1000", "Reference sample size for benchmark")
 
 # COMMAND ----------
 
@@ -64,15 +66,20 @@ schema = dbutils.widgets.get("schema").strip()
 dataset_id = dbutils.widgets.get("dataset_id").strip()
 registry_path = dbutils.widgets.get("registry_path").strip()
 drift_policy_path = dbutils.widgets.get("drift_policy_path").strip()
+policy_path = dbutils.widgets.get("policy_path").strip()
 evidence_dir = dbutils.widgets.get("evidence_dir").strip()
-require_dataset_backed = dbutils.widgets.get("require_dataset_backed").strip().lower() == "true"
+seed = int(dbutils.widgets.get("seed"))
+n_rows = int(dbutils.widgets.get("n_rows"))
 if not catalog:
     raise ValueError("Set the catalog widget to an existing Unity Catalog catalog before running this notebook.")
 if not schema:
     raise ValueError("Set the schema widget to an existing schema before running this notebook.")
+if not dataset_id:
+    raise ValueError("Set dataset_id to a registered dataset before running the pipeline.")
+if not drift_policy_path:
+    raise ValueError("Set drift_policy_path to a dataset-compatible drift policy before running the pipeline.")
 print(f"Target: {catalog}.{schema}")
-if dataset_id:
-    print(f"Dataset: {dataset_id}")
+print(f"Dataset: {dataset_id}")
 
 # COMMAND ----------
 
@@ -113,67 +120,48 @@ def _configure_trusted_roots(*raw_paths: str) -> None:
 
 os.environ["REGISTRY_PATH"] = registry_path
 os.environ["EVIDENCE_DIR"] = evidence_dir
-_configure_trusted_roots(registry_path, drift_policy_path, evidence_dir)
+_configure_trusted_roots(registry_path, drift_policy_path, policy_path, evidence_dir)
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Run Drift Gate
+# MAGIC ## Run Dataset Pipeline
 
 # COMMAND ----------
 
-import json
-from driftsentinel.config.loader import DatasetRegistry, check_policy_compatibility, load_drift_policy
+from driftsentinel.config.loader import DatasetRegistry, load_benchmark_policy, load_drift_policy
 from driftsentinel.evidence.writer import generate_run_id
-from driftsentinel.orchestration.runner import run_dataset_drift, run_drift_demo
+from driftsentinel.orchestration.runner import run_dataset_pipeline
 
-if require_dataset_backed and (not dataset_id or not drift_policy_path):
-    raise ValueError(
-        "This execution surface requires dataset-backed drift mode. "
-        "Set dataset_id and drift_policy_path before running the job."
-    )
+registry = DatasetRegistry.load(registry_path)
+drift_policy = load_drift_policy(drift_policy_path)
+benchmark_policy = load_benchmark_policy(policy_path) if policy_path else None
+run_id = generate_run_id()
 
-if dataset_id:
-    if not drift_policy_path:
-        raise ValueError("Set drift_policy_path when running drift for a registered dataset.")
-    registry = DatasetRegistry.load(registry_path)
-    contract = registry.get(dataset_id)
-    drift_policy = load_drift_policy(drift_policy_path)
-    binding = check_policy_compatibility(registry, drift_policy["drift_policy"], "Drift policy")
-    run_id = generate_run_id()
-    result = run_dataset_drift(
-        contract,
-        drift_policy,
-        evidence_dir=evidence_dir,
-        dataset_id=dataset_id,
-        contract_version=contract["dataset"].get("contract_version"),
-        policy_version=binding["policy_version"],
-        run_id=run_id,
-    )
-    print(f"Dataset-backed drift completed for dataset={dataset_id}, run_id={run_id}")
-else:
-    result = run_drift_demo()
-    print("Demo drift completed. Set dataset_id + registry_path + drift_policy_path to run against real data.")
+result = run_dataset_pipeline(
+    registry,
+    dataset_id,
+    evidence_dir=evidence_dir,
+    drift_policy=drift_policy,
+    benchmark_policy=benchmark_policy,
+    seed=seed,
+    n_rows=n_rows,
+    run_id=run_id,
+)
+
+print(f"Dataset pipeline completed for dataset={dataset_id}, run_id={run_id}")
+print("Detailed pipeline payload logging is suppressed to avoid exposing sensitive data.")
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Provenance Envelope
+# MAGIC ## Stage Summary
 
 # COMMAND ----------
 
-print(json.dumps(result["provenance"], indent=2, default=str))
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC ## Gate Results
-
-# COMMAND ----------
-
-print(f"Health score:      {result['health_score']}")
-print(f"Columns drifted:   {result['columns_drifted']}")
-print(f"Overall verdict:   {result['overall_verdict']}")
-
-for gate in result["provenance"]["gate_results"]:
-    print(f"  {gate['name']}: measured={gate['measured']}, verdict={gate['verdict']}")
+print("Overall verdict: (suppressed)")
+print("Current source: (suppressed)")
+print("Baseline source: (suppressed)")
+print("Pipeline artifact: (suppressed)")
+for stage in ["intake", "drift", "benchmark"]:
+    print(f"  {stage}: (suppressed)")

@@ -1,14 +1,12 @@
 resources:
   jobs:
-    benchmark_job:
-      name: "driftsentinel_benchmark"
+    dataset_pipeline_job:
+      name: "driftsentinel_dataset_pipeline"
       tasks:
-        - task_key: run_benchmark
+        - task_key: run_dataset_pipeline
           notebook_task:
-            notebook_path: ../notebooks/05_run_control_benchmark.py
+            notebook_path: ../notebooks/07_run_dataset_pipeline.py
             base_parameters:
-              seed: "${var.seed}"
-              n_rows: "${var.n_rows}"
               catalog: "${var.catalog}"
               schema: "${var.schema}"
               dataset_id: "${var.dataset_id}"
@@ -16,4 +14,5 @@ resources:
               drift_policy_path: "${var.drift_policy_path}"
               policy_path: "${var.benchmark_policy_path}"
               evidence_dir: "/Volumes/${var.catalog}/${var.schema}/${var.runtime_volume_name}/evidence"
-              require_dataset_backed: "true"
+              seed: "${var.seed}"
+              n_rows: "${var.n_rows}"

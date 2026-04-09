@@ -50,14 +50,15 @@ else:
 # COMMAND ----------
 
 dbutils.widgets.text("seed", "42", "Random seed for reproducibility")
-dbutils.widgets.text("n_rows", "1000", "Number of synthetic rows")
+dbutils.widgets.text("n_rows", "1000", "Benchmark sample size")
 dbutils.widgets.text("catalog", "", "Unity Catalog name")
 dbutils.widgets.text("schema", "default", "Schema name")
 dbutils.widgets.text("dataset_id", "", "Optional dataset ID from registry")
-dbutils.widgets.text("registry_path", "/tmp/driftsentinel_registry.json", "Dataset registry JSON path")
+dbutils.widgets.text("registry_path", "", "Optional registry JSON path (blank uses shared runtime volume)")
 dbutils.widgets.text("drift_policy_path", "", "Optional workspace path to drift policy YAML")
 dbutils.widgets.text("policy_path", "", "Optional workspace path to benchmark policy YAML")
-dbutils.widgets.text("evidence_dir", "/tmp/driftsentinel_evidence", "Directory for benchmark evidence JSON")
+dbutils.widgets.text("evidence_dir", "", "Optional evidence directory (blank uses shared runtime volume)")
+dbutils.widgets.dropdown("require_dataset_backed", "false", ["false", "true"], "Disable synthetic fallback")
 
 # COMMAND ----------
 
@@ -70,6 +71,7 @@ registry_path = dbutils.widgets.get("registry_path").strip()
 drift_policy_path = dbutils.widgets.get("drift_policy_path").strip()
 policy_path = dbutils.widgets.get("policy_path").strip()
 evidence_dir = dbutils.widgets.get("evidence_dir").strip()
+require_dataset_backed = dbutils.widgets.get("require_dataset_backed").strip().lower() == "true"
 if not catalog:
     raise ValueError("Set the catalog widget to an existing Unity Catalog catalog before running this notebook.")
 if not schema:
@@ -77,6 +79,23 @@ if not schema:
 print(f"Benchmark config: seed={seed}, n_rows={n_rows}, target={catalog}.{schema}")
 if dataset_id:
     print(f"Dataset: {dataset_id}")
+
+# COMMAND ----------
+
+from driftsentinel.runtime_paths import runtime_evidence_dir, runtime_registry_path, runtime_volume_root
+
+runtime_root = runtime_volume_root(catalog, schema)
+if not registry_path:
+    registry_path = runtime_registry_path(catalog, schema)
+    print(f"Using default shared registry path: {registry_path}")
+else:
+    print(f"Using custom registry path: {registry_path}")
+if not evidence_dir:
+    evidence_dir = runtime_evidence_dir(catalog, schema)
+    print(f"Using default shared evidence directory: {evidence_dir}")
+else:
+    print(f"Using custom evidence directory: {evidence_dir}")
+print(f"Runtime volume root: {runtime_root}")
 
 # COMMAND ----------
 
@@ -118,6 +137,12 @@ from driftsentinel.config.loader import (
 )
 from driftsentinel.evidence.writer import generate_run_id
 from driftsentinel.orchestration.runner import run_dataset_benchmark
+
+if require_dataset_backed and (not dataset_id or not drift_policy_path):
+    raise ValueError(
+        "This execution surface requires dataset-backed benchmark mode. "
+        "Set dataset_id and drift_policy_path before running the job."
+    )
 
 if dataset_id:
     if not drift_policy_path:

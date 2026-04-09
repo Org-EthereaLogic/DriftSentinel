@@ -4,14 +4,18 @@ resources:
       name: driftsentinel
       description: DriftSentinel operator dashboard for dataset registry and evidence review
       source_code_path: ..
+      resources:
+        - name: runtime_volume
+          uc_securable:
+            securable_type: VOLUME
+            securable_full_name: "${var.catalog}.${var.schema}.${var.runtime_volume_name}"
+            permission: READ_VOLUME
       config:
         command:
           - gradio
           - app/app.py
         env:
-          - name: REGISTRY_PATH
-            value: /tmp/driftsentinel_registry.json
-          - name: EVIDENCE_DIR
-            value: /tmp/driftsentinel_evidence
+          - name: RUNTIME_VOLUME_PATH
+            value_from: runtime_volume
           - name: DRIFTSENTINEL_ALLOWED_PATH_ROOTS
             value: ""

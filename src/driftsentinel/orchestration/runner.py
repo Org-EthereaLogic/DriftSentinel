@@ -544,7 +544,7 @@ def run_dataset_pipeline(
         combined["benchmark_policy_version"] = bench_binding["policy_version"]
 
     if evidence_dir:
-        summary_path = write_evidence(
+        write_evidence(
             evidence_dir,
             f"pipeline_{dataset_id}.json",
             combined,
@@ -556,6 +556,6 @@ def run_dataset_pipeline(
             run_kind="pipeline",
             execution_mode="dataset_backed",
         )
-        combined["evidence_path"] = str(summary_path)
+        combined["evidence_path"] = "(written)"
 
     return combined

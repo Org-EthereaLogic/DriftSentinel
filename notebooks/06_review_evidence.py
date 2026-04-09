@@ -49,7 +49,9 @@ else:
 
 # COMMAND ----------
 
-dbutils.widgets.text("evidence_dir", "/tmp/driftsentinel_evidence", "Path to evidence directory")
+dbutils.widgets.text("catalog", "", "Optional Unity Catalog name for shared runtime default")
+dbutils.widgets.text("schema", "default", "Optional schema name for shared runtime default")
+dbutils.widgets.text("evidence_dir", "", "Optional evidence directory (blank uses shared runtime volume or /tmp)")
 dbutils.widgets.text("dataset_id", "", "Filter by dataset ID")
 dbutils.widgets.text("run_kind", "", "Filter by run kind (intake, drift, benchmark, pipeline)")
 dbutils.widgets.text("run_id", "", "Filter by run ID")
@@ -58,12 +60,29 @@ dbutils.widgets.text("date_to", "", "Filter to date (ISO format)")
 
 # COMMAND ----------
 
-evidence_dir = dbutils.widgets.get("evidence_dir")
+catalog = dbutils.widgets.get("catalog").strip()
+schema = dbutils.widgets.get("schema").strip()
+evidence_dir = dbutils.widgets.get("evidence_dir").strip()
 dataset_id = dbutils.widgets.get("dataset_id").strip() or None
 run_kind = dbutils.widgets.get("run_kind").strip() or None
 run_id = dbutils.widgets.get("run_id").strip() or None
 date_from = dbutils.widgets.get("date_from").strip() or None
 date_to = dbutils.widgets.get("date_to").strip() or None
+
+# COMMAND ----------
+
+import os
+
+
+if not evidence_dir and catalog and schema:
+    from driftsentinel.runtime_paths import runtime_evidence_dir
+
+    evidence_dir = runtime_evidence_dir(catalog, schema)
+    print(f"Using default shared evidence directory: {evidence_dir}")
+elif not evidence_dir:
+    evidence_dir = os.environ.get("EVIDENCE_DIR", "").strip() or "/tmp/driftsentinel_evidence"
+    print(f"Using local/default evidence directory: {evidence_dir}")
+
 print(f"Evidence directory: {evidence_dir}")
 if dataset_id:
     print(f"Filter dataset: {dataset_id}")
@@ -73,11 +92,6 @@ if run_id:
     print(f"Filter run ID: {run_id}")
 if date_from or date_to:
     print(f"Filter date range: {date_from or '*'} to {date_to or '*'}")
-
-# COMMAND ----------
-
-import os
-
 
 def _configure_trusted_roots(*raw_paths: str) -> None:
     roots = {"/Workspace", "/Volumes", "/dbfs"}

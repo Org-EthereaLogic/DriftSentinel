@@ -15,14 +15,17 @@ functional for Free Edition users.
 Bundle-backed app deployments use the repository root as the source path so the
 local `driftsentinel` package is installed from this repo, not from an external
 package index. The `app/requirements.txt` file remains the local development
-entry point for running the app directly from this directory.
+entry point for running the app directly from this directory. Bundle-backed
+deployments inject `RUNTIME_VOLUME_PATH` from a Unity Catalog volume resource so
+the app reads the shared registry and evidence directories without relying on
+cluster-local `/tmp`. Direct local runs still default to `/tmp`.
 Under high artifact volume, Run Status now defaults to the latest 250 rows and
 surfaces a `Visible Artifact Filename` picker so operators can open a displayed
 artifact in Evidence Explorer without retyping the filename.
 The app also surfaces evidence execution mode so legacy or ambiguous artifacts
 are visibly distinct from dataset-backed or reference-sample runs.
 File inputs are constrained to trusted roots: the repository checkout, temp
-directories, the configured `REGISTRY_PATH` and `EVIDENCE_DIR`, plus any
-operator-supplied roots in `DRIFTSENTINEL_ALLOWED_PATH_ROOTS`.
+directories, the configured runtime-derived `REGISTRY_PATH` and `EVIDENCE_DIR`,
+plus any operator-supplied roots in `DRIFTSENTINEL_ALLOWED_PATH_ROOTS`.
 
 Key file: `app.py`.
