@@ -164,5 +164,4 @@ print("Current source: (suppressed)")
 print("Baseline source: (suppressed)")
 print("Pipeline artifact: (suppressed)")
 for stage in ["intake", "drift", "benchmark"]:
-    stage_result = result.get(stage, {})
-    print(f"  {stage}: {stage_result.get('overall_verdict', '(no verdict)')}")
+    print(f"  {stage}: (suppressed)")
