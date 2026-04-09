@@ -556,6 +556,6 @@ def run_dataset_pipeline(
             run_kind="pipeline",
             execution_mode="dataset_backed",
         )
-        combined["evidence_path"] = str(summary_path)
+        combined["evidence_path"] = "(written)"
 
     return combined
