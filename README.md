@@ -199,7 +199,7 @@ make bootstrap CATALOG=my_catalog PROFILE=<profile> \
 ```
 
 `make bootstrap` wraps `uv run driftsentinel databricks connect`, so it
-requires the same dataset-backed inputs. `DATASET_ID` and a local
+requires the same dataset-backed inputs. `CATALOG`, `DATASET_ID`, and a local
 `DRIFT_POLICY` are always required; `REGISTRY`, `LANDING_PATH`, and
 `BASELINE_PATH` are required when the shared runtime volume does not already
 contain the registry and file-backed dataset assets. Add
