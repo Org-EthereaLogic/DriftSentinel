@@ -73,17 +73,35 @@ policy inputs at run time.
 
 ## 5. Deployment Activation
 
-Deploy and run with the DriftSentinel CLI (recommended):
+Deploy and run with the Make wrapper or DriftSentinel CLI (recommended):
+
+```bash
+make bootstrap CATALOG=<existing_uc_catalog> PROFILE=<profile> \
+  DATASET_ID=<registered_dataset> \
+  REGISTRY=/path/to/registry.json \
+  DRIFT_POLICY=/path/to/drift_policy.yml \
+  LANDING_PATH=/path/to/current_data \
+  BASELINE_PATH=/path/to/baseline_data
+```
+
+The Make wrapper calls `uv run driftsentinel databricks connect`, so
+`DATASET_ID` and a local `DRIFT_POLICY` are always required. `REGISTRY`,
+`LANDING_PATH`, and `BASELINE_PATH` are needed whenever the shared runtime
+volume does not already contain the registry and dataset files. Add
+`BENCHMARK_POLICY=/path/to/benchmark_policy.yml` when you need a custom
+benchmark policy upload.
+
+DriftSentinel CLI equivalent:
 
 ```bash
 uv run driftsentinel databricks connect \
   --catalog <existing_uc_catalog> \
   --dataset-id <registered_dataset> \
-  --registry ./registry.json \
-  --drift-policy ./policies/drift.yml \
-  --benchmark-policy ./policies/benchmark.yml \
-  --landing-path ./data/current \
-  --baseline-path ./data/baseline \
+  --registry /path/to/registry.json \
+  --drift-policy /path/to/drift_policy.yml \
+  --benchmark-policy /path/to/benchmark_policy.yml \
+  --landing-path /path/to/current_data \
+  --baseline-path /path/to/baseline_data \
   --wait
 ```
 

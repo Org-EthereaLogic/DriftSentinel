@@ -27,6 +27,7 @@ When prior repository patterns conflict, use this precedence:
 | `make coverage` | Run tests with coverage reporting |
 | `make bundle-catalog-check CATALOG=<catalog> [PROFILE=<profile>]` | Prove the selected Unity Catalog catalog exists for the current Databricks auth context |
 | `make bundle-validate CATALOG=<catalog> [PROFILE=<profile>]` | Validate the Databricks Asset Bundle against an explicit catalog input |
+| `make bootstrap CATALOG=<catalog> DATASET_ID=<dataset> DRIFT_POLICY=<path> [REGISTRY=<path>] [LANDING_PATH=<path>] [BASELINE_PATH=<path>] [BENCHMARK_POLICY=<path>] [PROFILE=<profile>]` | Make wrapper for the dataset-backed Databricks connect flow (deploy, upload, run) |
 
 ### Core Workflow Commands (21 total)
 
