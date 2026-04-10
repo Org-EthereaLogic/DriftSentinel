@@ -140,14 +140,12 @@ def test_intake_pipeline_resource_structure() -> None:
     assert job["name"] == "driftsentinel_intake"
     assert len(job["tasks"]) > 0
     params = job["tasks"][0]["notebook_task"]["base_parameters"]
-    assert params["dataset_id"] == "${var.dataset_id}"
-    assert params["registry_path"] == (
-        "/Volumes/${var.catalog}/${var.schema}/${var.runtime_volume_name}/state/registry.json"
-    )
-    assert params["evidence_dir"] == (
-        "/Volumes/${var.catalog}/${var.schema}/${var.runtime_volume_name}/evidence"
-    )
+    assert params["dataset_id"] == "{{job.parameters.dataset_id}}"
+    assert params["registry_path"] == "{{job.parameters.registry_path}}"
+    assert params["evidence_dir"] == "{{job.parameters.evidence_dir}}"
     assert params["require_dataset_backed"] == "true"
+    job_params = {p["name"] for p in job["parameters"]}
+    assert {"dataset_id", "registry_path", "evidence_dir"} <= job_params
 
 
 def test_drift_gate_job_resource_structure() -> None:
@@ -159,9 +157,11 @@ def test_drift_gate_job_resource_structure() -> None:
     assert job["name"] == "driftsentinel_drift_gate"
     assert len(job["tasks"]) > 0
     params = job["tasks"][0]["notebook_task"]["base_parameters"]
-    assert params["dataset_id"] == "${var.dataset_id}"
-    assert params["drift_policy_path"] == "${var.drift_policy_path}"
+    assert params["dataset_id"] == "{{job.parameters.dataset_id}}"
+    assert params["drift_policy_path"] == "{{job.parameters.drift_policy_path}}"
     assert params["require_dataset_backed"] == "true"
+    job_params = {p["name"] for p in job["parameters"]}
+    assert {"dataset_id", "registry_path", "drift_policy_path", "evidence_dir"} <= job_params
 
 
 def test_benchmark_job_resource_structure() -> None:
@@ -173,15 +173,19 @@ def test_benchmark_job_resource_structure() -> None:
     assert job["name"] == "driftsentinel_benchmark"
     assert len(job["tasks"]) > 0
     params = job["tasks"][0]["notebook_task"]["base_parameters"]
-    assert "seed" in params
-    assert "n_rows" in params
-    assert params["dataset_id"] == "${var.dataset_id}"
-    assert params["drift_policy_path"] == "${var.drift_policy_path}"
-    assert params["policy_path"] == "${var.benchmark_policy_path}"
-    assert params["evidence_dir"] == (
-        "/Volumes/${var.catalog}/${var.schema}/${var.runtime_volume_name}/evidence"
-    )
+    assert params["seed"] == "{{job.parameters.seed}}"
+    assert params["n_rows"] == "{{job.parameters.n_rows}}"
+    assert params["dataset_id"] == "{{job.parameters.dataset_id}}"
+    assert params["drift_policy_path"] == "{{job.parameters.drift_policy_path}}"
+    assert params["policy_path"] == "{{job.parameters.benchmark_policy_path}}"
+    assert params["evidence_dir"] == "{{job.parameters.evidence_dir}}"
     assert params["require_dataset_backed"] == "true"
+    job_params = {p["name"] for p in job["parameters"]}
+    expected_params = {
+        "dataset_id", "registry_path", "drift_policy_path",
+        "benchmark_policy_path", "evidence_dir", "seed", "n_rows",
+    }
+    assert expected_params <= job_params
 
 
 def test_dataset_pipeline_job_resource_structure() -> None:
@@ -192,9 +196,15 @@ def test_dataset_pipeline_job_resource_structure() -> None:
     job = jobs["dataset_pipeline_job"]
     assert job["name"] == "driftsentinel_dataset_pipeline"
     params = job["tasks"][0]["notebook_task"]["base_parameters"]
-    assert params["dataset_id"] == "${var.dataset_id}"
-    assert params["drift_policy_path"] == "${var.drift_policy_path}"
-    assert params["policy_path"] == "${var.benchmark_policy_path}"
+    assert params["dataset_id"] == "{{job.parameters.dataset_id}}"
+    assert params["drift_policy_path"] == "{{job.parameters.drift_policy_path}}"
+    assert params["policy_path"] == "{{job.parameters.benchmark_policy_path}}"
+    job_params = {p["name"] for p in job["parameters"]}
+    expected_params = {
+        "dataset_id", "registry_path", "drift_policy_path",
+        "benchmark_policy_path", "evidence_dir", "seed", "n_rows",
+    }
+    assert expected_params <= job_params
 
 
 def test_runtime_volume_resource_structure() -> None:
@@ -211,15 +221,18 @@ def test_runtime_volume_resource_structure() -> None:
 def test_bundle_requires_explicit_catalog_var() -> None:
     with open(BUNDLE_CONFIG, encoding="utf-8") as f:
         data = yaml.safe_load(f)
-    catalog = data["variables"]["catalog"]
+    variables = data["variables"]
+    catalog = variables["catalog"]
     assert "default" not in catalog
-    assert data["variables"]["schema"]["default"] == "default"
-    assert data["variables"]["runtime_volume_name"]["default"] == "driftsentinel_runtime"
-    assert data["variables"]["dataset_id"]["default"] == ""
-    assert data["variables"]["drift_policy_path"]["default"] == ""
-    assert data["variables"]["benchmark_policy_path"]["default"] == ""
-    assert data["variables"]["seed"]["default"] == "42"
-    assert data["variables"]["n_rows"]["default"] == "1000"
+    assert variables["schema"]["default"] == "default"
+    assert variables["runtime_volume_name"]["default"] == "driftsentinel_runtime"
+    # Runtime inputs (dataset_id, policy paths, seed, n_rows) are now job
+    # parameters, not bundle variables.
+    assert "dataset_id" not in variables
+    assert "drift_policy_path" not in variables
+    assert "benchmark_policy_path" not in variables
+    assert "seed" not in variables
+    assert "n_rows" not in variables
 
 
 def test_makefile_exposes_catalog_check_and_profile_override() -> None:

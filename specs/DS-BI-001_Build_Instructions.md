@@ -73,11 +73,28 @@ policy inputs at run time.
 
 ## 5. Deployment Activation
 
-Deploy and run with the same catalog selection:
+Deploy and run with the DriftSentinel CLI (recommended):
+
+```bash
+uv run driftsentinel databricks connect \
+  --catalog <existing_uc_catalog> \
+  --dataset-id <registered_dataset> \
+  --registry ./registry.json \
+  --drift-policy ./policies/drift.yml \
+  --benchmark-policy ./policies/benchmark.yml \
+  --landing-path ./data/current \
+  --baseline-path ./data/baseline \
+  --wait
+```
+
+Raw Databricks CLI fallback (runtime inputs are job parameters, not bundle
+variables):
 
 ```bash
 databricks bundle deploy -p <profile> --target dev --var="catalog=<existing_uc_catalog>"
-databricks bundle run dataset_pipeline_job -p <profile> --target dev --var="catalog=<existing_uc_catalog>,dataset_id=<registered_dataset>,drift_policy_path=/Volumes/<existing_uc_catalog>/<schema>/driftsentinel_runtime/policies/drift_policy.yml,benchmark_policy_path=/Volumes/<existing_uc_catalog>/<schema>/driftsentinel_runtime/policies/benchmark_policy.yml"
+databricks bundle run dataset_pipeline_job -p <profile> --target dev \
+  --var="catalog=<existing_uc_catalog>" \
+  --params '{"dataset_id":"<registered_dataset>","registry_path":"/Volumes/<existing_uc_catalog>/<schema>/driftsentinel_runtime/state/registry.json","drift_policy_path":"/Volumes/<existing_uc_catalog>/<schema>/driftsentinel_runtime/policies/drift_policy.yml","evidence_dir":"/Volumes/<existing_uc_catalog>/<schema>/driftsentinel_runtime/evidence"}'
 ```
 
 Expected result: the bundle deploys the runtime volume, Databricks jobs, and

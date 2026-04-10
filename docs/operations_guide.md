@@ -24,7 +24,7 @@ App for operator dashboard access without editing notebooks.
 6. Register multiple datasets via `01_register_dataset.py` with a serializable
    JSON registry stored in the shared runtime volume by default.
 7. Execute intake, drift, benchmark, or full pipeline runs for a selected
-   dataset using bundle variables or notebook widgets.
+   dataset using the DriftSentinel CLI, job parameters, or notebook widgets.
 8. Review historical evidence filtered by dataset, date range, or run ID in
    `06_review_evidence.py`.
 
@@ -55,8 +55,9 @@ App for operator dashboard access without editing notebooks.
   target catalog is blank.
 - **Bundle job fails with missing `dataset_id` or policy path**: the shipped
   jobs are intentionally fail-closed. Pass `dataset_id` and the required
-  `drift_policy_path` (plus `benchmark_policy_path` when needed) through
-  `--var=...` instead of expecting a demo fallback.
+  `drift_policy_path` (plus `benchmark_policy_path` when needed) through the
+  DriftSentinel CLI (`driftsentinel databricks connect` / `run`) or via
+  `--params` in raw bundle commands, instead of expecting a demo fallback.
 - **Evidence is missing in `06_review_evidence.py` after a job run**: the
   bundle-backed default is the shared runtime volume, not `/tmp`. Confirm the
   job, notebook, and app all target the same `catalog`, `schema`, and

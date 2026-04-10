@@ -8,8 +8,9 @@ from __future__ import annotations
 
 import ast
 import json
-import tempfile
 from pathlib import Path
+
+import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
 APP_DIR = ROOT / "app"
@@ -206,13 +207,18 @@ class TestAppHelpers:
         assert rows[0][1] == "1.0.0"
         assert rows[0][2] == "cat"
 
-    def test_load_registry_table_rejects_untrusted_path(self) -> None:
+    def test_load_registry_table_rejects_untrusted_path(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         from app.app import load_registry_table
 
-        with tempfile.TemporaryDirectory(dir=ROOT.parent) as temp_dir:
-            reg_path = Path(temp_dir) / "registry.json"
-            reg_path.write_text('{"registry": []}', encoding="utf-8")
-            rows = load_registry_table(str(reg_path))
+        monkeypatch.setattr(
+            "app.app.trusted_roots",
+            lambda extra_roots=(): (str(tmp_path / "_no_match_"),),
+        )
+        reg_path = tmp_path / "registry.json"
+        reg_path.write_text('{"registry": []}', encoding="utf-8")
+        rows = load_registry_table(str(reg_path))
 
         assert rows[0][0].startswith("(error:")
         assert "trusted roots" in rows[0][0]
@@ -224,11 +230,16 @@ class TestAppHelpers:
         assert len(rows) == 1
         assert "no artifacts" in rows[0][0]
 
-    def test_query_evidence_rejects_untrusted_dir(self) -> None:
+    def test_query_evidence_rejects_untrusted_dir(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         from app.app import query_evidence
 
-        with tempfile.TemporaryDirectory(dir=ROOT.parent) as temp_dir:
-            rows = query_evidence(temp_dir, "", "", "", "", "", "")
+        monkeypatch.setattr(
+            "driftsentinel.paths.trusted_roots",
+            lambda extra_roots=(): (str(tmp_path / "_no_match_"),),
+        )
+        rows = query_evidence(str(tmp_path), "", "", "", "", "", "")
 
         assert rows[0][0].startswith("(error:")
         assert "trusted roots" in rows[0][0]
@@ -437,13 +448,17 @@ class TestAppBundleResource:
         app_def = data["resources"]["apps"]["driftsentinel_app"]
         assert app_def["name"] == "driftsentinel"
         assert app_def["source_code_path"] == ".."
-        resource = app_def["resources"][0]["uc_securable"]
-        assert resource["securable_type"] == "VOLUME"
-        assert resource["securable_full_name"] == (
+        volume_resource = app_def["resources"][0]["uc_securable"]
+        assert volume_resource["securable_type"] == "VOLUME"
+        assert volume_resource["securable_full_name"] == (
             "${var.catalog}.${var.schema}.${var.runtime_volume_name}"
         )
-        assert resource["permission"] == "READ_VOLUME"
+        assert volume_resource["permission"] == "READ_VOLUME"
+        job_resource = app_def["resources"][1]["job"]
+        assert job_resource["id"] == "${resources.jobs.dataset_pipeline_job.id}"
+        assert job_resource["permission"] == "CAN_MANAGE_RUN"
         assert app_def["config"]["command"] == ["gradio", "app/app.py"]
         env = {item["name"]: item for item in app_def["config"]["env"]}
         assert env["RUNTIME_VOLUME_PATH"]["value_from"] == "runtime_volume"
+        assert env["DATASET_PIPELINE_JOB_ID"]["value_from"] == "dataset_pipeline_job"
         assert env["DRIFTSENTINEL_ALLOWED_PATH_ROOTS"]["value"] == ""

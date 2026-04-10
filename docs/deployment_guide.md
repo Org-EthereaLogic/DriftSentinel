@@ -63,42 +63,69 @@ databricks bundle deploy -p <profile> --target prod --var="catalog=my_catalog,sc
 bundle, including the app resource definition. It does not by itself create a
 Databricks App deployment from the uploaded source code.
 
-### Run
+### Run (CLI — recommended)
+
+The DriftSentinel CLI handles bundle deploy, file upload, and job execution in
+a single command:
 
 ```bash
-# Run intake certification for one registered dataset
-databricks bundle run intake_pipeline -p <profile> --target dev \
-  --var="catalog=my_catalog,dataset_id=my_dataset"
+# First run from a fresh clone — bootstrap everything
+uv run driftsentinel databricks connect \
+  --catalog my_catalog \
+  --dataset-id my_dataset \
+  --registry ./registry.json \
+  --drift-policy ./policies/drift.yml \
+  --benchmark-policy ./policies/benchmark.yml \
+  --landing-path ./data/current \
+  --baseline-path ./data/baseline \
+  --wait
 
-# Run the drift gate job
-databricks bundle run drift_gate_job -p <profile> --target dev \
-  --var="catalog=my_catalog,dataset_id=my_dataset,drift_policy_path=/Volumes/my_catalog/default/driftsentinel_runtime/policies/drift_policy.yml"
-
-# Run the benchmark job
-databricks bundle run benchmark_job -p <profile> --target dev \
-  --var="catalog=my_catalog,dataset_id=my_dataset,drift_policy_path=/Volumes/my_catalog/default/driftsentinel_runtime/policies/drift_policy.yml,benchmark_policy_path=/Volumes/my_catalog/default/driftsentinel_runtime/policies/benchmark_policy.yml"
-
-# Run the full dataset-backed pipeline
-databricks bundle run dataset_pipeline_job -p <profile> --target dev \
-  --var="catalog=my_catalog,dataset_id=my_dataset,drift_policy_path=/Volumes/my_catalog/default/driftsentinel_runtime/policies/drift_policy.yml,benchmark_policy_path=/Volumes/my_catalog/default/driftsentinel_runtime/policies/benchmark_policy.yml"
+# Repeat run for an already-registered dataset
+uv run driftsentinel databricks run \
+  --catalog my_catalog \
+  --dataset-id my_dataset \
+  --wait
 ```
 
-These bundle-run surfaces fail closed. If `dataset_id` or the required policy
-paths are blank, the jobs error instead of silently switching to demo or
-synthetic execution.
+Additional CLI commands:
+
+```bash
+# Upload or refresh files without running
+uv run driftsentinel databricks sync \
+  --catalog my_catalog --dataset-id my_dataset --registry ./registry.json
+
+# Print app URL, job IDs, and runtime volume path
+uv run driftsentinel databricks status --catalog my_catalog
+
+# Verify auth, catalog, bundle, volume, and resource IDs
+uv run driftsentinel databricks doctor --catalog my_catalog
+```
+
+### Run (raw bundle fallback)
+
+Runtime inputs (`dataset_id`, policy paths, `seed`, `n_rows`) are Databricks
+job parameters, not bundle variables. Pass them with `--params`:
+
+```bash
+databricks bundle run dataset_pipeline_job -p <profile> --target dev \
+  --var="catalog=my_catalog" \
+  --params '{"dataset_id":"my_dataset","registry_path":"/Volumes/my_catalog/default/driftsentinel_runtime/state/registry.json","drift_policy_path":"/Volumes/my_catalog/default/driftsentinel_runtime/policies/drift_policy.yml","evidence_dir":"/Volumes/my_catalog/default/driftsentinel_runtime/evidence"}'
+```
+
+These jobs fail closed. If `dataset_id` or the required policy paths are
+blank, the jobs error instead of silently switching to demo or synthetic
+execution.
 
 ### Bundle Variables
+
+Bundle variables are deploy-time only. Runtime inputs are now job parameters
+passed at run time via the CLI or `--params`.
 
 | Variable | Description | Default |
 | --- | --- | --- |
 | `catalog` | Existing Unity Catalog catalog name | Required |
 | `schema` | Unity Catalog schema name | `default` |
 | `runtime_volume_name` | Shared Unity Catalog volume for registry and evidence state | `driftsentinel_runtime` |
-| `dataset_id` | Registered dataset ID for job runs | `""` |
-| `drift_policy_path` | Workspace or volume path to drift policy YAML | `""` |
-| `benchmark_policy_path` | Optional workspace or volume path to benchmark policy YAML | `""` |
-| `seed` | Benchmark random seed | `42` |
-| `n_rows` | Benchmark reference sample size | `1000` |
 
 Override at deploy time:
 

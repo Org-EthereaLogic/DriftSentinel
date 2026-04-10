@@ -25,3 +25,5 @@ resources, templates).
 - **evidence** — writes append-only artifacts for auditability
 - **orchestration** — sequences the control workflow end-to-end
 - **config** — loads dataset contracts, drift policies, and benchmark policies
+- **cli** — command-line interface for one-step Databricks bootstrap, run, sync, and diagnostics
+- **databricks** — workspace client, bundle operations, file upload, and job execution

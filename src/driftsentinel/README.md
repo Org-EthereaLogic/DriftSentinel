@@ -13,6 +13,8 @@ gating, and control benchmarking into a single Databricks-deployable product.
 | `evidence/` | Append-only evidence artifact writing, metadata tagging, and lookup | Cross-cutting |
 | `orchestration/` | Workflow sequencing for the DriftSentinel control pipeline | Cross-cutting |
 | `config/` | Dataset contract, drift policy, benchmark policy configuration, and multi-dataset registry | Cross-cutting |
+| `cli.py` | Top-level CLI entry point — `driftsentinel databricks {connect,run,status,sync,doctor}` | Cross-cutting |
+| `databricks/` | Databricks integration — workspace client, bundle ops, file sync, job execution | Cross-cutting |
 
 ## Current State
 

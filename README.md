@@ -194,7 +194,31 @@ make bundle-validate CATALOG=my_catalog PROFILE=<profile>
 make app-deploy CATALOG=my_catalog PROFILE=<profile>
 ```
 
-Direct CLI path:
+DriftSentinel CLI (recommended):
+
+```bash
+# One-step bootstrap: deploy, upload, and run
+uv run driftsentinel databricks connect \
+  --catalog my_catalog \
+  --dataset-id my_dataset \
+  --registry ./registry.json \
+  --drift-policy ./policies/drift.yml \
+  --benchmark-policy ./policies/benchmark.yml \
+  --landing-path ./data/current \
+  --baseline-path ./data/baseline \
+  --wait
+
+# Repeat run for an already-registered dataset
+uv run driftsentinel databricks run --catalog my_catalog --dataset-id my_dataset --wait
+
+# Check deployment status
+uv run driftsentinel databricks status --catalog my_catalog
+
+# Verify auth, catalog, bundle, and volume
+uv run driftsentinel databricks doctor --catalog my_catalog
+```
+
+Raw Databricks CLI path:
 
 ```bash
 databricks catalogs get my_catalog -p <profile>
@@ -207,17 +231,12 @@ databricks apps get driftsentinel -p <profile> -o json
 
 `bundle validate` proves bundle, auth, and resource resolution. `databricks apps get` is the proof surface for `SUCCEEDED` plus `RUNNING`.
 
-Bundle deployment also creates a shared runtime volume at `/Volumes/<catalog>/<schema>/driftsentinel_runtime` unless you override `runtime_volume_name`. The shipped jobs are fail-closed and require dataset-backed inputs at run time, for example:
+Bundle deployment also creates a shared runtime volume at `/Volumes/<catalog>/<schema>/driftsentinel_runtime` unless you override `runtime_volume_name`. The shipped jobs are fail-closed and require dataset-backed inputs at run time. Runtime inputs (`dataset_id`, policy paths, `seed`, `n_rows`) are now Databricks job parameters, not bundle variables. Pass them via the CLI or `--params`:
 
 ```bash
-databricks bundle run intake_pipeline -p <profile> --target dev \
-  --var="catalog=my_catalog,dataset_id=my_dataset"
-
-databricks bundle run drift_gate_job -p <profile> --target dev \
-  --var="catalog=my_catalog,dataset_id=my_dataset,drift_policy_path=/Volumes/my_catalog/default/driftsentinel_runtime/policies/drift_policy.yml"
-
-databricks bundle run benchmark_job -p <profile> --target dev \
-  --var="catalog=my_catalog,dataset_id=my_dataset,drift_policy_path=/Volumes/my_catalog/default/driftsentinel_runtime/policies/drift_policy.yml,benchmark_policy_path=/Volumes/my_catalog/default/driftsentinel_runtime/policies/benchmark_policy.yml"
+databricks bundle run dataset_pipeline_job -p <profile> --target dev \
+  --var="catalog=my_catalog" \
+  --params '{"dataset_id":"my_dataset","registry_path":"/Volumes/my_catalog/default/driftsentinel_runtime/state/registry.json","drift_policy_path":"/Volumes/my_catalog/default/driftsentinel_runtime/policies/drift_policy.yml","evidence_dir":"/Volumes/my_catalog/default/driftsentinel_runtime/evidence"}'
 ```
 
 ### Notebook Import

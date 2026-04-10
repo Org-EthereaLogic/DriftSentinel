@@ -93,6 +93,8 @@ Every directory contains a `README.md` describing its contents.
 | `src/driftsentinel/evidence/` | Append-only evidence artifact writing |
 | `src/driftsentinel/orchestration/` | Workflow sequencing for the control pipeline |
 | `src/driftsentinel/config/` | Dataset contract and policy configuration |
+| `src/driftsentinel/cli.py` | CLI entry point — `driftsentinel databricks {connect,run,status,sync,doctor}` |
+| `src/driftsentinel/databricks/` | Databricks integration — workspace client, bundle ops, file sync, job execution |
 | `app/` | Databricks App UI (Gradio) — operator dashboard for registry, run status, evidence |
 | `assets/` | Project brand assets — source SVGs, favicons, icons, and social previews |
 | `notebooks/` | Databricks onboarding, execution, and review notebooks |

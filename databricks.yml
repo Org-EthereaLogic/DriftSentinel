@@ -16,21 +16,6 @@ variables:
   runtime_volume_name:
     description: Unity Catalog volume used for shared registry and evidence state
     default: driftsentinel_runtime
-  dataset_id:
-    description: Registered dataset ID for fail-closed job execution
-    default: ""
-  drift_policy_path:
-    description: Workspace or volume path to the drift policy YAML for the selected dataset
-    default: ""
-  benchmark_policy_path:
-    description: Optional workspace or volume path to the benchmark policy YAML
-    default: ""
-  seed:
-    description: Random seed for benchmark reproducibility
-    default: "42"
-  n_rows:
-    description: Benchmark reference sample size
-    default: "1000"
 
 targets:
   dev:

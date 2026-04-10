@@ -2,6 +2,21 @@ resources:
   jobs:
     dataset_pipeline_job:
       name: "driftsentinel_dataset_pipeline"
+      parameters:
+        - name: dataset_id
+          default: ""
+        - name: registry_path
+          default: ""
+        - name: drift_policy_path
+          default: ""
+        - name: benchmark_policy_path
+          default: ""
+        - name: evidence_dir
+          default: ""
+        - name: seed
+          default: "42"
+        - name: n_rows
+          default: "1000"
       tasks:
         - task_key: run_dataset_pipeline
           notebook_task:
@@ -9,10 +24,10 @@ resources:
             base_parameters:
               catalog: "${var.catalog}"
               schema: "${var.schema}"
-              dataset_id: "${var.dataset_id}"
-              registry_path: "/Volumes/${var.catalog}/${var.schema}/${var.runtime_volume_name}/state/registry.json"
-              drift_policy_path: "${var.drift_policy_path}"
-              policy_path: "${var.benchmark_policy_path}"
-              evidence_dir: "/Volumes/${var.catalog}/${var.schema}/${var.runtime_volume_name}/evidence"
-              seed: "${var.seed}"
-              n_rows: "${var.n_rows}"
+              dataset_id: "{{job.parameters.dataset_id}}"
+              registry_path: "{{job.parameters.registry_path}}"
+              drift_policy_path: "{{job.parameters.drift_policy_path}}"
+              policy_path: "{{job.parameters.benchmark_policy_path}}"
+              evidence_dir: "{{job.parameters.evidence_dir}}"
+              seed: "{{job.parameters.seed}}"
+              n_rows: "{{job.parameters.n_rows}}"

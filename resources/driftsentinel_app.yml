@@ -10,6 +10,10 @@ resources:
             securable_type: VOLUME
             securable_full_name: "${var.catalog}.${var.schema}.${var.runtime_volume_name}"
             permission: READ_VOLUME
+        - name: dataset_pipeline_job
+          job:
+            id: "${resources.jobs.dataset_pipeline_job.id}"
+            permission: CAN_MANAGE_RUN
       config:
         command:
           - gradio
@@ -17,5 +21,7 @@ resources:
         env:
           - name: RUNTIME_VOLUME_PATH
             value_from: runtime_volume
+          - name: DATASET_PIPELINE_JOB_ID
+            value_from: dataset_pipeline_job
           - name: DRIFTSENTINEL_ALLOWED_PATH_ROOTS
             value: ""

@@ -23,6 +23,9 @@ dependencies = [
     "xlrd>=2.0",
 ]
 
+[project.scripts]
+driftsentinel = "driftsentinel.cli:main"
+
 [dependency-groups]
 app = [
     "gradio>=6.10.0,<7",
