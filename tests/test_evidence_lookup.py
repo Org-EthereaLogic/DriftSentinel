@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import tempfile
 from pathlib import Path
 
 import pytest
@@ -16,7 +15,6 @@ from driftsentinel.evidence.writer import (
 )
 from driftsentinel.paths import PathSecurityError
 
-ROOT = Path(__file__).resolve().parent.parent
 FIXED_TS = "2026-04-02T00:00:00+00:00"
 
 
@@ -130,10 +128,15 @@ class TestListEvidence:
         results = list_evidence(tmp_path / "nonexistent")
         assert results == []
 
-    def test_untrusted_directory_rejected(self) -> None:
-        with tempfile.TemporaryDirectory(dir=ROOT.parent) as temp_dir:
-            with pytest.raises(PathSecurityError, match="trusted roots"):
-                list_evidence(temp_dir)
+    def test_untrusted_directory_rejected(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            "driftsentinel.paths.trusted_roots",
+            lambda extra_roots=(): (str(tmp_path / "_no_match_"),),
+        )
+        with pytest.raises(PathSecurityError, match="trusted roots"):
+            list_evidence(str(tmp_path))
 
     def test_malformed_file_skipped(self, tmp_path: Path) -> None:
         (tmp_path / "bad.json").write_text("not json{{{")
@@ -221,9 +224,14 @@ class TestLoadEvidence:
         with pytest.raises(ValueError, match="Malformed"):
             load_evidence(bad)
 
-    def test_load_untrusted_path_raises(self) -> None:
-        with tempfile.TemporaryDirectory(dir=ROOT.parent) as temp_dir:
-            artifact = Path(temp_dir) / "outside.json"
-            artifact.write_text('{"meta": {}, "payload": {}}', encoding="utf-8")
-            with pytest.raises(PathSecurityError, match="trusted roots"):
-                load_evidence(artifact)
+    def test_load_untrusted_path_raises(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            "driftsentinel.evidence.writer.trusted_roots",
+            lambda extra_roots=(): (str(tmp_path / "_no_match_"),),
+        )
+        artifact = tmp_path / "outside.json"
+        artifact.write_text('{"meta": {}, "payload": {}}', encoding="utf-8")
+        with pytest.raises(PathSecurityError, match="trusted roots"):
+            load_evidence(artifact)

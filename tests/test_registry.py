@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -185,19 +184,29 @@ class TestRegistrySerialization:
         with pytest.raises(RegistryError, match="Invalid registry"):
             DatasetRegistry.load(bad)
 
-    def test_load_untrusted_path_rejected(self) -> None:
-        with tempfile.TemporaryDirectory(dir=ROOT.parent) as temp_dir:
-            bad = Path(temp_dir) / "registry.json"
-            bad.write_text('{"registry": []}', encoding="utf-8")
-            with pytest.raises(PathSecurityError, match="trusted roots"):
-                DatasetRegistry.load(bad)
+    def test_load_untrusted_path_rejected(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            "driftsentinel.paths.trusted_roots",
+            lambda extra_roots=(): (str(tmp_path / "_no_match_"),),
+        )
+        bad = tmp_path / "registry.json"
+        bad.write_text('{"registry": []}', encoding="utf-8")
+        with pytest.raises(PathSecurityError, match="trusted roots"):
+            DatasetRegistry.load(bad)
 
-    def test_save_untrusted_path_rejected(self) -> None:
+    def test_save_untrusted_path_rejected(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            "driftsentinel.paths.trusted_roots",
+            lambda extra_roots=(): (str(tmp_path / "_no_match_"),),
+        )
         reg = DatasetRegistry()
         reg.register(_make_contract("ds_a", "1.0.0"))
-        with tempfile.TemporaryDirectory(dir=ROOT.parent) as temp_dir:
-            with pytest.raises(PathSecurityError, match="trusted roots"):
-                reg.save(Path(temp_dir) / "registry.json")
+        with pytest.raises(PathSecurityError, match="trusted roots"):
+            reg.save(tmp_path / "registry.json")
 
     def test_load_supports_dbfs_uri_when_root_is_allowed(
         self,

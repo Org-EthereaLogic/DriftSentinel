@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import tempfile
 from pathlib import Path
 
 import pytest
@@ -165,21 +164,26 @@ def test_load_non_mapping_yaml(tmp_path: Path) -> None:
         load_dataset_contract(bad)
 
 
-def test_load_dataset_contract_rejects_untrusted_path() -> None:
-    with tempfile.TemporaryDirectory(dir=ROOT.parent) as temp_dir:
-        bad = Path(temp_dir) / "dataset_contract.yml"
-        bad.write_text(
-            yaml.dump(
-                {
-                    "dataset": {"name": "x"},
-                    "contract": {
-                        "required_columns": [],
-                        "business_key": ["id"],
-                        "batch_identifier": "batch_id",
-                    },
-                }
-            ),
-            encoding="utf-8",
-        )
-        with pytest.raises(PathSecurityError, match="trusted roots"):
-            load_dataset_contract(bad)
+def test_load_dataset_contract_rejects_untrusted_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        "driftsentinel.paths.trusted_roots",
+        lambda extra_roots=(): (str(tmp_path / "_no_match_"),),
+    )
+    bad = tmp_path / "dataset_contract.yml"
+    bad.write_text(
+        yaml.dump(
+            {
+                "dataset": {"name": "x"},
+                "contract": {
+                    "required_columns": [],
+                    "business_key": ["id"],
+                    "batch_identifier": "batch_id",
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    with pytest.raises(PathSecurityError, match="trusted roots"):
+        load_dataset_contract(bad)
