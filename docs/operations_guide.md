@@ -2,11 +2,13 @@
 
 ## Current Stage
 
-DriftSentinel is at the DS-IP-001 Phase 4 Databricks App UI stage. The
-repository ships a multi-dataset registry, version-aware policy binding,
-queryable evidence lookup, dataset-aware orchestration, runnable bundle
-resources, operational notebook entry points, and a Gradio-based Databricks
-App for operator dashboard access without editing notebooks.
+DriftSentinel has completed the repo-side deliverables through DS-IP-001 Phase
+5. The repository ships a multi-dataset registry, version-aware policy
+binding, queryable evidence lookup, dataset-aware orchestration, runnable
+bundle resources, operational notebook entry points, a Gradio-based
+Databricks App for operator dashboard access without editing notebooks, and
+the Phase 5 marketplace-distribution preparation packet. Live Marketplace
+publication remains an external step and is not claimed from this repository.
 
 ## What You Can Operate Today
 

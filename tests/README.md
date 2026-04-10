@@ -6,6 +6,7 @@ Product test suite for DriftSentinel.
 | --- | --- |
 | `test_scaffold_layout.py` | Validates that all expected files and directories exist |
 | `test_packaging.py` | Databricks bundle config, notebook packaging, wheel contents, safe bundle command docs, widgets, and app resource |
+| `test_cli.py` | DriftSentinel CLI parser, Databricks bundle wrapper, file sync helpers, job helpers, and entry point wiring |
 | `test_app.py` | App file structure, read-only assertions, import hygiene, helper functions, DAB resource |
 | `test_stress.py` | Stress and performance tests for evidence parsing and pipeline throughput |
 | `test_registry.py` | Dataset registry, serialization, policy compatibility, version metadata |
