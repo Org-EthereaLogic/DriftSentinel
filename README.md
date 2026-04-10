@@ -151,7 +151,7 @@ Every directory above contains a `README.md` describing its contents, including 
 
 ## Databricks Fit
 
-- **Databricks Asset Bundles** for source-controlled deployment of pipeline, job, and app resource definitions — validated and deployed from the repo with a single make target.
+- **Databricks Asset Bundles** for source-controlled deployment of pipeline, job, and app resource definitions — validated, deployed, and operated from the repo through explicit make targets and the DriftSentinel CLI.
 - **Databricks Apps (Gradio)** for a governed, read-only operator dashboard with no custom web infrastructure required.
 - **Unity Catalog** for governed table publication and the evidence volume backing the operator dashboard.
 - **Databricks Lakeflow / Jobs** for scheduled control pipeline execution across registered datasets.
@@ -181,7 +181,32 @@ make sync   # installs runtime + dev dependencies via uv
 make test   # runs the pytest suite
 ```
 
-### Databricks Bundle and App Deployment
+### Databricks Bootstrap (wrapper)
+
+```bash
+# Fresh clone / first dataset-backed bootstrap
+make bootstrap CATALOG=my_catalog PROFILE=<profile> \
+  DATASET_ID=my_dataset \
+  REGISTRY=/path/to/registry.json \
+  DRIFT_POLICY=/path/to/drift_policy.yml \
+  LANDING_PATH=/path/to/current_data \
+  BASELINE_PATH=/path/to/baseline_data
+
+# If the shared registry and data files are already staged remotely
+make bootstrap CATALOG=my_catalog PROFILE=<profile> \
+  DATASET_ID=my_dataset \
+  DRIFT_POLICY=/path/to/drift_policy.yml
+```
+
+`make bootstrap` wraps `uv run driftsentinel databricks connect`, so it
+requires the same dataset-backed inputs. `DATASET_ID` and a local
+`DRIFT_POLICY` are always required; `REGISTRY`, `LANDING_PATH`, and
+`BASELINE_PATH` are required when the shared runtime volume does not already
+contain the registry and file-backed dataset assets. Add
+`BENCHMARK_POLICY=/path/to/benchmark_policy.yml` when the benchmark stage
+needs a custom policy upload.
+
+### Databricks Bundle and App Deployment (manual)
 
 ```bash
 # First prove the catalog exists for your profile.
@@ -201,11 +226,11 @@ DriftSentinel CLI (recommended):
 uv run driftsentinel databricks connect \
   --catalog my_catalog \
   --dataset-id my_dataset \
-  --registry ./registry.json \
-  --drift-policy ./policies/drift.yml \
-  --benchmark-policy ./policies/benchmark.yml \
-  --landing-path ./data/current \
-  --baseline-path ./data/baseline \
+  --registry /path/to/registry.json \
+  --drift-policy /path/to/drift_policy.yml \
+  --benchmark-policy /path/to/benchmark_policy.yml \
+  --landing-path /path/to/current_data \
+  --baseline-path /path/to/baseline_data \
   --wait
 
 # Repeat run for an already-registered dataset

@@ -65,19 +65,38 @@ Databricks App deployment from the uploaded source code.
 
 ### Run (CLI — recommended)
 
-The DriftSentinel CLI handles bundle deploy, file upload, and job execution in
-a single command:
+The Make wrapper and DriftSentinel CLI handle bundle deploy, file upload, and
+job execution in one dataset-backed command:
+
+```bash
+# Fresh clone / first dataset-backed bootstrap
+make bootstrap CATALOG=my_catalog PROFILE=<profile> \
+  DATASET_ID=my_dataset \
+  REGISTRY=/path/to/registry.json \
+  DRIFT_POLICY=/path/to/drift_policy.yml \
+  LANDING_PATH=/path/to/current_data \
+  BASELINE_PATH=/path/to/baseline_data
+```
+
+`make bootstrap` wraps `uv run driftsentinel databricks connect`, so
+`DATASET_ID` and a local `DRIFT_POLICY` are always required. `REGISTRY`,
+`LANDING_PATH`, and `BASELINE_PATH` are needed when the shared runtime volume
+does not already contain the registry and dataset files. Add
+`BENCHMARK_POLICY=/path/to/benchmark_policy.yml` when the benchmark stage
+needs a custom policy upload.
+
+Direct CLI form:
 
 ```bash
 # First run from a fresh clone — bootstrap everything
 uv run driftsentinel databricks connect \
   --catalog my_catalog \
   --dataset-id my_dataset \
-  --registry ./registry.json \
-  --drift-policy ./policies/drift.yml \
-  --benchmark-policy ./policies/benchmark.yml \
-  --landing-path ./data/current \
-  --baseline-path ./data/baseline \
+  --registry /path/to/registry.json \
+  --drift-policy /path/to/drift_policy.yml \
+  --benchmark-policy /path/to/benchmark_policy.yml \
+  --landing-path /path/to/current_data \
+  --baseline-path /path/to/baseline_data \
   --wait
 
 # Repeat run for an already-registered dataset
@@ -92,7 +111,7 @@ Additional CLI commands:
 ```bash
 # Upload or refresh files without running
 uv run driftsentinel databricks sync \
-  --catalog my_catalog --dataset-id my_dataset --registry ./registry.json
+  --catalog my_catalog --dataset-id my_dataset --registry /path/to/registry.json
 
 # Print app URL, job IDs, and runtime volume path
 uv run driftsentinel databricks status --catalog my_catalog
