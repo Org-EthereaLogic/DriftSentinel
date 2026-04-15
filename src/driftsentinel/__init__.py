@@ -5,4 +5,4 @@ drift gating, and control benchmarking into a single Databricks-deployable
 product.
 """
 
-__version__ = "0.5.0"
+__version__ = "0.5.1"
