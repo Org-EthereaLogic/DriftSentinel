@@ -126,6 +126,7 @@ class TestConnect:
 
     @mock.patch("driftsentinel.databricks.connect.files.sync_files")
     @mock.patch("driftsentinel.databricks.connect.jobs.submit_run")
+    @mock.patch("driftsentinel.databricks.connect.bundle.app_get")
     @mock.patch("driftsentinel.databricks.connect.bundle.app_start")
     @mock.patch("driftsentinel.databricks.connect.bundle.summary")
     @mock.patch("driftsentinel.databricks.connect.bundle.deploy")
@@ -138,6 +139,7 @@ class TestConnect:
         mock_deploy: mock.MagicMock,
         mock_summary: mock.MagicMock,
         mock_app_start: mock.MagicMock,
+        mock_app_get: mock.MagicMock,
         mock_submit: mock.MagicMock,
         mock_sync: mock.MagicMock,
         mock_identity: WorkspaceIdentity,
@@ -148,6 +150,7 @@ class TestConnect:
         mock_get_ws.return_value = mock_ws
         mock_resolve_id.return_value = mock_identity
         mock_summary.return_value = bundle_summary_fixture
+        mock_app_get.return_value = {"url": ""}
         mock_sync.return_value = {
             "registry": "/Volumes/adb_dev/governed/ws_vol/registry.json",
             "evidence": "/Volumes/adb_dev/governed/ws_vol/evidence",
@@ -169,6 +172,7 @@ class TestConnect:
 
     @mock.patch("driftsentinel.databricks.connect.files.sync_files")
     @mock.patch("driftsentinel.databricks.connect.jobs.run_and_wait")
+    @mock.patch("driftsentinel.databricks.connect.bundle.app_get")
     @mock.patch("driftsentinel.databricks.connect.bundle.app_start")
     @mock.patch("driftsentinel.databricks.connect.bundle.summary")
     @mock.patch("driftsentinel.databricks.connect.bundle.deploy")
@@ -181,6 +185,7 @@ class TestConnect:
         mock_deploy: mock.MagicMock,
         mock_summary: mock.MagicMock,
         mock_app_start: mock.MagicMock,
+        mock_app_get: mock.MagicMock,
         mock_run_wait: mock.MagicMock,
         mock_sync: mock.MagicMock,
         mock_identity: WorkspaceIdentity,
@@ -192,6 +197,7 @@ class TestConnect:
         mock_get_ws.return_value = mock_ws
         mock_resolve_id.return_value = mock_identity
         mock_summary.return_value = bundle_summary_fixture
+        mock_app_get.return_value = {"url": ""}
         mock_sync.return_value = {
             "registry": "/Volumes/adb_dev/governed/ws_vol/registry.json",
             "evidence": "/Volumes/adb_dev/governed/ws_vol/evidence",
@@ -212,6 +218,7 @@ class TestConnect:
         mock_run_wait.assert_called_once()
 
     @mock.patch("driftsentinel.databricks.connect.files.sync_files")
+    @mock.patch("driftsentinel.databricks.connect.bundle.app_get")
     @mock.patch("driftsentinel.databricks.connect.bundle.summary")
     @mock.patch("driftsentinel.databricks.connect.bundle.app_start")
     @mock.patch("driftsentinel.databricks.connect.bundle.deploy")
@@ -224,6 +231,7 @@ class TestConnect:
         mock_deploy: mock.MagicMock,
         mock_app_start: mock.MagicMock,
         mock_summary: mock.MagicMock,
+        mock_app_get: mock.MagicMock,
         mock_sync: mock.MagicMock,
         mock_identity: WorkspaceIdentity,
         bundle_summary_fixture: dict[str, Any],
@@ -235,6 +243,7 @@ class TestConnect:
         mock_deploy.return_value = None
         mock_app_start.side_effect = BundleError("App already exists")
         mock_summary.return_value = bundle_summary_fixture
+        mock_app_get.return_value = {"url": ""}
         mock_sync.return_value = {
             "registry": "/Volumes/adb_dev/governed/ws_vol/registry.json",
             "evidence": "/Volumes/adb_dev/governed/ws_vol/evidence",
