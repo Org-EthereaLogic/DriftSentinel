@@ -30,6 +30,7 @@ driftsentinel = "driftsentinel.cli:main"
 app = [
     "gradio>=6.10.0,<7",
     "plotly>=5.0,<6",
+    "pillow>=12.2.0",
 ]
 dev = [
     "pytest>=8.0",
