@@ -2,10 +2,13 @@ UV ?= uv
 DATABRICKS ?= databricks
 PROFILE_ARG := $(if $(PROFILE),-p $(PROFILE),)
 
-.PHONY: sync lint typecheck test coverage bundle-catalog-check bundle-validate app-deploy bootstrap
+.PHONY: sync hooks-install lint typecheck test coverage bundle-catalog-check bundle-validate app-deploy bootstrap
 
 sync:
 	$(UV) sync --all-groups
+
+hooks-install: sync
+	$(UV) run pre-commit install
 
 lint:
 	$(UV) run ruff check .
