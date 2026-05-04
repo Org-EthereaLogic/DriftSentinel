@@ -53,7 +53,7 @@ When prior repository patterns conflict, use this precedence:
 | `/doc-maintain` | Audit and repair documentation drift |
 | `/document` | Generate implementation documentation in `specs/` |
 | `/cleanup_workspace` | Dry-run or execute safe workspace cleanup |
-| `/sync` | Audit docs, validate, and handle Notion dashboard sync |
+| `/sync` | Audit docs, validate, commit & push, and reconcile open GitHub Issues against the DriftSentinel Roadmap project |
 
 ## Agent Surface
 
@@ -69,9 +69,12 @@ When prior repository patterns conflict, use this precedence:
 
 | Surface | Target |
 | --- | --- |
-| Notion dashboard | [DriftSentinel Project Dashboard](https://www.notion.so/4d85af16161b42ed92071933bc90fb10) |
-| Page ID | `4d85af16161b42ed92071933bc90fb10` |
-| Sync policy | `docs/notion_dashboard_sync.md` |
+| GitHub Project (canonical) | [DriftSentinel Roadmap](https://github.com/orgs/Org-EthereaLogic/projects/8) |
+| Issue tracker | [Org-EthereaLogic/DriftSentinel/issues](https://github.com/Org-EthereaLogic/DriftSentinel/issues) |
+| Sprint cadence | 1 week (Iteration field on Project) |
+| Label scheme | `area:*` (subpackage), `type:*` (bug/feature/refactor/chore/test/improvement), `priority:p0`–`p3`, `demo:*` |
+| Notion dashboard (archived 2026-05-04) | [legacy page, read-only](https://www.notion.so/4d85af16161b42ed92071933bc90fb10) |
+| Sync policy | `docs/github_project_sync.md` |
 
 ## File Map
 
@@ -112,6 +115,6 @@ Every directory contains a `README.md` describing its contents.
 - `report/` is append-only — never overwrite or delete evidence.
 - No runtime dependency on sibling chapter repository clones.
 - Codacy, Codecov, and Snyk are pre-implementation gates.
-- Notion is an external coordination surface only, never a runtime dependency.
+- GitHub Issues + GitHub Project #8 (DriftSentinel Roadmap) are the canonical project-management surface. Notion is archived (read-only after 2026-05-04) and never a runtime dependency.
 - Separate measured facts from interpretation.
 - No PASS claims without replayable evidence.

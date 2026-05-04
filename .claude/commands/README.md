@@ -46,12 +46,14 @@ Each `.md` file is a reusable prompt intended to operationalize the canonical
 | `/doc-maintain` | Audit and update documentation for drift |
 | `/document` | Generate implementation documentation in `specs/` |
 | `/cleanup_workspace` | Safely clean generated local artifacts in dry-run or execute mode |
-| `/sync` | Audit docs, validate, review git readiness, and handle Notion sync |
+| `/sync` | Audit docs, validate, commit & push, and reconcile open GitHub Issues against the DriftSentinel Roadmap project |
 
 ## Notes
 
 - `specs/` is canonical.
 - `CLAUDE.md` is the quick-reference starting point.
 - Command surface aligned to the FailLens_Core primary reference pattern (21 commands).
-- `/sync` follows the newer-repo Notion pattern: direct mutation only with
-  exact targets, otherwise write a repo-backed sync payload.
+- `/sync` reconciles repo state with GitHub Project #8 (DriftSentinel
+  Roadmap): closes Issues with merging-commit citations, re-labels drifting
+  Issues, and carries over unfinished iteration work. Notion was archived
+  2026-05-04; see `docs/github_project_sync.md` for the full policy.

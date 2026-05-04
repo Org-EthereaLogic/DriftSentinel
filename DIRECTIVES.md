@@ -62,10 +62,13 @@ Do not overwrite or delete append-only evidence under `report/`.
 When the code or evidence does not support a claim, remove it or mark it as
 future scope.
 
-### IMP-003 — Notion Sync Must Be Truthful
+### IMP-003 — GitHub Project Sync Must Be Truthful
 
-Never report a live Notion dashboard update unless it actually occurred. Use
-the repo-backed payload fallback when direct mutation is unavailable.
+Never close a GitHub Issue or move a Project field without citing the merging
+commit SHA or PR number. When sync mutations cannot be verified in the current
+session, write the repo-backed sync record and explicitly say so. (Replaces the
+prior Notion sync directive — Notion was archived 2026-05-04; canonical project
+management surface is GitHub Project #8.)
 
 ## Recommended Directives
 

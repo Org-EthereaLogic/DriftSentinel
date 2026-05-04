@@ -1,5 +1,9 @@
 # DriftSentinel Notion Dashboard Sync Policy
 
+> **SUPERSEDED 2026-05-04.** Project management has migrated to GitHub Issues + GitHub Project #8 ([DriftSentinel Roadmap](https://github.com/orgs/Org-EthereaLogic/projects/8)). The canonical sync policy is now `docs/github_project_sync.md`.
+>
+> This document is preserved for historical traceability only. The Notion page (ID `4d85af16161b42ed92071933bc90fb10`) is read-only after 2026-05-04. Do not push new mutations.
+
 ## Verified Target
 
 | Field | Value |

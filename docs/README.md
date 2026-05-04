@@ -9,7 +9,8 @@ Explanatory documentation, deployment guides, and sync policies.
 | `deployment_guide.md` | GitHub-to-Databricks deployment instructions |
 | `marketplace_distribution.md` | Phase 5 provider-profile draft, listing material, and submission checklist |
 | `operations_guide.md` | Day-to-day operations and monitoring |
-| `notion_dashboard_sync.md` | Notion dashboard target and sync policy |
+| `github_project_sync.md` | **Canonical** project-management sync policy: GitHub Issues + DriftSentinel Roadmap (Project #8) |
+| `notion_dashboard_sync.md` | **Superseded 2026-05-04** — preserved for historical traceability only |
 | `e2e_verification_prompt.md` | End-to-end visualized verification prompt for acceptance testing |
 | `prompts/` | Prompt templates for documentation workflows |
 
