@@ -6,31 +6,32 @@
 **Complexity Classification:** Complex — this work spans canonical specs, repo-backed commercialization artifacts, append-only evidence, progress tracking, Notion sprint coordination, and optional external Databricks Marketplace provider steps. It must stay disciplined because the task explicitly forbids changing the product core while still producing a distribution-ready packet.
 **Model Recommendation:** `claude-opus-4-20250514` — use the high-capability tier because the work crosses repository governance, external coordination surfaces, artifact packaging, and evidence-safe completion logic.
 **Assumption:** Interpret the source assessment as a request to begin Phase 5 execution in the current repository. Do not assume its stated blockers are still true. First reconcile the source assessment against current repo evidence, then create the missing Phase 5 marketplace-preparation artifacts and coordination updates without modifying DriftSentinel product behavior.
+**Path Placeholders:** Resolve `${REPO_ROOT}` to the current DriftSentinel checkout and `${VSCODE_USER_PROMPTS_FOLDER}` to the local VS Code prompt folder before using referenced paths.
 
 ## Inputs Consulted
 
 | Source | Key Takeaways |
 |--------|---------------|
 | Source prompt | Phase 5 is the next logical workstream, but the source prompt mixes a real sprint-tracking gap with a potentially stale bundle-validation blocker and expects a practical sequence rather than open-ended planning. |
-| `/Users/etherealogic-2/Library/Application Support/Code - Insiders/User/profiles/-1d25645d/prompts/Enhance Prompt workflow.prompt.md` | Enhanced prompts must be grounded, self-contained, phased, imperative, and include explicit verification, guardrails, and state tracking for complex tasks. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/AGENTS.md` | Follow `Plan -> Act -> Verify -> Report`, read governing docs first, preserve evidence traceability, and run required quality checks when relevant. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/CLAUDE.md` | `specs/` is canonical, bundle validation is a core workflow command, Notion is an external coordination surface, and Phase 5 follows the Databricks App milestone. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/CONSTITUTION.md` | Safety, evidence traceability, secret hygiene, proportionality, and validation-before-commercialization govern Phase 5 decisions. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/DIRECTIVES.md` | PASS claims require evidence, append-only reports must be preserved, and Notion sync must stay truthful. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/.github/instructions/codacy.instructions.md` | Repo instructions apply when edits occur, but unavailable Codacy MCP tooling must not be fabricated. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/specs/DS-IP-001_Implementation_Plan.md` | Phase 5 requires provider-profile and listing-material preparation, with the exit criterion “distribution channels in place without changing the product core.” |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/specs/DS-PRD-001_Product_Requirements_Document.md` | Marketplace provider operations are not a release blocker for Version 1, and commercialization claims still require repository-backed evidence. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/specs/DS-SRS-001_Software_Requirements_Specification.md` | Marketplace provider operations require a paid workspace with Unity Catalog, and missing evidence must force blocked status rather than implied completion. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/specs/DS-BI-001_Build_Instructions.md` | The canonical bundle proof path is catalog check plus bundle validate, with validation alone insufficient to prove catalog existence or deployment success. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/README.md` | The repo already has proven Databricks deployment and app surfaces but does not yet present marketplace-preparation collateral. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/docs/README.md` | `docs/` is the right home for explanatory commercialization and submission-prep material. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/assets/README.md` | `assets/` is the correct home for auditable collateral and brand files, including any marketplace-specific asset inventory. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/app/README.md` | The App is a read-only Premium-workspace surface, which matters for marketplace positioning and paid-workspace prerequisites. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/progress.json` | Current repo state already records `bundle_validate`, `bundle_deploy`, `benchmark_job_run`, and `bundle_destroy` as passed. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/progress.txt` | Historical phase notes show Phase 3 proof already included catalog check, bundle validate, deploy, run, and destroy evidence. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/report/2026-04-02T07-36-36Z-bundle-proof-reconciliation.md` | The bundle-validation blocker from earlier work is closed for the `e62-trial` proof path, and validation alone does not prove catalog existence. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/report/2026-04-02T23-23-notion-sync-record.md` | Phase 5 is still `Not Started`, there are no marketplace artifacts in the repo, and no sprint is currently marked `Current`. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/report/2026-04-03T01-05-notion-sync-record.md` | The latest sync still shows no current sprint and Phase 5 unchanged, but its local “bundle validation not attempted” note is stale relative to repo proof artifacts. |
+| `${VSCODE_USER_PROMPTS_FOLDER}/Enhance Prompt workflow.prompt.md` | Enhanced prompts must be grounded, self-contained, phased, imperative, and include explicit verification, guardrails, and state tracking for complex tasks. |
+| `${REPO_ROOT}/AGENTS.md` | Follow `Plan -> Act -> Verify -> Report`, read governing docs first, preserve evidence traceability, and run required quality checks when relevant. |
+| `${REPO_ROOT}/CLAUDE.md` | `specs/` is canonical, bundle validation is a core workflow command, Notion is an external coordination surface, and Phase 5 follows the Databricks App milestone. |
+| `${REPO_ROOT}/CONSTITUTION.md` | Safety, evidence traceability, secret hygiene, proportionality, and validation-before-commercialization govern Phase 5 decisions. |
+| `${REPO_ROOT}/DIRECTIVES.md` | PASS claims require evidence, append-only reports must be preserved, and Notion sync must stay truthful. |
+| `${REPO_ROOT}/.github/instructions/codacy.instructions.md` | Repo instructions apply when edits occur, but unavailable Codacy MCP tooling must not be fabricated. |
+| `${REPO_ROOT}/specs/DS-IP-001_Implementation_Plan.md` | Phase 5 requires provider-profile and listing-material preparation, with the exit criterion “distribution channels in place without changing the product core.” |
+| `${REPO_ROOT}/specs/DS-PRD-001_Product_Requirements_Document.md` | Marketplace provider operations are not a release blocker for Version 1, and commercialization claims still require repository-backed evidence. |
+| `${REPO_ROOT}/specs/DS-SRS-001_Software_Requirements_Specification.md` | Marketplace provider operations require a paid workspace with Unity Catalog, and missing evidence must force blocked status rather than implied completion. |
+| `${REPO_ROOT}/specs/DS-BI-001_Build_Instructions.md` | The canonical bundle proof path is catalog check plus bundle validate, with validation alone insufficient to prove catalog existence or deployment success. |
+| `${REPO_ROOT}/README.md` | The repo already has proven Databricks deployment and app surfaces but does not yet present marketplace-preparation collateral. |
+| `${REPO_ROOT}/docs/README.md` | `docs/` is the right home for explanatory commercialization and submission-prep material. |
+| `${REPO_ROOT}/assets/README.md` | `assets/` is the correct home for auditable collateral and brand files, including any marketplace-specific asset inventory. |
+| `${REPO_ROOT}/app/README.md` | The App is a read-only Premium-workspace surface, which matters for marketplace positioning and paid-workspace prerequisites. |
+| `${REPO_ROOT}/progress.json` | Current repo state already records `bundle_validate`, `bundle_deploy`, `benchmark_job_run`, and `bundle_destroy` as passed. |
+| `${REPO_ROOT}/progress.txt` | Historical phase notes show Phase 3 proof already included catalog check, bundle validate, deploy, run, and destroy evidence. |
+| `${REPO_ROOT}/report/2026-04-02T07-36-36Z-bundle-proof-reconciliation.md` | The bundle-validation blocker from earlier work is closed for the `e62-trial` proof path, and validation alone does not prove catalog existence. |
+| `${REPO_ROOT}/report/2026-04-02T23-23-notion-sync-record.md` | Phase 5 is still `Not Started`, there are no marketplace artifacts in the repo, and no sprint is currently marked `Current`. |
+| `${REPO_ROOT}/report/2026-04-03T01-05-notion-sync-record.md` | The latest sync still shows no current sprint and Phase 5 unchanged, but its local “bundle validation not attempted” note is stale relative to repo proof artifacts. |
 
 ## Mission Statement
 
@@ -92,7 +93,7 @@ Create a fully featured but scope-bounded Phase 5 preparation packet. Handle mis
 1. **Verify the core Phase 5 input set exists before you start.**
 
    ```bash
-   cd "/Users/etherealogic-2/Dev/Databricks/DriftSentinel" && test -f specs/DS-IP-001_Implementation_Plan.md && test -f specs/DS-PRD-001_Product_Requirements_Document.md && test -f specs/DS-SRS-001_Software_Requirements_Specification.md && test -f specs/DS-BI-001_Build_Instructions.md && test -f progress.json && test -f progress.txt && echo "phase5 inputs present"
+   cd "$(git rev-parse --show-toplevel)" && test -f specs/DS-IP-001_Implementation_Plan.md && test -f specs/DS-PRD-001_Product_Requirements_Document.md && test -f specs/DS-SRS-001_Software_Requirements_Specification.md && test -f specs/DS-BI-001_Build_Instructions.md && test -f progress.json && test -f progress.txt && echo "phase5 inputs present"
    ```
 
    Expected: `phase5 inputs present`.
@@ -102,7 +103,7 @@ Create a fully featured but scope-bounded Phase 5 preparation packet. Handle mis
 2. **Verify the current repo still records bundle proof before treating it as blocked.**
 
    ```bash
-   cd "/Users/etherealogic-2/Dev/Databricks/DriftSentinel" && rg -n '"bundle_validate": "passed"|bundle-validate: PASS|Deployment complete!|TERMINATED SUCCESS' progress.json progress.txt report/2026-04-02T07-36-36Z-bundle-proof-reconciliation.md
+   cd "$(git rev-parse --show-toplevel)" && rg -n '"bundle_validate": "passed"|bundle-validate: PASS|Deployment complete!|TERMINATED SUCCESS' progress.json progress.txt report/2026-04-02T07-36-36Z-bundle-proof-reconciliation.md
    ```
 
    Expected: matches in all three files.
@@ -112,7 +113,7 @@ Create a fully featured but scope-bounded Phase 5 preparation packet. Handle mis
 3. **Verify the sprint gap and current Phase 5 status from the latest sync evidence.**
 
    ```bash
-   cd "/Users/etherealogic-2/Dev/Databricks/DriftSentinel" && rg -n 'Phase 5: Marketplace Distribution|No sprint currently marked "Current"' report/2026-04-02T23-23-notion-sync-record.md report/2026-04-03T01-05-notion-sync-record.md
+   cd "$(git rev-parse --show-toplevel)" && rg -n 'Phase 5: Marketplace Distribution|No sprint currently marked "Current"' report/2026-04-02T23-23-notion-sync-record.md report/2026-04-03T01-05-notion-sync-record.md
    ```
 
    Expected: matches showing Phase 5 `Not Started` and no current sprint.
@@ -122,7 +123,7 @@ Create a fully featured but scope-bounded Phase 5 preparation packet. Handle mis
 4. **Verify there is no existing marketplace-preparation packet in the repo.**
 
    ```bash
-   cd "/Users/etherealogic-2/Dev/Databricks/DriftSentinel" && find docs assets -maxdepth 3 \( -iname '*marketplace*' -o -path '*/marketplace/*' \) | sort
+   cd "$(git rev-parse --show-toplevel)" && find docs assets -maxdepth 3 \( -iname '*marketplace*' -o -path '*/marketplace/*' \) | sort
    ```
 
    Expected: either no output or only legacy/non-authoritative paths that do not already satisfy Phase 5.
@@ -149,7 +150,7 @@ Create a fully featured but scope-bounded Phase 5 preparation packet. Handle mis
 
 3. **Activate Phase 5 in the in-repo state trackers before creating artifacts.**
 
-   Update `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/progress.json` and `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/progress.txt` to represent `Phase 5 - Marketplace Distribution`, with explicit checklist entries for: source-state reconciliation, provider-profile draft, listing-material draft, asset inventory, README discovery update, sprint coordination, external mutation status, and verification.
+   Update `${REPO_ROOT}/progress.json` and `${REPO_ROOT}/progress.txt` to represent `Phase 5 - Marketplace Distribution`, with explicit checklist entries for: source-state reconciliation, provider-profile draft, listing-material draft, asset inventory, README discovery update, sprint coordination, external mutation status, and verification.
 
    *Success: the progress files name Phase 5 directly and separate completed repo work from blocked external actions.*
 
@@ -163,7 +164,7 @@ Create a fully featured but scope-bounded Phase 5 preparation packet. Handle mis
 
 5. **Create one canonical marketplace-preparation document under `docs/`.**
 
-   Create `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/docs/marketplace_distribution.md` with these sections:
+   Create `${REPO_ROOT}/docs/marketplace_distribution.md` with these sections:
 
    - `## Phase 5 Scope`
    - `## Provider Profile Draft`
@@ -182,7 +183,7 @@ Create a fully featured but scope-bounded Phase 5 preparation packet. Handle mis
 
 6. **Create a marketplace asset manifest under `assets/`.**
 
-   Create `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/assets/driftsentinel-brand-system/marketplace/README.md` that lists reusable brand assets, app screenshots or evidence visuals already available in-repo, missing assets that still need capture, and the exact source path for each asset or evidence image you reference.
+   Create `${REPO_ROOT}/assets/driftsentinel-brand-system/marketplace/README.md` that lists reusable brand assets, app screenshots or evidence visuals already available in-repo, missing assets that still need capture, and the exact source path for each asset or evidence image you reference.
 
    *Success: the asset manifest distinguishes `available now` from `missing` and every referenced asset maps to an existing repo path.*
 
@@ -190,13 +191,13 @@ Create a fully featured but scope-bounded Phase 5 preparation packet. Handle mis
 
 7. **Update the root README with a minimal marketplace-preparation section.**
 
-   Add a concise section to `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/README.md` that explains the current commercialization state, links to `docs/marketplace_distribution.md`, and clarifies that marketplace preparation does not change the product core or supersede the existing GitHub and bundle deployment path.
+   Add a concise section to `${REPO_ROOT}/README.md` that explains the current commercialization state, links to `docs/marketplace_distribution.md`, and clarifies that marketplace preparation does not change the product core or supersede the existing GitHub and bundle deployment path.
 
    *Success: the README improves discoverability without overstating marketplace readiness.*
 
 8. **Create an append-only evidence artifact for the Phase 5 packet.**
 
-   Write a new timestamped report at `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/report/YYYY-MM-DDTHH-MM-SS-phase5-marketplace-prep.md` that records: current branch and commit, the reconciled blocker status, the files created or updated for Phase 5, any external mutations attempted, and which completion claims remain blocked by operator input or external permissions.
+   Write a new timestamped report at `${REPO_ROOT}/report/YYYY-MM-DDTHH-MM-SS-phase5-marketplace-prep.md` that records: current branch and commit, the reconciled blocker status, the files created or updated for Phase 5, any external mutations attempted, and which completion claims remain blocked by operator input or external permissions.
 
    *Success: there is a replayable evidence artifact describing exactly what Phase 5 preparation accomplished in this session.*
 
@@ -235,19 +236,19 @@ Create a fully featured but scope-bounded Phase 5 preparation packet. Handle mis
    At minimum run:
 
    ```bash
-   cd "/Users/etherealogic-2/Dev/Databricks/DriftSentinel" && uv run python -m json.tool progress.json >/dev/null
+   cd "$(git rev-parse --show-toplevel)" && uv run python -m json.tool progress.json >/dev/null
    ```
 
    ```bash
-   cd "/Users/etherealogic-2/Dev/Databricks/DriftSentinel" && test -f docs/marketplace_distribution.md && rg -n '^## Phase 5 Scope|^## Provider Profile Draft|^## Listing Material Draft|^## Submission Checklist|^## Evidence References' docs/marketplace_distribution.md
+   cd "$(git rev-parse --show-toplevel)" && test -f docs/marketplace_distribution.md && rg -n '^## Phase 5 Scope|^## Provider Profile Draft|^## Listing Material Draft|^## Submission Checklist|^## Evidence References' docs/marketplace_distribution.md
    ```
 
    ```bash
-   cd "/Users/etherealogic-2/Dev/Databricks/DriftSentinel" && test -f assets/driftsentinel-brand-system/marketplace/README.md && rg -n '^## Available Assets|^## Missing Assets|^## Source Paths' assets/driftsentinel-brand-system/marketplace/README.md
+   cd "$(git rev-parse --show-toplevel)" && test -f assets/driftsentinel-brand-system/marketplace/README.md && rg -n '^## Available Assets|^## Missing Assets|^## Source Paths' assets/driftsentinel-brand-system/marketplace/README.md
    ```
 
    ```bash
-   cd "/Users/etherealogic-2/Dev/Databricks/DriftSentinel" && rg -n 'Marketplace|marketplace_distribution.md' README.md
+   cd "$(git rev-parse --show-toplevel)" && rg -n 'Marketplace|marketplace_distribution.md' README.md
    ```
 
    *Success: structured files validate, required sections exist, and README links the new collateral.*
@@ -255,7 +256,7 @@ Create a fully featured but scope-bounded Phase 5 preparation packet. Handle mis
 14. **Run the canonical placeholder scan because docs changed.**
 
    ```bash
-   cd "/Users/etherealogic-2/Dev/Databricks/DriftSentinel" && PATTERN='TO''DO|FIX''ME|TB''D|PLACE''HOLDER'; rg -n "$PATTERN" specs .claude CLAUDE.md docs
+   cd "$(git rev-parse --show-toplevel)" && PATTERN='TO''DO|FIX''ME|TB''D|PLACE''HOLDER'; rg -n "$PATTERN" specs .claude CLAUDE.md docs
    ```
 
    *Success: the command returns no matches.*

@@ -8,22 +8,23 @@ Justification: This task spans existing deployment docs, bundle configuration, p
 **Model:** claude-sonnet-4-20250514
 **Model Rationale:** The task requires multi-surface investigation, authenticated CLI diagnosis, evidence capture, and disciplined scope control, but not a large multi-file implementation.
 **Assumption:** The immediate goal is to resolve the Databricks CLI authentication blocker and produce evidence-backed bundle validation status before starting Phase 4 Databricks App UI work.
+**Path Placeholders:** Resolve `${REPO_ROOT}` to the current DriftSentinel checkout before using referenced repository paths; command snippets use `git rev-parse --show-toplevel` where they need the active checkout.
 
 ## Inputs Consulted
 
 | Source | Key Takeaways |
 | --- | --- |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/AGENTS.md` | Follow Plan -> Act -> Verify -> Report, read governing docs first, and treat bundle validation as a required check when bundle surfaces exist. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/CLAUDE.md` | `make bundle-validate` is part of the core workflow and Phase 4 is the next implementation milestone after Phase 3. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/CONSTITUTION.md` | Completion claims require evidence, secrets must remain outside repository content, and missing evidence blocks completion claims. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/DIRECTIVES.md` | Specs are canonical, PASS claims must be evidence-backed, and report surfaces must remain truthful about unverified checks. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/specs/DS-IP-001_Implementation_Plan.md` | Phase 4 is the Databricks App milestone and delivery rules explicitly forbid skipping evidence and verification gates. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/specs/DS-BI-001_Build_Instructions.md` | Bundle validation must run with authenticated Databricks CLI and an explicit existing Unity Catalog catalog via `--target dev --var="catalog=..."`. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/docs/deployment_guide.md` | The recommended deploy path is bundle validate -> deploy -> run, all parameterized by catalog and optional schema. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/databricks.yml` | The bundle includes `resources/*.yml`, defines `catalog` and `schema` variables, and exposes `dev` and `prod` targets. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/progress.json` | Phase 3 currently marks `bundle_validate` as `unverified` while lint, typecheck, tests, placeholder scan, and Snyk passed. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/progress.txt` | The unresolved Databricks auth blocker has carried across prior phases and now affects confidence in bundle-facing notebook and resource changes. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/Makefile` | `make bundle-validate` currently runs bare `databricks bundle validate`, which is less specific than the documented target-and-catalog flow. |
+| `${REPO_ROOT}/AGENTS.md` | Follow Plan -> Act -> Verify -> Report, read governing docs first, and treat bundle validation as a required check when bundle surfaces exist. |
+| `${REPO_ROOT}/CLAUDE.md` | `make bundle-validate` is part of the core workflow and Phase 4 is the next implementation milestone after Phase 3. |
+| `${REPO_ROOT}/CONSTITUTION.md` | Completion claims require evidence, secrets must remain outside repository content, and missing evidence blocks completion claims. |
+| `${REPO_ROOT}/DIRECTIVES.md` | Specs are canonical, PASS claims must be evidence-backed, and report surfaces must remain truthful about unverified checks. |
+| `${REPO_ROOT}/specs/DS-IP-001_Implementation_Plan.md` | Phase 4 is the Databricks App milestone and delivery rules explicitly forbid skipping evidence and verification gates. |
+| `${REPO_ROOT}/specs/DS-BI-001_Build_Instructions.md` | Bundle validation must run with authenticated Databricks CLI and an explicit existing Unity Catalog catalog via `--target dev --var="catalog=..."`. |
+| `${REPO_ROOT}/docs/deployment_guide.md` | The recommended deploy path is bundle validate -> deploy -> run, all parameterized by catalog and optional schema. |
+| `${REPO_ROOT}/databricks.yml` | The bundle includes `resources/*.yml`, defines `catalog` and `schema` variables, and exposes `dev` and `prod` targets. |
+| `${REPO_ROOT}/progress.json` | Phase 3 currently marks `bundle_validate` as `unverified` while lint, typecheck, tests, placeholder scan, and Snyk passed. |
+| `${REPO_ROOT}/progress.txt` | The unresolved Databricks auth blocker has carried across prior phases and now affects confidence in bundle-facing notebook and resource changes. |
+| `${REPO_ROOT}/Makefile` | `make bundle-validate` currently runs bare `databricks bundle validate`, which is less specific than the documented target-and-catalog flow. |
 
 ## Mission Statement
 
@@ -81,7 +82,7 @@ This task is a troubleshooting and verification milestone, not a product impleme
 1. **Confirm the workspace root and required files exist.**
 
    ```bash
-   cd /Users/etherealogic-2/Dev/Databricks/DriftSentinel && test -f databricks.yml && test -f specs/DS-BI-001_Build_Instructions.md && test -f progress.json && echo "OK: bundle surfaces present"
+   cd "$(git rev-parse --show-toplevel)" && test -f databricks.yml && test -f specs/DS-BI-001_Build_Instructions.md && test -f progress.json && echo "OK: bundle surfaces present"
    ```
 
    *Success: The command prints `OK: bundle surfaces present`.*
@@ -89,7 +90,7 @@ This task is a troubleshooting and verification milestone, not a product impleme
 2. **Confirm the Databricks CLI is installed and reachable.**
 
    ```bash
-   cd /Users/etherealogic-2/Dev/Databricks/DriftSentinel && databricks --version
+   cd "$(git rev-parse --show-toplevel)" && databricks --version
    ```
 
    *Success: The command prints a Databricks CLI version string.*
@@ -97,7 +98,7 @@ This task is a troubleshooting and verification milestone, not a product impleme
 3. **Inspect current Databricks environment variables without printing secrets.**
 
    ```bash
-   cd /Users/etherealogic-2/Dev/Databricks/DriftSentinel && env | rg '^DATABRICKS_' | sed -E 's/(TOKEN|CLIENT_SECRET|PASSWORD)=.*/\1=REDACTED/'
+   cd "$(git rev-parse --show-toplevel)" && env | rg '^DATABRICKS_' | sed -E 's/(TOKEN|CLIENT_SECRET|PASSWORD)=.*/\1=REDACTED/'
    ```
 
    *Success: The command returns either a sanitized variable list or no output.*
@@ -105,7 +106,7 @@ This task is a troubleshooting and verification milestone, not a product impleme
 4. **Determine available authentication contexts.**
 
    ```bash
-   cd /Users/etherealogic-2/Dev/Databricks/DriftSentinel && databricks auth profiles
+   cd "$(git rev-parse --show-toplevel)" && databricks auth profiles
    ```
 
    *Success: The command lists zero or more profiles without exposing secret values.*
@@ -116,13 +117,13 @@ This task is a troubleshooting and verification milestone, not a product impleme
 
 1. **Read the current progress state before changing anything.**
 
-   Review `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/progress.json` and `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/progress.txt` to confirm the current `bundle_validate` status and any prior explanation.
+   Review `${REPO_ROOT}/progress.json` and `${REPO_ROOT}/progress.txt` to confirm the current `bundle_validate` status and any prior explanation.
 
    *Success: You can quote the current status and the last recorded reason for the gap.*
 
 2. **Inspect the bundle contract and documented validation path.**
 
-   Read `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/databricks.yml`, `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/specs/DS-BI-001_Build_Instructions.md`, and `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/docs/deployment_guide.md`.
+   Read `${REPO_ROOT}/databricks.yml`, `${REPO_ROOT}/specs/DS-BI-001_Build_Instructions.md`, and `${REPO_ROOT}/docs/deployment_guide.md`.
 
    *Success: You can state the required target, required variable, and supported authentication mechanisms.*
 
@@ -131,7 +132,7 @@ This task is a troubleshooting and verification milestone, not a product impleme
    Run the pre-flight commands plus the strongest non-destructive auth diagnostic supported by the installed CLI, such as:
 
    ```bash
-   cd /Users/etherealogic-2/Dev/Databricks/DriftSentinel && databricks auth env
+   cd "$(git rev-parse --show-toplevel)" && databricks auth env
    ```
 
    If `databricks auth env` is unavailable in the installed version, use the closest non-destructive auth inspection command provided by the CLI help output.
@@ -155,13 +156,13 @@ This task is a troubleshooting and verification milestone, not a product impleme
    Use the documented command shape. Prefer the profile-qualified form when a profile is available:
 
    ```bash
-   cd /Users/etherealogic-2/Dev/Databricks/DriftSentinel && DATABRICKS_CONFIG_PROFILE=<profile> databricks bundle validate --target dev --var="catalog=<existing_uc_catalog>"
+   cd "$(git rev-parse --show-toplevel)" && DATABRICKS_CONFIG_PROFILE=<profile> databricks bundle validate --target dev --var="catalog=<existing_uc_catalog>"
    ```
 
    If environment-variable auth is active instead of a profile, omit `DATABRICKS_CONFIG_PROFILE` and use:
 
    ```bash
-   cd /Users/etherealogic-2/Dev/Databricks/DriftSentinel && databricks bundle validate --target dev --var="catalog=<existing_uc_catalog>"
+   cd "$(git rev-parse --show-toplevel)" && databricks bundle validate --target dev --var="catalog=<existing_uc_catalog>"
    ```
 
    Replace `<profile>` and `<existing_uc_catalog>` with real values discovered in Phase 1.
@@ -203,13 +204,13 @@ This task is a troubleshooting and verification milestone, not a product impleme
 
 9. **Update progress tracking to reflect measured reality.**
 
-   If validation passes, update `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/progress.json` so `bundle_validate` becomes `passed` and add a validation record with the exact command and outcome. If validation still fails, keep `bundle_validate` as `unverified` or change it to a clearer blocked state only if that state already exists in the project's progress vocabulary. Update `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/progress.txt` with a concise factual note.
+   If validation passes, update `${REPO_ROOT}/progress.json` so `bundle_validate` becomes `passed` and add a validation record with the exact command and outcome. If validation still fails, keep `bundle_validate` as `unverified` or change it to a clearer blocked state only if that state already exists in the project's progress vocabulary. Update `${REPO_ROOT}/progress.txt` with a concise factual note.
 
    *Success: Progress surfaces match the actual validation result and no claim exceeds the evidence.*
 
    **Rationale:** The standing problem is an evidence gap, so the fix is incomplete until the status surfaces reflect the measured outcome.
 
-10. **Create or append an evidence artifact under `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/report/`.**
+10. **Create or append an evidence artifact under `${REPO_ROOT}/report/`.**
 
    Record the date, command executed, auth method used at a high level, catalog value used, sanitized output summary, and final conclusion. Preserve append-only behavior; do not overwrite existing report files.
 
@@ -217,7 +218,7 @@ This task is a troubleshooting and verification milestone, not a product impleme
 
 11. **Update documentation only if the evidence shows documentation drift.**
 
-   If the validation succeeds only after using a command shape or prerequisite that the current docs do not state, update the minimal relevant documentation surface, most likely `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/specs/DS-BI-001_Build_Instructions.md`, `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/docs/deployment_guide.md`, or `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/README.md`.
+   If the validation succeeds only after using a command shape or prerequisite that the current docs do not state, update the minimal relevant documentation surface, most likely `${REPO_ROOT}/specs/DS-BI-001_Build_Instructions.md`, `${REPO_ROOT}/docs/deployment_guide.md`, or `${REPO_ROOT}/README.md`.
 
    *Success: Documentation changes, if any, are narrow, evidence-backed, and limited to operator guidance.*
 
@@ -234,13 +235,13 @@ This task is a troubleshooting and verification milestone, not a product impleme
    If you modify canonical docs or bundle-facing repo guidance, run:
 
    ```bash
-   cd /Users/etherealogic-2/Dev/Databricks/DriftSentinel && PATTERN='TO''DO|FIX''ME|TB''D|PLACE''HOLDER'; rg -n "$PATTERN" specs .claude CLAUDE.md docs
+   cd "$(git rev-parse --show-toplevel)" && PATTERN='TO''DO|FIX''ME|TB''D|PLACE''HOLDER'; rg -n "$PATTERN" specs .claude CLAUDE.md docs
    ```
 
    If you modify executable bundle surfaces, also run:
 
    ```bash
-   cd /Users/etherealogic-2/Dev/Databricks/DriftSentinel && uv run pytest tests/test_governance_guards.py -q
+   cd "$(git rev-parse --show-toplevel)" && uv run pytest tests/test_governance_guards.py -q
    ```
 
    *Success: The relevant follow-on checks pass or any failure is recorded with evidence.*
@@ -263,7 +264,7 @@ This task is a troubleshooting and verification milestone, not a product impleme
 - Do not print secrets, tokens, client secrets, or raw credentials into the terminal transcript, repository files, or report artifacts.
 - Do not modify `src/driftsentinel/` or notebook logic unless the validation evidence proves a real bundle defect in those surfaces and the defect is required to complete this task.
 - Do not start Phase 4 implementation work in this prompt.
-- Do not overwrite files under `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/report/`; preserve append-only evidence handling.
+- Do not overwrite files under `${REPO_ROOT}/report/`; preserve append-only evidence handling.
 - Keep remediation proportional. Prefer environment correction, evidence capture, and narrow guidance fixes over speculative product changes.
 </guardrails>
 
@@ -275,7 +276,7 @@ This task is a troubleshooting and verification milestone, not a product impleme
 - [ ] `databricks bundle validate --target dev --var="catalog=..."` was executed against a real workspace
 - [ ] The result was classified as pass or a concrete blocker with replayable evidence
 - [ ] `progress.json` and `progress.txt` were updated if their recorded status changed or needed clarification
-- [ ] An append-only evidence artifact was created or updated under `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/report/`
+- [ ] An append-only evidence artifact was created or updated under `${REPO_ROOT}/report/`
 - [ ] Any documentation change was minimal and evidence-backed
 - [ ] The final report states whether Phase 4 is blocked, partially resolved, or unblocked
 

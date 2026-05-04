@@ -6,31 +6,32 @@
 **Complexity Classification:** Complex — this task spans bundle configuration, seven Databricks notebook entry points, deployment documentation, benchmark-policy normalization, and repo-level verification against local plus workspace-facing acceptance criteria.
 **Model Recommendation:** `claude-opus-4-20250514` — use the high-capability tier because the work combines multi-file implementation, Databricks bundle semantics, notebook activation, and evidence-safe validation.
 **Assumption:** Interpret “repo deploys into a clean Databricks workspace from GitHub” as a minimal but real GitHub-backed Phase 2 path: the repository can be validated and deployed with Declarative Automation Bundles, the deployed jobs/pipeline reference workspace assets rather than bundle `git_source`, and the notebooks can install or resolve the `driftsentinel` package from GitHub-origin code without relying on local sibling repositories.
+**Path Placeholders:** Resolve `${REPO_ROOT}` to the current DriftSentinel checkout before using referenced repository paths; command snippets use `git rev-parse --show-toplevel` to avoid machine-specific checkout locations.
 
 ## Inputs Consulted
 
 | Source | Key Takeaways |
 |--------|---------------|
-| Source prompt | Phase 2 is the only not-started item and has four explicit deliverables: operational `databricks.yml` plus `resources/*.yml`, operational notebooks, GitHub-to-Databricks deployment docs, and a clean-workspace deployment exit criterion. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/AGENTS.md` | Use `Plan -> Act -> Verify -> Report`, preserve evidence traceability, keep changes minimal, and run the required local checks truthfully. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/CLAUDE.md` | `specs/` is canonical, `src/driftsentinel/` already contains first-party product code, and the standard commands are `make lint`, `make typecheck`, `make test`, and `make bundle-validate`. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/CONSTITUTION.md` | Safety, evidence traceability, security hygiene, simplicity, and reproducibility control all decisions, and packaging work is explicitly in scope. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/DIRECTIVES.md` | Specs are canonical, quality-control surfaces must remain wired, and no claim can outrun evidence. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/.github/instructions/codacy.instructions.md` | Codacy analysis should follow edits when the tool surface exists, but unavailable MCP tooling must be reported instead of fabricated. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/README.md` | Phase 0/1 intentionally left bundle resources and notebooks as scaffolds, and Phase 2 is the point where runnable Databricks workflows arrive. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/specs/DS-IP-001_Implementation_Plan.md` | Phase 2 requires bundle resources, notebooks, GitHub-to-Databricks install paths, and a clean-workspace deployment exit criterion. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/specs/DS-SRS-001_Software_Requirements_Specification.md` | Bundle deployment, manual import, notebook execution, deterministic demo behavior, and truthful external interfaces are required product behaviors. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/specs/DS-SDD-001_Architecture_Blueprint.md` | The control flow is already defined: register dataset, seed baseline, run intake, run drift gate, run benchmark, write evidence, review evidence. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/specs/DS-TM-001_Traceability_Matrix.md` | Phase 2 traces directly to `databricks.yml`, `resources/`, `notebooks/`, `templates/`, config loaders, and workspace validation. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/specs/DS-TP-001_Test_Plan.md` | Integration tests for bundle resources and notebook orchestration are required, not optional follow-up work. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/databricks.yml` | The bundle currently only names `resources/*.yml`, `catalog`, and `schema`; it is structurally valid but operationally incomplete. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/resources/intake_pipeline.yml`, `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/resources/drift_gate_job.yml`, `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/resources/benchmark_job.yml` | All three resource files are comment-only stubs with no deployable Databricks resources defined. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/notebooks/00_quickstart_setup.py` through `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/notebooks/06_review_evidence.py` | All seven notebooks still raise the same explicit DS-IP-001 Phase 2 runtime error and need real package-backed execution. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/src/driftsentinel/orchestration/runner.py` | Drift demo thresholds are still embedded inline, which is acceptable for Phase 1 local execution but not sufficient for notebook-driven Databricks packaging. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/src/driftsentinel/benchmark/orchestrator.py` | Benchmark execution still falls back to `_DEFAULT_GATES`, which conflicts with the intent to source policy from `templates/`. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/src/driftsentinel/config/loader.py` | Benchmark policy loading validates the presence of `gates` but does not normalize the template into the gate schema expected by the evaluator. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/templates/benchmark_policy.yml` | The benchmark template exposes high-level gate keys such as `min_recall` and `max_false_positive_rate`, not the explicit gate-dict structure used by the evaluator. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/pyproject.toml` | The project is a real Python package with `hatchling`, `src/driftsentinel`, and an optional `databricks` dependency group, so GitHub-backed package installation is feasible. |
+| Source prompt | Phase 2 follows the Phase 1 consolidation milestone and has four explicit deliverables: operational `databricks.yml` plus `resources/*.yml`, operational notebooks, GitHub-to-Databricks deployment docs, and a clean-workspace deployment exit criterion. |
+| `${REPO_ROOT}/AGENTS.md` | Use `Plan -> Act -> Verify -> Report`, preserve evidence traceability, keep changes minimal, and run the required local checks truthfully. |
+| `${REPO_ROOT}/CLAUDE.md` | `specs/` is canonical, `src/driftsentinel/` already contains first-party product code, and the standard commands are `make lint`, `make typecheck`, `make test`, and `make bundle-validate`. |
+| `${REPO_ROOT}/CONSTITUTION.md` | Safety, evidence traceability, security hygiene, simplicity, and reproducibility control all decisions, and packaging work is explicitly in scope. |
+| `${REPO_ROOT}/DIRECTIVES.md` | Specs are canonical, quality-control surfaces must remain wired, and no claim can outrun evidence. |
+| `${REPO_ROOT}/.github/instructions/codacy.instructions.md` | Codacy analysis should follow edits when the tool surface exists, but unavailable MCP tooling must be reported instead of fabricated. |
+| `${REPO_ROOT}/README.md` | Phase 0/1 intentionally left bundle resources and notebooks as scaffolds, and Phase 2 is the point where runnable Databricks workflows arrive. |
+| `${REPO_ROOT}/specs/DS-IP-001_Implementation_Plan.md` | Phase 2 requires bundle resources, notebooks, GitHub-to-Databricks install paths, and a clean-workspace deployment exit criterion. |
+| `${REPO_ROOT}/specs/DS-SRS-001_Software_Requirements_Specification.md` | Bundle deployment, manual import, notebook execution, deterministic demo behavior, and truthful external interfaces are required product behaviors. |
+| `${REPO_ROOT}/specs/DS-SDD-001_Architecture_Blueprint.md` | The control flow is already defined: register dataset, seed baseline, run intake, run drift gate, run benchmark, write evidence, review evidence. |
+| `${REPO_ROOT}/specs/DS-TM-001_Traceability_Matrix.md` | Phase 2 traces directly to `databricks.yml`, `resources/`, `notebooks/`, `templates/`, config loaders, and workspace validation. |
+| `${REPO_ROOT}/specs/DS-TP-001_Test_Plan.md` | Integration tests for bundle resources and notebook orchestration are required, not optional follow-up work. |
+| `${REPO_ROOT}/databricks.yml` | The bundle currently only names `resources/*.yml`, `catalog`, and `schema`; it is structurally valid but operationally incomplete. |
+| `${REPO_ROOT}/resources/intake_pipeline.yml`, `${REPO_ROOT}/resources/drift_gate_job.yml`, `${REPO_ROOT}/resources/benchmark_job.yml` | All three resource files are comment-only stubs with no deployable Databricks resources defined. |
+| `${REPO_ROOT}/notebooks/00_quickstart_setup.py` through `${REPO_ROOT}/notebooks/06_review_evidence.py` | All seven notebooks still raise the same explicit DS-IP-001 Phase 2 runtime error and need real package-backed execution. |
+| `${REPO_ROOT}/src/driftsentinel/orchestration/runner.py` | Drift demo thresholds are still embedded inline, which is acceptable for Phase 1 local execution but not sufficient for notebook-driven Databricks packaging. |
+| `${REPO_ROOT}/src/driftsentinel/benchmark/orchestrator.py` | Benchmark execution still falls back to `_DEFAULT_GATES`, which conflicts with the intent to source policy from `templates/`. |
+| `${REPO_ROOT}/src/driftsentinel/config/loader.py` | Benchmark policy loading validates the presence of `gates` but does not normalize the template into the gate schema expected by the evaluator. |
+| `${REPO_ROOT}/templates/benchmark_policy.yml` | The benchmark template exposes high-level gate keys such as `min_recall` and `max_false_positive_rate`, not the explicit gate-dict structure used by the evaluator. |
+| `${REPO_ROOT}/pyproject.toml` | The project is a real Python package with `hatchling`, `src/driftsentinel`, and an optional `databricks` dependency group, so GitHub-backed package installation is feasible. |
 | `https://docs.databricks.com/aws/en/dev-tools/bundles/index.html` | Bundles are validated, deployed, and run through the Databricks CLI; workspace files must be enabled; bundle work should stay source-controlled and reproducible. |
 | `https://docs.databricks.com/aws/en/dev-tools/bundles/resources.html` | Jobs and pipelines are first-class bundle resources; `databricks bundle validate` warns on unknown properties; jobs can point to notebook tasks and pipelines can point to workspace notebooks. |
 | `https://docs.databricks.com/aws/en/dev-tools/bundles/job-task-types.html` | Bundle job `git_source` and task `source: GIT` are not recommended; workspace-backed notebook tasks are the preferred bundle path, and notebook paths are relative to the resource file when source is workspace-managed by the bundle. |
@@ -105,7 +106,7 @@ Databricks bundle guidance matters here: use workspace-backed bundle assets for 
 1. **Confirm the local baseline is green before editing.**
 
    ```bash
-   cd "/Users/etherealogic-2/Dev/Databricks/DriftSentinel" && make test
+   cd "$(git rev-parse --show-toplevel)" && make test
    ```
 
    Expected: command exits with status `0`.
@@ -113,7 +114,7 @@ Databricks bundle guidance matters here: use workspace-backed bundle assets for 
 2. **Confirm the current Phase 2 scaffolds are still present.**
 
    ```bash
-   cd "/Users/etherealogic-2/Dev/Databricks/DriftSentinel" && rg -n "DS-IP-001 Phase 2|Current status|_DEFAULT_GATES|benchmark_policy:" notebooks resources src/driftsentinel docs/deployment_guide.md templates/benchmark_policy.yml
+   cd "$(git rev-parse --show-toplevel)" && rg -n "DS-IP-001 Phase 2|Current status|_DEFAULT_GATES|benchmark_policy:" notebooks resources src/driftsentinel docs/deployment_guide.md templates/benchmark_policy.yml
    ```
 
    Expected: matches in all seven notebooks, all three resource files, `src/driftsentinel/benchmark/orchestrator.py`, and `templates/benchmark_policy.yml`.
@@ -129,7 +130,7 @@ Databricks bundle guidance matters here: use workspace-backed bundle assets for 
 4. **Confirm the progress files exist and can be reused for Phase 2 state tracking.**
 
    ```bash
-   cd "/Users/etherealogic-2/Dev/Databricks/DriftSentinel" && test -f progress.json && test -f progress.txt && echo "progress files present"
+   cd "$(git rev-parse --show-toplevel)" && test -f progress.json && test -f progress.txt && echo "progress files present"
    ```
 
    Expected: `progress files present`.
@@ -148,13 +149,13 @@ Databricks bundle guidance matters here: use workspace-backed bundle assets for 
 
 2. **Read the exact edit surface in parallel before the first substantive edit.**
 
-   Read `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/databricks.yml`, all three files under `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/resources/`, all seven files under `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/notebooks/`, `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/docs/deployment_guide.md`, `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/src/driftsentinel/config/loader.py`, `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/src/driftsentinel/benchmark/orchestrator.py`, `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/src/driftsentinel/orchestration/runner.py`, and the packaging-related tests you will extend or create.
+   Read `${REPO_ROOT}/databricks.yml`, all three files under `${REPO_ROOT}/resources/`, all seven files under `${REPO_ROOT}/notebooks/`, `${REPO_ROOT}/docs/deployment_guide.md`, `${REPO_ROOT}/src/driftsentinel/config/loader.py`, `${REPO_ROOT}/src/driftsentinel/benchmark/orchestrator.py`, `${REPO_ROOT}/src/driftsentinel/orchestration/runner.py`, and the packaging-related tests you will extend or create.
 
    *Success: you can restate the current stub behavior, the benchmark-gate mismatch, and the planned file list without guessing.*
 
 3. **Normalize benchmark gate sourcing before working on bundle resources or notebooks.**
 
-   Make `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/templates/benchmark_policy.yml`, `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/src/driftsentinel/config/loader.py`, and `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/src/driftsentinel/benchmark/orchestrator.py` agree on one policy contract. Prefer explicit gate definitions or a deterministic normalization helper, but remove the split-brain state where template keys and evaluator keys diverge.
+   Make `${REPO_ROOT}/templates/benchmark_policy.yml`, `${REPO_ROOT}/src/driftsentinel/config/loader.py`, and `${REPO_ROOT}/src/driftsentinel/benchmark/orchestrator.py` agree on one policy contract. Prefer explicit gate definitions or a deterministic normalization helper, but remove the split-brain state where template keys and evaluator keys diverge.
 
    *Success: benchmark execution can consume template-backed policy thresholds without falling back to ambiguous inline defaults.*
 
@@ -163,7 +164,7 @@ Databricks bundle guidance matters here: use workspace-backed bundle assets for 
 4. **Run the narrow validation for the benchmark-policy slice immediately after the first substantive edit.**
 
    ```bash
-   cd "/Users/etherealogic-2/Dev/Databricks/DriftSentinel" && uv run pytest tests/test_config_loading.py tests/test_benchmark.py tests/test_orchestration.py
+   cd "$(git rev-parse --show-toplevel)" && uv run pytest tests/test_config_loading.py tests/test_benchmark.py tests/test_orchestration.py
    ```
 
    *Success: the command exits with status `0` before you widen scope to Databricks resources and notebooks.*
@@ -180,7 +181,7 @@ Databricks bundle guidance matters here: use workspace-backed bundle assets for 
 
 6. **Replace the three comment-only resource stubs with real Databricks resources under `resources/`.**
 
-   Implement `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/resources/intake_pipeline.yml` as a real pipeline resource and implement `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/resources/drift_gate_job.yml` plus `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/resources/benchmark_job.yml` as real job resources. Use workspace-backed assets created by the bundle, not bundle `git_source`, and point notebook tasks at the deployed notebook files.
+   Implement `${REPO_ROOT}/resources/intake_pipeline.yml` as a real pipeline resource and implement `${REPO_ROOT}/resources/drift_gate_job.yml` plus `${REPO_ROOT}/resources/benchmark_job.yml` as real job resources. Use workspace-backed assets created by the bundle, not bundle `git_source`, and point notebook tasks at the deployed notebook files.
 
    *Success: each resource file contains a valid Databricks `resources:` mapping with deployable job or pipeline definitions rather than comments only.*
 
@@ -188,7 +189,7 @@ Databricks bundle guidance matters here: use workspace-backed bundle assets for 
 
 7. **Add only the minimal package-facing orchestration helper needed to keep notebooks thin.**
 
-   If the existing orchestration layer is too Phase-1-local, add a small helper module under `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/src/driftsentinel/orchestration/` that handles policy loading, deterministic defaults, Databricks-friendly parameter mapping, and evidence output routing. Do not duplicate domain logic inside notebook files.
+   If the existing orchestration layer is too Phase-1-local, add a small helper module under `${REPO_ROOT}/src/driftsentinel/orchestration/` that handles policy loading, deterministic defaults, Databricks-friendly parameter mapping, and evidence output routing. Do not duplicate domain logic inside notebook files.
 
    *Success: notebook code becomes a thin wrapper over first-party package APIs rather than a second implementation of intake, drift, or benchmark logic.*
 
@@ -196,7 +197,7 @@ Databricks bundle guidance matters here: use workspace-backed bundle assets for 
 
 8. **Replace the fail-closed `RuntimeError` stubs in all seven notebooks with real Databricks notebook flows.**
 
-   Update `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/notebooks/00_quickstart_setup.py`, `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/notebooks/01_register_dataset.py`, `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/notebooks/02_seed_or_import_baseline.py`, `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/notebooks/03_run_intake_controls.py`, `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/notebooks/04_run_drift_gate.py`, `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/notebooks/05_run_control_benchmark.py`, and `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/notebooks/06_review_evidence.py` so they gather parameters, resolve or install the package, call the local `driftsentinel` code paths, and print or persist structured results.
+   Update `${REPO_ROOT}/notebooks/00_quickstart_setup.py`, `${REPO_ROOT}/notebooks/01_register_dataset.py`, `${REPO_ROOT}/notebooks/02_seed_or_import_baseline.py`, `${REPO_ROOT}/notebooks/03_run_intake_controls.py`, `${REPO_ROOT}/notebooks/04_run_drift_gate.py`, `${REPO_ROOT}/notebooks/05_run_control_benchmark.py`, and `${REPO_ROOT}/notebooks/06_review_evidence.py` so they gather parameters, resolve or install the package, call the local `driftsentinel` code paths, and print or persist structured results.
 
    *Success: no notebook raises the DS-IP-001 Phase 2 runtime error, and each notebook reaches real package code.*
 
@@ -216,7 +217,7 @@ Databricks bundle guidance matters here: use workspace-backed bundle assets for 
 
 ### Phase 4: Document The Deployment Paths And Add Packaging Tests
 
-11. **Rewrite `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/docs/deployment_guide.md` from scaffold language to Phase 2 operational guidance.**
+11. **Rewrite `${REPO_ROOT}/docs/deployment_guide.md` from scaffold language to Phase 2 operational guidance.**
 
    Document the real GitHub-to-Databricks paths, including at minimum: local clone plus bundle validate/deploy/run, and direct notebook package installation from GitHub for workspace onboarding. Preserve truthfulness about any steps that still depend on Databricks credentials, workspace files, or Unity Catalog setup.
 
@@ -233,7 +234,7 @@ Databricks bundle guidance matters here: use workspace-backed bundle assets for 
 13. **Run the focused packaging validation before the full suite.**
 
    ```bash
-   cd "/Users/etherealogic-2/Dev/Databricks/DriftSentinel" && uv run pytest tests/test_config_loading.py tests/test_benchmark.py tests/test_orchestration.py tests/test_scaffold_layout.py tests/test_governance_guards.py
+   cd "$(git rev-parse --show-toplevel)" && uv run pytest tests/test_config_loading.py tests/test_benchmark.py tests/test_orchestration.py tests/test_scaffold_layout.py tests/test_governance_guards.py
    ```
 
    If you add a dedicated packaging test file, include it in this command.
@@ -245,7 +246,7 @@ Databricks bundle guidance matters here: use workspace-backed bundle assets for 
 14. **Run the full local verification suite required by repository policy.**
 
    ```bash
-   cd "/Users/etherealogic-2/Dev/Databricks/DriftSentinel" && make lint && make typecheck && make test
+   cd "$(git rev-parse --show-toplevel)" && make lint && make typecheck && make test
    ```
 
    *Success: lint, typecheck, and tests all exit with status `0`.*
@@ -253,7 +254,7 @@ Databricks bundle guidance matters here: use workspace-backed bundle assets for 
 15. **Run the placeholder scan explicitly because notebook and docs rewrites are susceptible to regressions.**
 
    ```bash
-   cd "/Users/etherealogic-2/Dev/Databricks/DriftSentinel" && uv run python - <<'PY'
+   cd "$(git rev-parse --show-toplevel)" && uv run python - <<'PY'
    import re
    from pathlib import Path
 
@@ -281,7 +282,7 @@ Databricks bundle guidance matters here: use workspace-backed bundle assets for 
 16. **Run bundle validation locally and treat failures as real defects, not postscript notes.**
 
    ```bash
-   cd "/Users/etherealogic-2/Dev/Databricks/DriftSentinel" && databricks bundle validate
+   cd "$(git rev-parse --show-toplevel)" && databricks bundle validate
    ```
 
    *Success: bundle validation exits with status `0` and reports no unknown resource-property warnings caused by your edits.*
@@ -289,7 +290,7 @@ Databricks bundle guidance matters here: use workspace-backed bundle assets for 
 17. **Attempt the clean-workspace deployment proof if Databricks authentication and target access are available.**
 
    ```bash
-   cd "/Users/etherealogic-2/Dev/Databricks/DriftSentinel" && databricks bundle deploy --target dev
+   cd "$(git rev-parse --show-toplevel)" && databricks bundle deploy --target dev
    ```
 
    Then run the deployed workflow surface that best proves the packaging path, using the real resource key you created.
@@ -308,13 +309,13 @@ Databricks bundle guidance matters here: use workspace-backed bundle assets for 
 
 19. **Run Snyk code analysis on the repository root after the first-party code and notebook changes land.**
 
-   Execute `snyk_code_scan` against `/Users/etherealogic-2/Dev/Databricks/DriftSentinel`.
+   Execute `snyk_code_scan` against `${REPO_ROOT}`.
 
    *Success: no new high-severity code issues are introduced, or any findings are explicitly resolved before completion.*
 
 20. **Run Snyk IaC analysis on the bundle surfaces after the resource files are operational.**
 
-   Execute `snyk_iac_scan` against `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/resources` or the repo root if the scan needs the full bundle context.
+   Execute `snyk_iac_scan` against `${REPO_ROOT}/resources` or the repo root if the scan needs the full bundle context.
 
    *Success: the Databricks YAML surfaces pass IaC review or any findings are resolved before completion.*
 

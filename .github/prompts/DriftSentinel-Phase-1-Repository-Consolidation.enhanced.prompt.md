@@ -5,37 +5,38 @@
 **Prompt Type:** Feature
 **Complexity Classification:** Complex — this task spans shared foundations plus three product domains, requires selective code extraction from three sibling repositories, adds deterministic tests, and must enforce a no-sibling-runtime-dependency boundary.
 **Model Recommendation:** `claude-opus-4-20250514` — use the high-capability tier because the work combines multi-repository code reading, architectural restraint, staged implementation, and full quality-gate verification.
-**Assumption:** Interpret “Chapter 1,” “Chapter 2,” and “Chapter 3” as the confirmed sibling repositories `/Users/etherealogic-2/Dev/Databricks/trusted-source-intake`, `/Users/etherealogic-2/Dev/Databricks/silent-failure-prevention`, and `/Users/etherealogic-2/Dev/Databricks/measurable-control-effectiveness`.
+**Assumption:** Interpret “Chapter 1,” “Chapter 2,” and “Chapter 3” as the confirmed sibling repositories `${CHAPTER_REPO_ROOT}/trusted-source-intake`, `${CHAPTER_REPO_ROOT}/silent-failure-prevention`, and `${CHAPTER_REPO_ROOT}/measurable-control-effectiveness`.
+**Path Placeholders:** Resolve `${REPO_ROOT}` to the current DriftSentinel checkout and `${CHAPTER_REPO_ROOT}` to the directory that contains the sibling chapter repositories before using referenced paths.
 
 ## Inputs Consulted
 
 | Source | Key Takeaways |
 |--------|---------------|
-| Source prompt | Phase 1 Repository Consolidation is the only remaining not-started task and has four explicit acceptance criteria: port Chapter 1, 2, and 3 logic; normalize config and evidence; preserve deterministic behavior and tests; remove sibling-clone runtime dependencies. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/AGENTS.md` | Use `Plan -> Act -> Verify -> Report`, keep sibling chapter logic as first-party code, and run the required validation suite truthfully. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/CLAUDE.md` | `specs/` is canonical, product code belongs under `src/driftsentinel/`, and the standard repo commands are `make lint`, `make typecheck`, `make test`, and `make bundle-validate`. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/CONSTITUTION.md` | Safety, evidence traceability, security hygiene, simplicity, and reproducibility control implementation decisions in that order. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/DIRECTIVES.md` | No runtime dependency on sibling chapter clones is a critical directive, and specs remain canonical over any explanatory docs. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/.github/instructions/codacy.instructions.md` | Codacy analysis should run after edits when the tool surface is available, and repository identifiers must remain `gh / Org-EthereaLogic / DriftSentinel`. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/specs/DS-IP-001_Implementation_Plan.md` | Phase 1 is explicitly defined as repository consolidation with a no-sibling-dependency exit criterion. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/specs/DS-SRS-001_Software_Requirements_Specification.md` | Phase 1 work traces directly to first-party intake, drift, benchmark, config, evidence, and deterministic demo requirements. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/specs/DS-SDD-001_Architecture_Blueprint.md` | The architecture already reserves `config`, `evidence`, `intake`, `drift`, `benchmark`, and `orchestration` as the product-layer package boundaries. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/specs/DS-TM-001_Traceability_Matrix.md` | Verification must cover local config loaders, evidence writers, intake, drift, benchmark, and deterministic validation paths. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/specs/DS-WBS-001_Project_Plan_WBS.md` | The implementation WBS assigns Phase 1 deliverables directly to `src/driftsentinel/intake/`, `drift/`, `benchmark/`, `evidence/`, `orchestration/`, `config/`, and `tests/`. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/Makefile` | The canonical validation commands are `make lint`, `make typecheck`, `make test`, and `make bundle-validate`. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/pyproject.toml` | The product targets Python 3.11+, currently depends only on `pyyaml` and `pandas`, and should avoid unnecessary dependency growth. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/tests/test_scaffold_layout.py` | The current tests only guard scaffold presence and package layout. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/tests/test_governance_guards.py` | Placeholder markers are banned from executable surfaces and bundle wiring already has explicit tests. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/src/driftsentinel/config/__init__.py` and sibling package `__init__.py` files | The target packages are still stub-only docstring surfaces with no substantive implementation modules. |
-| `/Users/etherealogic-2/Dev/Databricks/trusted-source-intake/README.md` | Chapter 1 is the intake-control source repository covering contract validation, replay handling, quarantine routing, and downstream-safe ready outputs. |
-| `/Users/etherealogic-2/Dev/Databricks/trusted-source-intake/src/intake/contracts.py` | Chapter 1 already exposes seven named contract checks plus batch evaluation helpers that are directly relevant to `src/driftsentinel/intake/`. |
-| `/Users/etherealogic-2/Dev/Databricks/trusted-source-intake/src/intake/demo_metrics.py` | Chapter 1 already has deterministic offline demo summary logic and batch-registry behavior that can seed local product tests. |
-| `/Users/etherealogic-2/Dev/Databricks/silent-failure-prevention/README.md` | Chapter 2 is the drift-gate source repository covering distribution-stability scoring, publication verdicts, and audit-style provenance. |
-| `/Users/etherealogic-2/Dev/Databricks/silent-failure-prevention/src/stability/gates/evaluator.py` | Chapter 2 already has configurable gate loading and pass/warn/fail evaluation semantics worth porting or adapting. |
-| `/Users/etherealogic-2/Dev/Databricks/silent-failure-prevention/src/stability/runners/local_demo.py` | Chapter 2 already has a deterministic local release-control execution path that combines baseline creation, drift detection, gate evaluation, and provenance output. |
-| `/Users/etherealogic-2/Dev/Databricks/measurable-control-effectiveness/README.md` | Chapter 3 is the benchmark source repository covering deterministic fault injection, baseline-vs-challenger scoring, and evidence bundles. |
-| `/Users/etherealogic-2/Dev/Databricks/measurable-control-effectiveness/src/benchmark/runners/orchestrator.py` | Chapter 3 already has a structured orchestration path for dataset generation, quality scoring, drift scoring, gate evaluation, and optional evidence output. |
-| `/Users/etherealogic-2/Dev/Databricks/measurable-control-effectiveness/src/benchmark/evidence/writer.py` | Chapter 3 already has append-only structured evidence bundle writing that should inform the shared product evidence surface. |
+| Source prompt | Phase 1 Repository Consolidation is the first implementation phase in the DriftSentinel roadmap and has four explicit acceptance criteria: port Chapter 1, 2, and 3 logic; normalize config and evidence; preserve deterministic behavior and tests; remove sibling-clone runtime dependencies. |
+| `${REPO_ROOT}/AGENTS.md` | Use `Plan -> Act -> Verify -> Report`, keep sibling chapter logic as first-party code, and run the required validation suite truthfully. |
+| `${REPO_ROOT}/CLAUDE.md` | `specs/` is canonical, product code belongs under `src/driftsentinel/`, and the standard repo commands are `make lint`, `make typecheck`, `make test`, and `make bundle-validate`. |
+| `${REPO_ROOT}/CONSTITUTION.md` | Safety, evidence traceability, security hygiene, simplicity, and reproducibility control implementation decisions in that order. |
+| `${REPO_ROOT}/DIRECTIVES.md` | No runtime dependency on sibling chapter clones is a critical directive, and specs remain canonical over any explanatory docs. |
+| `${REPO_ROOT}/.github/instructions/codacy.instructions.md` | Codacy analysis should run after edits when the tool surface is available, and repository identifiers must remain `gh / Org-EthereaLogic / DriftSentinel`. |
+| `${REPO_ROOT}/specs/DS-IP-001_Implementation_Plan.md` | Phase 1 is explicitly defined as repository consolidation with a no-sibling-dependency exit criterion. |
+| `${REPO_ROOT}/specs/DS-SRS-001_Software_Requirements_Specification.md` | Phase 1 work traces directly to first-party intake, drift, benchmark, config, evidence, and deterministic demo requirements. |
+| `${REPO_ROOT}/specs/DS-SDD-001_Architecture_Blueprint.md` | The architecture already reserves `config`, `evidence`, `intake`, `drift`, `benchmark`, and `orchestration` as the product-layer package boundaries. |
+| `${REPO_ROOT}/specs/DS-TM-001_Traceability_Matrix.md` | Verification must cover local config loaders, evidence writers, intake, drift, benchmark, and deterministic validation paths. |
+| `${REPO_ROOT}/specs/DS-WBS-001_Project_Plan_WBS.md` | The implementation WBS assigns Phase 1 deliverables directly to `src/driftsentinel/intake/`, `drift/`, `benchmark/`, `evidence/`, `orchestration/`, `config/`, and `tests/`. |
+| `${REPO_ROOT}/Makefile` | The canonical validation commands are `make lint`, `make typecheck`, `make test`, and `make bundle-validate`. |
+| `${REPO_ROOT}/pyproject.toml` | The product targets Python 3.11+, currently depends only on `pyyaml` and `pandas`, and should avoid unnecessary dependency growth. |
+| `${REPO_ROOT}/tests/test_scaffold_layout.py` | The current tests only guard scaffold presence and package layout. |
+| `${REPO_ROOT}/tests/test_governance_guards.py` | Placeholder markers are banned from executable surfaces and bundle wiring already has explicit tests. |
+| `${REPO_ROOT}/src/driftsentinel/config/__init__.py` and sibling package `__init__.py` files | The target packages are still stub-only docstring surfaces with no substantive implementation modules. |
+| `${CHAPTER_REPO_ROOT}/trusted-source-intake/README.md` | Chapter 1 is the intake-control source repository covering contract validation, replay handling, quarantine routing, and downstream-safe ready outputs. |
+| `${CHAPTER_REPO_ROOT}/trusted-source-intake/src/intake/contracts.py` | Chapter 1 already exposes seven named contract checks plus batch evaluation helpers that are directly relevant to `src/driftsentinel/intake/`. |
+| `${CHAPTER_REPO_ROOT}/trusted-source-intake/src/intake/demo_metrics.py` | Chapter 1 already has deterministic offline demo summary logic and batch-registry behavior that can seed local product tests. |
+| `${CHAPTER_REPO_ROOT}/silent-failure-prevention/README.md` | Chapter 2 is the drift-gate source repository covering distribution-stability scoring, publication verdicts, and audit-style provenance. |
+| `${CHAPTER_REPO_ROOT}/silent-failure-prevention/src/stability/gates/evaluator.py` | Chapter 2 already has configurable gate loading and pass/warn/fail evaluation semantics worth porting or adapting. |
+| `${CHAPTER_REPO_ROOT}/silent-failure-prevention/src/stability/runners/local_demo.py` | Chapter 2 already has a deterministic local release-control execution path that combines baseline creation, drift detection, gate evaluation, and provenance output. |
+| `${CHAPTER_REPO_ROOT}/measurable-control-effectiveness/README.md` | Chapter 3 is the benchmark source repository covering deterministic fault injection, baseline-vs-challenger scoring, and evidence bundles. |
+| `${CHAPTER_REPO_ROOT}/measurable-control-effectiveness/src/benchmark/runners/orchestrator.py` | Chapter 3 already has a structured orchestration path for dataset generation, quality scoring, drift scoring, gate evaluation, and optional evidence output. |
+| `${CHAPTER_REPO_ROOT}/measurable-control-effectiveness/src/benchmark/evidence/writer.py` | Chapter 3 already has append-only structured evidence bundle writing that should inform the shared product evidence surface. |
 
 ## Mission Statement
 
@@ -76,9 +77,9 @@ The verified source material is already partitioned by domain:
 
 | Domain | Confirmed Source Files | Product Destination |
 |--------|------------------------|---------------------|
-| Intake | `/Users/etherealogic-2/Dev/Databricks/trusted-source-intake/src/intake/contracts.py`, `/Users/etherealogic-2/Dev/Databricks/trusted-source-intake/src/intake/demo_metrics.py`, plus sibling Chapter 1 sample-data and tests files discovered from `src/` and `tests/` inventory | `src/driftsentinel/intake/` and `tests/test_intake.py` |
-| Drift | `/Users/etherealogic-2/Dev/Databricks/silent-failure-prevention/src/stability/detection/*.py`, `/Users/etherealogic-2/Dev/Databricks/silent-failure-prevention/src/stability/gates/evaluator.py`, `/Users/etherealogic-2/Dev/Databricks/silent-failure-prevention/src/stability/provenance/builder.py`, `/Users/etherealogic-2/Dev/Databricks/silent-failure-prevention/src/stability/runners/local_demo.py`, plus sibling Chapter 2 tests | `src/driftsentinel/drift/`, `src/driftsentinel/evidence/`, and `tests/test_drift.py` |
-| Benchmark | `/Users/etherealogic-2/Dev/Databricks/measurable-control-effectiveness/src/benchmark/datasets/synthetic.py`, `drift/detectors.py`, `quality/detectors.py`, `gates/evaluator.py`, `scoring/ground_truth.py`, `evidence/writer.py`, `runners/orchestrator.py`, plus sibling Chapter 3 tests | `src/driftsentinel/benchmark/`, `src/driftsentinel/evidence/`, and `tests/test_benchmark.py` |
+| Intake | `${CHAPTER_REPO_ROOT}/trusted-source-intake/src/intake/contracts.py`, `${CHAPTER_REPO_ROOT}/trusted-source-intake/src/intake/demo_metrics.py`, plus sibling Chapter 1 sample-data and tests files discovered from `src/` and `tests/` inventory | `src/driftsentinel/intake/` and `tests/test_intake.py` |
+| Drift | `${CHAPTER_REPO_ROOT}/silent-failure-prevention/src/stability/detection/*.py`, `${CHAPTER_REPO_ROOT}/silent-failure-prevention/src/stability/gates/evaluator.py`, `${CHAPTER_REPO_ROOT}/silent-failure-prevention/src/stability/provenance/builder.py`, `${CHAPTER_REPO_ROOT}/silent-failure-prevention/src/stability/runners/local_demo.py`, plus sibling Chapter 2 tests | `src/driftsentinel/drift/`, `src/driftsentinel/evidence/`, and `tests/test_drift.py` |
+| Benchmark | `${CHAPTER_REPO_ROOT}/measurable-control-effectiveness/src/benchmark/datasets/synthetic.py`, `drift/detectors.py`, `quality/detectors.py`, `gates/evaluator.py`, `scoring/ground_truth.py`, `evidence/writer.py`, `runners/orchestrator.py`, plus sibling Chapter 3 tests | `src/driftsentinel/benchmark/`, `src/driftsentinel/evidence/`, and `tests/test_benchmark.py` |
 
 Current DriftSentinel tests verify only scaffold integrity and governance guards. That means Phase 1 must add deterministic behavior tests in this repository rather than inheriting PASS claims from the sibling repos. Implement a fully-featured consolidation that handles config validation, missing required fields, append-only evidence guarantees, and deterministic seeds instead of stopping at stub replacement.
 
@@ -97,7 +98,7 @@ Current DriftSentinel tests verify only scaffold integrity and governance guards
 1. **Verify the target repo, the three source repos, and the current stub-only target surface.**
 
    ```bash
-   cd "/Users/etherealogic-2/Dev/Databricks/DriftSentinel" && test -d ../trusted-source-intake && test -d ../silent-failure-prevention && test -d ../measurable-control-effectiveness && find src/driftsentinel -type f -name '*.py' | sort
+   cd "$(git rev-parse --show-toplevel)" && test -d ../trusted-source-intake && test -d ../silent-failure-prevention && test -d ../measurable-control-effectiveness && find src/driftsentinel -type f -name '*.py' | sort
    ```
 
    Expected: only `__init__.py` files under `src/driftsentinel/` are listed.
@@ -105,7 +106,7 @@ Current DriftSentinel tests verify only scaffold integrity and governance guards
 2. **Confirm the current repo baseline is green before implementation.**
 
    ```bash
-   cd "/Users/etherealogic-2/Dev/Databricks/DriftSentinel" && make test
+   cd "$(git rev-parse --show-toplevel)" && make test
    ```
 
    Expected: command exits with status `0`.
@@ -113,7 +114,7 @@ Current DriftSentinel tests verify only scaffold integrity and governance guards
 3. **Inventory the source modules you will port.**
 
    ```bash
-   cd "/Users/etherealogic-2/Dev/Databricks/DriftSentinel" && find ../trusted-source-intake/src ../silent-failure-prevention/src ../measurable-control-effectiveness/src -type f -name '*.py' | sort
+   cd "$(git rev-parse --show-toplevel)" && find ../trusted-source-intake/src ../silent-failure-prevention/src ../measurable-control-effectiveness/src -type f -name '*.py' | sort
    ```
 
    Expected: the output includes Chapter 1 intake modules, Chapter 2 stability modules, and Chapter 3 benchmark modules.
@@ -121,7 +122,7 @@ Current DriftSentinel tests verify only scaffold integrity and governance guards
 4. **Check for existing sibling-repository references in executable surfaces.**
 
    ```bash
-   cd "/Users/etherealogic-2/Dev/Databricks/DriftSentinel" && grep -RIn "trusted-source-intake\|silent-failure-prevention\|measurable-control-effectiveness" src tests notebooks resources templates || true
+   cd "$(git rev-parse --show-toplevel)" && grep -RIn "trusted-source-intake\|silent-failure-prevention\|measurable-control-effectiveness" src tests notebooks resources templates || true
    ```
 
    Expected: no runtime references, or only clearly non-executable comments that you can remove or justify.
@@ -198,7 +199,7 @@ Current DriftSentinel tests verify only scaffold integrity and governance guards
 8. **Run the first focused validation immediately after the first substantive edit.**
 
    ```bash
-   cd "/Users/etherealogic-2/Dev/Databricks/DriftSentinel" && uv run pytest tests/test_config_loading.py tests/test_evidence_writer.py
+   cd "$(git rev-parse --show-toplevel)" && uv run pytest tests/test_config_loading.py tests/test_evidence_writer.py
    ```
 
    *Success: The command exits with status `0` before you widen scope to intake, drift, or benchmark code.*
@@ -213,42 +214,42 @@ Current DriftSentinel tests verify only scaffold integrity and governance guards
 
 10. **Port Chapter 1 logic into `src/driftsentinel/intake/` using local imports only.**
 
-   Start from `/Users/etherealogic-2/Dev/Databricks/trusted-source-intake/src/intake/contracts.py` and `/Users/etherealogic-2/Dev/Databricks/trusted-source-intake/src/intake/demo_metrics.py`. Bring over the seven named contract checks, row and batch evaluation behavior, replay-aware batch summary logic, and deterministic demo support. Adapt any sample-data dependency into local test fixtures or local deterministic support code rather than reading sibling assets at runtime.
+   Start from `${CHAPTER_REPO_ROOT}/trusted-source-intake/src/intake/contracts.py` and `${CHAPTER_REPO_ROOT}/trusted-source-intake/src/intake/demo_metrics.py`. Bring over the seven named contract checks, row and batch evaluation behavior, replay-aware batch summary logic, and deterministic demo support. Adapt any sample-data dependency into local test fixtures or local deterministic support code rather than reading sibling assets at runtime.
 
    *Success: `src/driftsentinel/intake/` contains executable first-party modules and `tests/test_intake.py` proves deterministic contract and summary behavior.*
 
 11. **Run the intake-focused validation and record the checkpoint before starting drift work.**
 
    ```bash
-   cd "/Users/etherealogic-2/Dev/Databricks/DriftSentinel" && uv run pytest tests/test_intake.py
+   cd "$(git rev-parse --show-toplevel)" && uv run pytest tests/test_intake.py
    ```
 
    *Success: The intake-only test command exits with status `0`, and `progress.txt` records the intake checkpoint.*
 
 12. **Port Chapter 2 logic into `src/driftsentinel/drift/` and shared evidence modules.**
 
-   Start from `/Users/etherealogic-2/Dev/Databricks/silent-failure-prevention/src/stability/detection/`, `/Users/etherealogic-2/Dev/Databricks/silent-failure-prevention/src/stability/gates/evaluator.py`, `/Users/etherealogic-2/Dev/Databricks/silent-failure-prevention/src/stability/provenance/builder.py`, and `/Users/etherealogic-2/Dev/Databricks/silent-failure-prevention/src/stability/runners/local_demo.py`. Preserve baseline creation, drift detection, pass/warn/fail gate semantics, and publication-verdict behavior while routing config and evidence through the new DriftSentinel shared layers.
+   Start from `${CHAPTER_REPO_ROOT}/silent-failure-prevention/src/stability/detection/`, `${CHAPTER_REPO_ROOT}/silent-failure-prevention/src/stability/gates/evaluator.py`, `${CHAPTER_REPO_ROOT}/silent-failure-prevention/src/stability/provenance/builder.py`, and `${CHAPTER_REPO_ROOT}/silent-failure-prevention/src/stability/runners/local_demo.py`. Preserve baseline creation, drift detection, pass/warn/fail gate semantics, and publication-verdict behavior while routing config and evidence through the new DriftSentinel shared layers.
 
    *Success: `src/driftsentinel/drift/` contains executable first-party modules and `tests/test_drift.py` proves deterministic verdict behavior.*
 
 13. **Run the drift-focused validation and record the checkpoint before starting benchmark work.**
 
    ```bash
-   cd "/Users/etherealogic-2/Dev/Databricks/DriftSentinel" && uv run pytest tests/test_drift.py
+   cd "$(git rev-parse --show-toplevel)" && uv run pytest tests/test_drift.py
    ```
 
    *Success: The drift-only test command exits with status `0`, and `progress.txt` records the drift checkpoint.*
 
 14. **Port Chapter 3 logic into `src/driftsentinel/benchmark/` and shared evidence modules.**
 
-   Start from `/Users/etherealogic-2/Dev/Databricks/measurable-control-effectiveness/src/benchmark/datasets/synthetic.py`, `quality/detectors.py`, `drift/detectors.py`, `gates/evaluator.py`, `scoring/ground_truth.py`, `evidence/writer.py`, and `runners/orchestrator.py`. Preserve deterministic seed-based dataset generation, baseline-vs-challenger scoring, gate evaluation, and structured evidence output while keeping all runtime paths local to DriftSentinel.
+   Start from `${CHAPTER_REPO_ROOT}/measurable-control-effectiveness/src/benchmark/datasets/synthetic.py`, `quality/detectors.py`, `drift/detectors.py`, `gates/evaluator.py`, `scoring/ground_truth.py`, `evidence/writer.py`, and `runners/orchestrator.py`. Preserve deterministic seed-based dataset generation, baseline-vs-challenger scoring, gate evaluation, and structured evidence output while keeping all runtime paths local to DriftSentinel.
 
    *Success: `src/driftsentinel/benchmark/` contains executable first-party modules and `tests/test_benchmark.py` proves deterministic benchmark behavior.*
 
 15. **Run the benchmark-focused validation and record the checkpoint before adding orchestration.**
 
    ```bash
-   cd "/Users/etherealogic-2/Dev/Databricks/DriftSentinel" && uv run pytest tests/test_benchmark.py
+   cd "$(git rev-parse --show-toplevel)" && uv run pytest tests/test_benchmark.py
    ```
 
    *Success: The benchmark-only test command exits with status `0`, and `progress.txt` records the benchmark checkpoint.*
@@ -264,7 +265,7 @@ Current DriftSentinel tests verify only scaffold integrity and governance guards
 17. **Run the orchestration-focused validation and record the checkpoint.**
 
    ```bash
-   cd "/Users/etherealogic-2/Dev/Databricks/DriftSentinel" && uv run pytest tests/test_orchestration.py
+   cd "$(git rev-parse --show-toplevel)" && uv run pytest tests/test_orchestration.py
    ```
 
    *Success: The orchestration test command exits with status `0`, and `progress.txt` contains a dated orchestration checkpoint.*
@@ -274,7 +275,7 @@ Current DriftSentinel tests verify only scaffold integrity and governance guards
 18. **Run the sibling-dependency boundary scan across executable surfaces.**
 
    ```bash
-   cd "/Users/etherealogic-2/Dev/Databricks/DriftSentinel" && grep -RIn "trusted-source-intake\|silent-failure-prevention\|measurable-control-effectiveness" src tests notebooks resources templates || true
+   cd "$(git rev-parse --show-toplevel)" && grep -RIn "trusted-source-intake\|silent-failure-prevention\|measurable-control-effectiveness" src tests notebooks resources templates || true
    ```
 
    *Success: The scan returns no runtime dependency matches in executable surfaces.*
@@ -282,7 +283,7 @@ Current DriftSentinel tests verify only scaffold integrity and governance guards
 19. **Run the required repo quality gates from the repository root.**
 
    ```bash
-   cd "/Users/etherealogic-2/Dev/Databricks/DriftSentinel" && make lint && make typecheck && make test
+   cd "$(git rev-parse --show-toplevel)" && make lint && make typecheck && make test
    ```
 
    *Success: Ruff, mypy, and pytest all exit with status `0`.*
@@ -290,7 +291,7 @@ Current DriftSentinel tests verify only scaffold integrity and governance guards
 20. **Run bundle validation only if you edited bundle-linked surfaces.**
 
    ```bash
-   cd "/Users/etherealogic-2/Dev/Databricks/DriftSentinel" && make bundle-validate
+   cd "$(git rev-parse --show-toplevel)" && make bundle-validate
    ```
 
    *Success: The command exits with status `0`, or you document that notebooks, `databricks.yml`, and `resources/` were not changed and the check was not required.*
@@ -300,7 +301,7 @@ Current DriftSentinel tests verify only scaffold integrity and governance guards
 21. **Run the placeholder scan over the required repository surfaces.**
 
    ```bash
-   cd "/Users/etherealogic-2/Dev/Databricks/DriftSentinel" && grep -RInE "\b(todo|fixme|tbd|placeholder)\b" specs .claude CLAUDE.md docs src tests notebooks resources templates || true
+   cd "$(git rev-parse --show-toplevel)" && grep -RInE "\b(todo|fixme|tbd|placeholder)\b" specs .claude CLAUDE.md docs src tests notebooks resources templates || true
    ```
 
    *Success: No banned placeholder markers are found in the required surfaces.*
@@ -328,7 +329,7 @@ Current DriftSentinel tests verify only scaffold integrity and governance guards
 ## Guardrails
 
 <guardrails>
-- Do not preserve runtime imports or runtime file reads that point to `/Users/etherealogic-2/Dev/Databricks/trusted-source-intake`, `/Users/etherealogic-2/Dev/Databricks/silent-failure-prevention`, or `/Users/etherealogic-2/Dev/Databricks/measurable-control-effectiveness`.
+- Do not preserve runtime imports or runtime file reads that point to `${CHAPTER_REPO_ROOT}/trusted-source-intake`, `${CHAPTER_REPO_ROOT}/silent-failure-prevention`, or `${CHAPTER_REPO_ROOT}/measurable-control-effectiveness`.
 - Do not widen scope into Phase 2 Databricks MVP packaging, Phase 3 multi-dataset hardening, Phase 4 app UI work, Phase 5 marketplace work, or Notion synchronization changes.
 - Do not overwrite or delete anything under `report/`; evidence artifacts are append-only.
 - Do not add new dependencies unless the port is blocked without them and you record the justification plus the resulting security checks.

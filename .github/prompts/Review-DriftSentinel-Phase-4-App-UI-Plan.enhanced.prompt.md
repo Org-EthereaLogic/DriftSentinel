@@ -6,29 +6,30 @@
 **Complexity Classification:** Moderate — this review spans one new implementation-plan document, multiple canonical spec surfaces, and verification of named package/test anchors before any implementation begins. No product code changes are required, but the review must reconcile plan claims against specs, repository rules, and the current package boundaries.
 **Model Recommendation:** `claude-sonnet-4-20250514` — use the balanced model tier because this is a cross-document, evidence-backed review that requires accurate comparison, scoped judgment, and grounded findings rather than broad implementation.
 **Assumption:** Interpret “the plan is ready for your review before implementation begins” as a read-only readiness review of the Phase 4 plan in the current repository. Do not implement the app, edit the plan, or expand scope into Phase 4 execution unless the user explicitly asks for follow-on changes after the review.
+**Path Placeholders:** Resolve `${REPO_ROOT}` to the current DriftSentinel checkout and `${VSCODE_USER_PROMPTS_FOLDER}` to the local VS Code prompt folder before using referenced paths.
 
 ## Inputs Consulted
 
 | Source | Key Takeaways |
 |--------|---------------|
 | Source prompt | The task is to review `specs/DS-IP-001-P4_Phase_4_App_UI_Plan.md` before implementation begins, with key decisions already stated: Gradio, three read-only views, additive notebook path, bundle integration, and five implementation phases. |
-| `/Users/etherealogic-2/Library/Application Support/Code - Insiders/User/profiles/-1d25645d/prompts/Enhance Prompt workflow.prompt.md` | Enhanced prompts must be self-contained, phased, grounded, imperative, and include verification, guardrails, and explicit success signals. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/AGENTS.md` | Use `Plan -> Act -> Verify -> Report`, preserve evidence traceability, and avoid unsupported claims. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/CLAUDE.md` | `specs/` is canonical, Phase 4 is a Databricks App surface, and standard verification commands are `make lint`, `make typecheck`, `make test`, and bundle validation commands. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/CONSTITUTION.md` | Safety, evidence traceability, security hygiene, simplicity, and reproducibility govern all decisions; missing evidence blocks completion claims. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/DIRECTIVES.md` | Specs are canonical, evidence artifacts are append-only, PASS claims require explicit evidence, and quality-control surfaces must already exist. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/.github/instructions/codacy.instructions.md` | Repository-level quality instructions apply when edits happen, but this task should remain read-only unless the user later requests changes. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/README.md` | The repository already ships notebook and bundle deployment paths and frames DriftSentinel as a Databricks-deployable product with evidence-backed verification. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/specs/DS-IP-001_Implementation_Plan.md` | Phase 4 is explicitly “Databricks App,” with the exit criterion “operators onboard and review without editing notebooks,” and it must not collapse into earlier phases. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/specs/DS-IP-001-P4_Phase_4_App_UI_Plan.md` | The proposed plan introduces `app/`, a Databricks App resource, three operator-facing views, Gradio as the recommended framework, read-only boundaries, deploy proof, and tests/docs updates. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/specs/DS-PRD-001_Product_Requirements_Document.md` | The product must preserve notebook-first evaluation, bundle deployment, explicit failure behavior, evidence traceability, and human-readable operator review surfaces. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/specs/DS-SRS-001_Software_Requirements_Specification.md` | The repository must remain notebook-first for Free Edition, append-only for evidence, free of sibling runtime dependencies, and aligned with existing external interfaces. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/specs/DS-TP-001_Test_Plan.md` | Phase completion requires tests aligned with canonical specs and replayable evidence, not only narrative justification. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/specs/DS-TM-001_Traceability_Matrix.md` | Requirements must trace to concrete spec and verification surfaces; operator review surfaces and Free Edition compatibility are already governed. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/src/driftsentinel/config/loader.py` | `DatasetRegistry.load()` and `check_policy_compatibility()` already exist as first-party config surfaces that the plan can legitimately reuse. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/src/driftsentinel/evidence/writer.py` | `list_evidence()` and `load_evidence()` already exist for evidence browsing, including malformed-file handling and filterable metadata summaries. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/src/driftsentinel/orchestration/runner.py` | `run_dataset_pipeline()` exists, which matters when judging whether the proposed app remains read-only and additive rather than becoming an execution surface. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/tests/README.md` | The current test suite already includes packaging, registry, evidence lookup, and dataset orchestration tests that the plan’s verification section should account for. |
+| `${VSCODE_USER_PROMPTS_FOLDER}/Enhance Prompt workflow.prompt.md` | Enhanced prompts must be self-contained, phased, grounded, imperative, and include verification, guardrails, and explicit success signals. |
+| `${REPO_ROOT}/AGENTS.md` | Use `Plan -> Act -> Verify -> Report`, preserve evidence traceability, and avoid unsupported claims. |
+| `${REPO_ROOT}/CLAUDE.md` | `specs/` is canonical, Phase 4 is a Databricks App surface, and standard verification commands are `make lint`, `make typecheck`, `make test`, and bundle validation commands. |
+| `${REPO_ROOT}/CONSTITUTION.md` | Safety, evidence traceability, security hygiene, simplicity, and reproducibility govern all decisions; missing evidence blocks completion claims. |
+| `${REPO_ROOT}/DIRECTIVES.md` | Specs are canonical, evidence artifacts are append-only, PASS claims require explicit evidence, and quality-control surfaces must already exist. |
+| `${REPO_ROOT}/.github/instructions/codacy.instructions.md` | Repository-level quality instructions apply when edits happen, but this task should remain read-only unless the user later requests changes. |
+| `${REPO_ROOT}/README.md` | The repository already ships notebook and bundle deployment paths and frames DriftSentinel as a Databricks-deployable product with evidence-backed verification. |
+| `${REPO_ROOT}/specs/DS-IP-001_Implementation_Plan.md` | Phase 4 is explicitly “Databricks App,” with the exit criterion “operators onboard and review without editing notebooks,” and it must not collapse into earlier phases. |
+| `${REPO_ROOT}/specs/DS-IP-001-P4_Phase_4_App_UI_Plan.md` | The proposed plan introduces `app/`, a Databricks App resource, three operator-facing views, Gradio as the recommended framework, read-only boundaries, deploy proof, and tests/docs updates. |
+| `${REPO_ROOT}/specs/DS-PRD-001_Product_Requirements_Document.md` | The product must preserve notebook-first evaluation, bundle deployment, explicit failure behavior, evidence traceability, and human-readable operator review surfaces. |
+| `${REPO_ROOT}/specs/DS-SRS-001_Software_Requirements_Specification.md` | The repository must remain notebook-first for Free Edition, append-only for evidence, free of sibling runtime dependencies, and aligned with existing external interfaces. |
+| `${REPO_ROOT}/specs/DS-TP-001_Test_Plan.md` | Phase completion requires tests aligned with canonical specs and replayable evidence, not only narrative justification. |
+| `${REPO_ROOT}/specs/DS-TM-001_Traceability_Matrix.md` | Requirements must trace to concrete spec and verification surfaces; operator review surfaces and Free Edition compatibility are already governed. |
+| `${REPO_ROOT}/src/driftsentinel/config/loader.py` | `DatasetRegistry.load()` and `check_policy_compatibility()` already exist as first-party config surfaces that the plan can legitimately reuse. |
+| `${REPO_ROOT}/src/driftsentinel/evidence/writer.py` | `list_evidence()` and `load_evidence()` already exist for evidence browsing, including malformed-file handling and filterable metadata summaries. |
+| `${REPO_ROOT}/src/driftsentinel/orchestration/runner.py` | `run_dataset_pipeline()` exists, which matters when judging whether the proposed app remains read-only and additive rather than becoming an execution surface. |
+| `${REPO_ROOT}/tests/README.md` | The current test suite already includes packaging, registry, evidence lookup, and dataset orchestration tests that the plan’s verification section should account for. |
 
 ## Mission Statement
 
@@ -109,7 +110,7 @@ Evaluate the plan on five axes:
 1. **Verify that the plan and canonical review inputs exist before you start.**
 
    ```bash
-   cd "/Users/etherealogic-2/Dev/Databricks/DriftSentinel" && test -f specs/DS-IP-001-P4_Phase_4_App_UI_Plan.md && test -f specs/DS-IP-001_Implementation_Plan.md && test -f specs/DS-PRD-001_Product_Requirements_Document.md && test -f specs/DS-SRS-001_Software_Requirements_Specification.md && test -f specs/DS-TP-001_Test_Plan.md && test -f specs/DS-TM-001_Traceability_Matrix.md && echo "phase4 review inputs present"
+   cd "$(git rev-parse --show-toplevel)" && test -f specs/DS-IP-001-P4_Phase_4_App_UI_Plan.md && test -f specs/DS-IP-001_Implementation_Plan.md && test -f specs/DS-PRD-001_Product_Requirements_Document.md && test -f specs/DS-SRS-001_Software_Requirements_Specification.md && test -f specs/DS-TP-001_Test_Plan.md && test -f specs/DS-TM-001_Traceability_Matrix.md && echo "phase4 review inputs present"
    ```
 
    Expected: `phase4 review inputs present`.
@@ -119,7 +120,7 @@ Evaluate the plan on five axes:
 2. **Verify that the plan’s named package anchors exist in the current codebase.**
 
    ```bash
-   cd "/Users/etherealogic-2/Dev/Databricks/DriftSentinel" && rg -n "class DatasetRegistry|def load\(cls, path: str \| Path\) -> DatasetRegistry|def check_policy_compatibility|def list_evidence|def load_evidence|def run_dataset_pipeline" src/driftsentinel
+   cd "$(git rev-parse --show-toplevel)" && rg -n "class DatasetRegistry|def load\(cls, path: str \| Path\) -> DatasetRegistry|def check_policy_compatibility|def list_evidence|def load_evidence|def run_dataset_pipeline" src/driftsentinel
    ```
 
    Expected: matches in `src/driftsentinel/config/loader.py`, `src/driftsentinel/evidence/writer.py`, and `src/driftsentinel/orchestration/runner.py`.
@@ -129,7 +130,7 @@ Evaluate the plan on five axes:
 3. **Verify that the current test inventory already contains the obvious neighboring verification surfaces.**
 
    ```bash
-   cd "/Users/etherealogic-2/Dev/Databricks/DriftSentinel" && rg -n "test_scaffold_layout|test_packaging|test_registry|test_evidence_lookup|test_dataset_orchestration" tests
+   cd "$(git rev-parse --show-toplevel)" && rg -n "test_scaffold_layout|test_packaging|test_registry|test_evidence_lookup|test_dataset_orchestration" tests
    ```
 
    Expected: matches in the test suite or `tests/README.md`.

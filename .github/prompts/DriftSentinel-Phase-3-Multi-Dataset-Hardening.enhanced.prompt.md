@@ -6,37 +6,38 @@
 **Complexity Classification:** Complex — this task spans shared config contracts, append-only evidence metadata, dataset-aware orchestration, multiple Databricks notebooks, progress tracking, and focused plus full-suite verification across existing package and notebook surfaces.
 **Model Recommendation:** `claude-opus-4-20250514` — use the high-capability tier because the work crosses multiple Python modules, notebook entry points, state-tracking surfaces, and acceptance criteria that must remain evidence-safe.
 **Assumption:** Interpret “Phase 3: Multi-Dataset Hardening” as implementation work in the current repository, not a planning-only exercise. “One installation operates multiple datasets safely” means independent dataset registration, explicit policy-to-dataset version binding, and queryable historical run evidence without introducing a new external service, UI layer, or runtime dependency outside this repository.
+**Path Placeholders:** Resolve `${REPO_ROOT}` to the current DriftSentinel checkout and `${VSCODE_USER_PROMPTS_FOLDER}` to the local VS Code prompt folder before using referenced paths.
 
 ## Inputs Consulted
 
 | Source | Key Takeaways |
 |--------|---------------|
-| Source prompt | Phase 3 is the only not-started task, due 2026-04-25, and requires dataset registry patterns, policy versioning, run history, evidence lookup, and safe multi-dataset operation. |
-| `/Users/etherealogic-2/Library/Application Support/Code - Insiders/User/profiles/-1d25645d/prompts/Enhance Prompt workflow.prompt.md` | Enhanced prompts must be self-contained, phased, imperative, grounded, and include explicit verification, guardrails, and state tracking for complex tasks. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/AGENTS.md` | Follow `Plan -> Act -> Verify -> Report`, preserve evidence traceability, avoid unsupported claims, and run the required local checks. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/CLAUDE.md` | `specs/` is canonical, the repo already contains first-party package code, and the standard verification commands are `make lint`, `make typecheck`, `make test`, and `make bundle-validate`. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/CONSTITUTION.md` | Safety, evidence traceability, security hygiene, simplicity, and reproducibility control implementation choices. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/DIRECTIVES.md` | Specs are canonical, append-only evidence must be preserved, and PASS claims require explicit evidence. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/.github/instructions/codacy.instructions.md` | Codacy analysis should run when the MCP surface exists; unavailable MCP tooling must be reported truthfully rather than fabricated. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/README.md` | Phase 2 is implemented, notebooks and bundle assets exist, and the repo already presents a Databricks-deployable product surface. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/specs/DS-IP-001_Implementation_Plan.md` | Phase 3 requires dataset registry patterns, policy versioning, run history, evidence lookup, and a multi-dataset-safe installation exit criterion. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/specs/DS-SRS-001_Software_Requirements_Specification.md` | Declarative dataset registration, notebook-driven setup, deterministic demo behavior, and append-only evidence remain required product behaviors. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/specs/DS-SDD-001_Architecture_Blueprint.md` | The canonical control flow is register dataset and policy, seed baseline, run intake, run drift, run benchmark, write evidence, and review outcomes through notebooks. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/specs/DS-TP-001_Test_Plan.md` | Configuration tests, append-only evidence tests, and integration tests for notebook orchestration are mandatory verification surfaces. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/specs/DS-TM-001_Traceability_Matrix.md` | Dataset registration traces to `templates/`, config loaders, and the registration notebook; deterministic evidence traces to the evidence writer and integration tests. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/src/driftsentinel/README.md` | The package already separates config, evidence, orchestration, intake, drift, and benchmark concerns cleanly. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/src/driftsentinel/config/README.md` | The config surface already owns dataset and policy loading and explicitly calls out per-dataset policy overrides. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/src/driftsentinel/config/loader.py` | The loader validates one dataset contract, one drift policy, and one benchmark policy at a time, but it does not model a registry, explicit version linkage, or policy compatibility checks. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/src/driftsentinel/evidence/README.md` | The README promises lookup by run ID, dataset, and date range, but this capability must be verified against the implementation rather than assumed. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/src/driftsentinel/evidence/writer.py` | The writer produces append-only JSON envelopes and benchmark bundles, but it does not yet encode dataset identity, policy versions, or lookup helpers. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/src/driftsentinel/orchestration/runner.py` | The orchestration layer remains demo-oriented with `run_intake_demo`, `run_drift_demo`, and `run_local_pipeline`, all without dataset selectors or registry-backed execution. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/notebooks/README.md` | Notebook logic should stay thin and delegate business logic to `src/driftsentinel/`. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/notebooks/01_register_dataset.py` | Dataset registration currently validates and prints one contract, but it does not persist or query a dataset registry. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/notebooks/03_run_intake_controls.py`, `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/notebooks/04_run_drift_gate.py`, `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/notebooks/05_run_control_benchmark.py` | Run notebooks are operational, but they still execute demo or single-policy flows without a dataset selector or registry-backed policy resolution. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/notebooks/06_review_evidence.py` | Evidence review currently lists and prints every JSON file in a directory rather than supporting dataset, date, or run-ID filters. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/templates/dataset_contract.yml`, `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/templates/drift_policy.yml`, `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/templates/benchmark_policy.yml` | Templates are still single-dataset oriented and do not yet expose explicit registry or version metadata. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/tests/test_config_loading.py`, `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/tests/test_evidence_writer.py`, `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/tests/test_orchestration.py`, `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/tests/test_packaging.py` | Current tests validate single-config loading, append-only writing, demo orchestration, and notebook packaging, but they do not yet cover multi-dataset registry behavior or historical evidence lookup. |
-| `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/progress.json`, `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/progress.txt` | Phase tracking already exists in-repo and should be reused rather than replaced for this complex implementation. |
+| Source prompt | Phase 3 follows the Phase 2 packaging milestone, due 2026-04-25, and requires dataset registry patterns, policy versioning, run history, evidence lookup, and safe multi-dataset operation. |
+| `${VSCODE_USER_PROMPTS_FOLDER}/Enhance Prompt workflow.prompt.md` | Enhanced prompts must be self-contained, phased, imperative, grounded, and include explicit verification, guardrails, and state tracking for complex tasks. |
+| `${REPO_ROOT}/AGENTS.md` | Follow `Plan -> Act -> Verify -> Report`, preserve evidence traceability, avoid unsupported claims, and run the required local checks. |
+| `${REPO_ROOT}/CLAUDE.md` | `specs/` is canonical, the repo already contains first-party package code, and the standard verification commands are `make lint`, `make typecheck`, `make test`, and `make bundle-validate`. |
+| `${REPO_ROOT}/CONSTITUTION.md` | Safety, evidence traceability, security hygiene, simplicity, and reproducibility control implementation choices. |
+| `${REPO_ROOT}/DIRECTIVES.md` | Specs are canonical, append-only evidence must be preserved, and PASS claims require explicit evidence. |
+| `${REPO_ROOT}/.github/instructions/codacy.instructions.md` | Codacy analysis should run when the MCP surface exists; unavailable MCP tooling must be reported truthfully rather than fabricated. |
+| `${REPO_ROOT}/README.md` | Phase 2 is implemented, notebooks and bundle assets exist, and the repo already presents a Databricks-deployable product surface. |
+| `${REPO_ROOT}/specs/DS-IP-001_Implementation_Plan.md` | Phase 3 requires dataset registry patterns, policy versioning, run history, evidence lookup, and a multi-dataset-safe installation exit criterion. |
+| `${REPO_ROOT}/specs/DS-SRS-001_Software_Requirements_Specification.md` | Declarative dataset registration, notebook-driven setup, deterministic demo behavior, and append-only evidence remain required product behaviors. |
+| `${REPO_ROOT}/specs/DS-SDD-001_Architecture_Blueprint.md` | The canonical control flow is register dataset and policy, seed baseline, run intake, run drift, run benchmark, write evidence, and review outcomes through notebooks. |
+| `${REPO_ROOT}/specs/DS-TP-001_Test_Plan.md` | Configuration tests, append-only evidence tests, and integration tests for notebook orchestration are mandatory verification surfaces. |
+| `${REPO_ROOT}/specs/DS-TM-001_Traceability_Matrix.md` | Dataset registration traces to `templates/`, config loaders, and the registration notebook; deterministic evidence traces to the evidence writer and integration tests. |
+| `${REPO_ROOT}/src/driftsentinel/README.md` | The package already separates config, evidence, orchestration, intake, drift, and benchmark concerns cleanly. |
+| `${REPO_ROOT}/src/driftsentinel/config/README.md` | The config surface already owns dataset and policy loading and explicitly calls out per-dataset policy overrides. |
+| `${REPO_ROOT}/src/driftsentinel/config/loader.py` | The loader validates one dataset contract, one drift policy, and one benchmark policy at a time, but it does not model a registry, explicit version linkage, or policy compatibility checks. |
+| `${REPO_ROOT}/src/driftsentinel/evidence/README.md` | The README promises lookup by run ID, dataset, and date range, but this capability must be verified against the implementation rather than assumed. |
+| `${REPO_ROOT}/src/driftsentinel/evidence/writer.py` | The writer produces append-only JSON envelopes and benchmark bundles, but it does not yet encode dataset identity, policy versions, or lookup helpers. |
+| `${REPO_ROOT}/src/driftsentinel/orchestration/runner.py` | The orchestration layer remains demo-oriented with `run_intake_demo`, `run_drift_demo`, and `run_local_pipeline`, all without dataset selectors or registry-backed execution. |
+| `${REPO_ROOT}/notebooks/README.md` | Notebook logic should stay thin and delegate business logic to `src/driftsentinel/`. |
+| `${REPO_ROOT}/notebooks/01_register_dataset.py` | Dataset registration currently validates and prints one contract, but it does not persist or query a dataset registry. |
+| `${REPO_ROOT}/notebooks/03_run_intake_controls.py`, `${REPO_ROOT}/notebooks/04_run_drift_gate.py`, `${REPO_ROOT}/notebooks/05_run_control_benchmark.py` | Run notebooks are operational, but they still execute demo or single-policy flows without a dataset selector or registry-backed policy resolution. |
+| `${REPO_ROOT}/notebooks/06_review_evidence.py` | Evidence review currently lists and prints every JSON file in a directory rather than supporting dataset, date, or run-ID filters. |
+| `${REPO_ROOT}/templates/dataset_contract.yml`, `${REPO_ROOT}/templates/drift_policy.yml`, `${REPO_ROOT}/templates/benchmark_policy.yml` | Templates are still single-dataset oriented and do not yet expose explicit registry or version metadata. |
+| `${REPO_ROOT}/tests/test_config_loading.py`, `${REPO_ROOT}/tests/test_evidence_writer.py`, `${REPO_ROOT}/tests/test_orchestration.py`, `${REPO_ROOT}/tests/test_packaging.py` | Current tests validate single-config loading, append-only writing, demo orchestration, and notebook packaging, but they do not yet cover multi-dataset registry behavior or historical evidence lookup. |
+| `${REPO_ROOT}/progress.json`, `${REPO_ROOT}/progress.txt` | Phase tracking already exists in-repo and should be reused rather than replaced for this complex implementation. |
 
 ## Mission Statement
 
@@ -100,7 +101,7 @@ Implement a fully featured but scope-bounded Phase 3 solution. Handle version mi
 1. **Confirm the current repository baseline is green before Phase 3 edits.**
 
    ```bash
-   cd "/Users/etherealogic-2/Dev/Databricks/DriftSentinel" && make test
+   cd "$(git rev-parse --show-toplevel)" && make test
    ```
 
    Expected: command exits with status `0`.
@@ -108,7 +109,7 @@ Implement a fully featured but scope-bounded Phase 3 solution. Handle version mi
 2. **Confirm the existing progress files are present and reusable for Phase 3 state tracking.**
 
    ```bash
-   cd "/Users/etherealogic-2/Dev/Databricks/DriftSentinel" && test -f progress.json && test -f progress.txt && echo "progress files present"
+   cd "$(git rev-parse --show-toplevel)" && test -f progress.json && test -f progress.txt && echo "progress files present"
    ```
 
    Expected: `progress files present`.
@@ -116,7 +117,7 @@ Implement a fully featured but scope-bounded Phase 3 solution. Handle version mi
 3. **Confirm the current single-dataset execution anchors before editing.**
 
    ```bash
-   cd "/Users/etherealogic-2/Dev/Databricks/DriftSentinel" && rg -n "load_dataset_contract|load_packaged_dataset_contract|run_intake_demo|run_drift_demo|run_local_pipeline|contract_path|policy_path|evidence_dir" src/driftsentinel notebooks tests
+   cd "$(git rev-parse --show-toplevel)" && rg -n "load_dataset_contract|load_packaged_dataset_contract|run_intake_demo|run_drift_demo|run_local_pipeline|contract_path|policy_path|evidence_dir" src/driftsentinel notebooks tests
    ```
 
    Expected: matches in the config loader, orchestration runner, notebooks, and current tests.
@@ -124,7 +125,7 @@ Implement a fully featured but scope-bounded Phase 3 solution. Handle version mi
 4. **Confirm that Phase 3 version metadata is not already fully modeled in the current templates and core package surfaces.**
 
    ```bash
-   cd "/Users/etherealogic-2/Dev/Databricks/DriftSentinel" && rg -n "dataset_version|contract_version|policy_version|run_id|lookup" templates src/driftsentinel/config src/driftsentinel/evidence src/driftsentinel/orchestration tests
+   cd "$(git rev-parse --show-toplevel)" && rg -n "dataset_version|contract_version|policy_version|run_id|lookup" templates src/driftsentinel/config src/driftsentinel/evidence src/driftsentinel/orchestration tests
    ```
 
    Expected: limited or missing matches for a full Phase 3 contract, confirming the implementation gap is real.
@@ -192,7 +193,7 @@ Implement a fully featured but scope-bounded Phase 3 solution. Handle version mi
 9. **Run the narrow validation for the registry and versioning slice immediately after the first substantive edit lands.**
 
    ```bash
-   cd "/Users/etherealogic-2/Dev/Databricks/DriftSentinel" && uv run pytest tests/test_config_loading.py tests/test_orchestration.py
+   cd "$(git rev-parse --show-toplevel)" && uv run pytest tests/test_config_loading.py tests/test_orchestration.py
    ```
 
    *Success: the command exits with status `0` before you continue into evidence history and notebook updates.*
@@ -234,7 +235,7 @@ Implement a fully featured but scope-bounded Phase 3 solution. Handle version mi
 15. **Run the narrow validation for the evidence-history slice immediately after the first substantive edit lands.**
 
     ```bash
-    cd "/Users/etherealogic-2/Dev/Databricks/DriftSentinel" && uv run pytest tests/test_evidence_writer.py tests/test_orchestration.py
+    cd "$(git rev-parse --show-toplevel)" && uv run pytest tests/test_evidence_writer.py tests/test_orchestration.py
     ```
 
     *Success: the command exits with status `0` before you widen scope to notebooks and operator surfaces.*
@@ -274,7 +275,7 @@ Implement a fully featured but scope-bounded Phase 3 solution. Handle version mi
 21. **Run the focused notebook and packaging validation before you move to the full suite.**
 
     ```bash
-    cd "/Users/etherealogic-2/Dev/Databricks/DriftSentinel" && uv run pytest tests/test_packaging.py tests/test_config_loading.py tests/test_evidence_writer.py tests/test_orchestration.py
+    cd "$(git rev-parse --show-toplevel)" && uv run pytest tests/test_packaging.py tests/test_config_loading.py tests/test_evidence_writer.py tests/test_orchestration.py
     ```
 
     *Success: the touched notebook and package surfaces pass together before broad repo verification begins.*
@@ -290,7 +291,7 @@ Implement a fully featured but scope-bounded Phase 3 solution. Handle version mi
 23. **Run the full local verification suite required by repository policy.**
 
     ```bash
-    cd "/Users/etherealogic-2/Dev/Databricks/DriftSentinel" && make lint && make typecheck && make test
+    cd "$(git rev-parse --show-toplevel)" && make lint && make typecheck && make test
     ```
 
     *Success: lint, typecheck, and tests all exit with status `0`.*
@@ -298,7 +299,7 @@ Implement a fully featured but scope-bounded Phase 3 solution. Handle version mi
 24. **Run the placeholder scan explicitly after notebook and docs-facing changes.**
 
     ```bash
-    cd "/Users/etherealogic-2/Dev/Databricks/DriftSentinel" && uv run python - <<'PY'
+    cd "$(git rev-parse --show-toplevel)" && uv run python - <<'PY'
     import re
     from pathlib import Path
 
@@ -326,7 +327,7 @@ Implement a fully featured but scope-bounded Phase 3 solution. Handle version mi
 25. **Run bundle validation because bundle surfaces remain part of the supported product even if Phase 3 edits stay package-heavy.**
 
     ```bash
-    cd "/Users/etherealogic-2/Dev/Databricks/DriftSentinel" && make bundle-validate
+    cd "$(git rev-parse --show-toplevel)" && make bundle-validate
     ```
 
     *Success: bundle validation exits with status `0` or a clearly documented external-environment blocker is recorded as `unverified` rather than `passed`.*
@@ -335,7 +336,7 @@ Implement a fully featured but scope-bounded Phase 3 solution. Handle version mi
 
 26. **Run Snyk code analysis on the repository root after first-party Phase 3 code lands.**
 
-    Execute `snyk_code_scan` against `/Users/etherealogic-2/Dev/Databricks/DriftSentinel`.
+    Execute `snyk_code_scan` against `${REPO_ROOT}`.
 
     *Success: no new high-severity first-party code issues are introduced, or any findings are resolved before completion.*
 
