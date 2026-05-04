@@ -25,7 +25,7 @@
 | `${REPO_ROOT}/specs/DS-WBS-001_Project_Plan_WBS.md` | The implementation WBS assigns Phase 1 deliverables directly to `src/driftsentinel/intake/`, `drift/`, `benchmark/`, `evidence/`, `orchestration/`, `config/`, and `tests/`. |
 | `${REPO_ROOT}/Makefile` | The canonical validation commands are `make lint`, `make typecheck`, `make test`, and `make bundle-validate`. |
 | `${REPO_ROOT}/pyproject.toml` | The product targets Python 3.11+, currently depends only on `pyyaml` and `pandas`, and should avoid unnecessary dependency growth. |
-| `${REPO_ROOT}/tests/test_scaffold_layout.py` | The current tests only guard scaffold presence and package layout. |
+| `${REPO_ROOT}/tests/test_scaffold_layout.py` | Scaffold layout tests are a governance surface; inspect the current test suite before deciding which Phase 1 behavior tests still need to be added. |
 | `${REPO_ROOT}/tests/test_governance_guards.py` | Placeholder markers are banned from executable surfaces and bundle wiring already has explicit tests. |
 | `${REPO_ROOT}/src/driftsentinel/config/__init__.py` and sibling package `__init__.py` files | The target packages are still stub-only docstring surfaces with no substantive implementation modules. |
 | `${CHAPTER_REPO_ROOT}/trusted-source-intake/README.md` | Chapter 1 is the intake-control source repository covering contract validation, replay handling, quarantine routing, and downstream-safe ready outputs. |
@@ -62,16 +62,16 @@ Write progress updates as short prose plus small tables when helpful. Use markdo
 
 ## Technical Context
 
-DriftSentinel is a scaffold with the correct package boundaries but no substantive product code yet. The six package stubs under `src/driftsentinel/` already define where the implementation belongs:
+This Phase 1 prompt was written for an initial consolidation baseline. Do not assume the active checkout is still scaffold-only; verify each package before editing and adapt the work to any first-party implementation that already exists. If a checkout still has only package stubs under `src/driftsentinel/`, use these ownership boundaries:
 
-| Product Surface | Current State | Required Phase 1 Role |
+| Product Surface | Baseline To Verify | Required Phase 1 Role |
 |-----------------|---------------|------------------------|
-| `src/driftsentinel/config/` | Docstring-only stub | Shared loader for dataset contracts, drift policies, and benchmark policies sourced from `templates/` or explicit paths |
-| `src/driftsentinel/evidence/` | Docstring-only stub | Shared append-only evidence writing and provenance helpers |
-| `src/driftsentinel/intake/` | Docstring-only stub | Chapter 1 contract checks, replay detection, quarantine routing, and deterministic demo metrics |
-| `src/driftsentinel/drift/` | Docstring-only stub | Chapter 2 baseline creation, drift detection, gate evaluation, and publication verdict logic |
-| `src/driftsentinel/benchmark/` | Docstring-only stub | Chapter 3 dataset generation, quality scoring, drift scoring, gate evaluation, and evidence bundle logic |
-| `src/driftsentinel/orchestration/` | Docstring-only stub | Minimal local orchestration needed to exercise Phase 1 deterministically inside DriftSentinel |
+| `src/driftsentinel/config/` | Verify whether this is still a stub or already contains loader code | Shared loader for dataset contracts, drift policies, and benchmark policies sourced from `templates/` or explicit paths |
+| `src/driftsentinel/evidence/` | Verify whether this is still a stub or already contains evidence helpers | Shared append-only evidence writing and provenance helpers |
+| `src/driftsentinel/intake/` | Verify whether this is still a stub or already contains intake logic | Chapter 1 contract checks, replay detection, quarantine routing, and deterministic demo metrics |
+| `src/driftsentinel/drift/` | Verify whether this is still a stub or already contains drift logic | Chapter 2 baseline creation, drift detection, gate evaluation, and publication verdict logic |
+| `src/driftsentinel/benchmark/` | Verify whether this is still a stub or already contains benchmark logic | Chapter 3 dataset generation, quality scoring, drift scoring, gate evaluation, and evidence bundle logic |
+| `src/driftsentinel/orchestration/` | Verify whether this is still a stub or already contains orchestration logic | Minimal local orchestration needed to exercise Phase 1 deterministically inside DriftSentinel |
 
 The verified source material is already partitioned by domain:
 
@@ -81,16 +81,16 @@ The verified source material is already partitioned by domain:
 | Drift | `${CHAPTER_REPO_ROOT}/silent-failure-prevention/src/stability/detection/*.py`, `${CHAPTER_REPO_ROOT}/silent-failure-prevention/src/stability/gates/evaluator.py`, `${CHAPTER_REPO_ROOT}/silent-failure-prevention/src/stability/provenance/builder.py`, `${CHAPTER_REPO_ROOT}/silent-failure-prevention/src/stability/runners/local_demo.py`, plus sibling Chapter 2 tests | `src/driftsentinel/drift/`, `src/driftsentinel/evidence/`, and `tests/test_drift.py` |
 | Benchmark | `${CHAPTER_REPO_ROOT}/measurable-control-effectiveness/src/benchmark/datasets/synthetic.py`, `drift/detectors.py`, `quality/detectors.py`, `gates/evaluator.py`, `scoring/ground_truth.py`, `evidence/writer.py`, `runners/orchestrator.py`, plus sibling Chapter 3 tests | `src/driftsentinel/benchmark/`, `src/driftsentinel/evidence/`, and `tests/test_benchmark.py` |
 
-Current DriftSentinel tests verify only scaffold integrity and governance guards. That means Phase 1 must add deterministic behavior tests in this repository rather than inheriting PASS claims from the sibling repos. Implement a fully-featured consolidation that handles config validation, missing required fields, append-only evidence guarantees, and deterministic seeds instead of stopping at stub replacement.
+Verify the current DriftSentinel tests before extending them. If they only cover scaffold integrity and governance guards, Phase 1 must add deterministic behavior tests in this repository rather than inheriting PASS claims from the sibling repos. Implement a fully featured consolidation that handles config validation, missing required fields, append-only evidence guarantees, and deterministic seeds instead of stopping at stub replacement.
 
 ## Problem-State Table
 
 | Aspect | Current State | Target State |
 |--------|---------------|--------------|
-| Product code | `src/driftsentinel/` contains only package docstrings. | `src/driftsentinel/` contains real first-party Python modules with stable local APIs. |
+| Product code | A pre-consolidation checkout may contain only package docstrings; verify the active checkout before editing. | `src/driftsentinel/` contains real first-party Python modules with stable local APIs. |
 | Logic location | Intake, drift, and benchmark behavior still lives in sibling chapter repositories. | Equivalent behavior runs locally from DriftSentinel with no sibling runtime imports. |
 | Shared foundations | No normalized config loader or shared evidence writer exists. | Config and evidence are centralized under `config/` and `evidence/` and reused across all domains. |
-| Deterministic proof | Tests only cover scaffold and governance surfaces. | Deterministic unit and integration-style tests verify Phase 1 behavior from this repository. |
+| Deterministic proof | Tests may only cover scaffold and governance surfaces; verify the current test inventory. | Deterministic unit and integration-style tests verify Phase 1 behavior from this repository. |
 | Boundary enforcement | Phase 1 could regress by keeping sibling file paths or imports in executable code. | Executable surfaces are free of sibling chapter runtime dependencies. |
 
 ## Pre-Flight Checks
@@ -101,7 +101,7 @@ Current DriftSentinel tests verify only scaffold integrity and governance guards
    cd "$(git rev-parse --show-toplevel)" && test -d ../trusted-source-intake && test -d ../silent-failure-prevention && test -d ../measurable-control-effectiveness && find src/driftsentinel -type f -name '*.py' | sort
    ```
 
-   Expected: only `__init__.py` files under `src/driftsentinel/` are listed.
+   Expected: record whether only `__init__.py` files are listed or whether substantive modules already exist; if modules exist, adapt the Phase 1 plan to the current implementation instead of overwriting it.
 
 2. **Confirm the current repo baseline is green before implementation.**
 

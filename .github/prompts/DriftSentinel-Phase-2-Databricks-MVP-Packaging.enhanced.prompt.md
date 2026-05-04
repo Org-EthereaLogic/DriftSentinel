@@ -18,15 +18,15 @@
 | `${REPO_ROOT}/CONSTITUTION.md` | Safety, evidence traceability, security hygiene, simplicity, and reproducibility control all decisions, and packaging work is explicitly in scope. |
 | `${REPO_ROOT}/DIRECTIVES.md` | Specs are canonical, quality-control surfaces must remain wired, and no claim can outrun evidence. |
 | `${REPO_ROOT}/.github/instructions/codacy.instructions.md` | Codacy analysis should follow edits when the tool surface exists, but unavailable MCP tooling must be reported instead of fabricated. |
-| `${REPO_ROOT}/README.md` | Phase 0/1 intentionally left bundle resources and notebooks as scaffolds, and Phase 2 is the point where runnable Databricks workflows arrive. |
+| `${REPO_ROOT}/README.md` | Verify whether the active checkout still has scaffolded bundle and notebook surfaces; Phase 2 is the point where runnable Databricks workflows arrive if those gaps remain. |
 | `${REPO_ROOT}/specs/DS-IP-001_Implementation_Plan.md` | Phase 2 requires bundle resources, notebooks, GitHub-to-Databricks install paths, and a clean-workspace deployment exit criterion. |
 | `${REPO_ROOT}/specs/DS-SRS-001_Software_Requirements_Specification.md` | Bundle deployment, manual import, notebook execution, deterministic demo behavior, and truthful external interfaces are required product behaviors. |
 | `${REPO_ROOT}/specs/DS-SDD-001_Architecture_Blueprint.md` | The control flow is already defined: register dataset, seed baseline, run intake, run drift gate, run benchmark, write evidence, review evidence. |
 | `${REPO_ROOT}/specs/DS-TM-001_Traceability_Matrix.md` | Phase 2 traces directly to `databricks.yml`, `resources/`, `notebooks/`, `templates/`, config loaders, and workspace validation. |
 | `${REPO_ROOT}/specs/DS-TP-001_Test_Plan.md` | Integration tests for bundle resources and notebook orchestration are required, not optional follow-up work. |
 | `${REPO_ROOT}/databricks.yml` | The bundle currently only names `resources/*.yml`, `catalog`, and `schema`; it is structurally valid but operationally incomplete. |
-| `${REPO_ROOT}/resources/intake_pipeline.yml`, `${REPO_ROOT}/resources/drift_gate_job.yml`, `${REPO_ROOT}/resources/benchmark_job.yml` | All three resource files are comment-only stubs with no deployable Databricks resources defined. |
-| `${REPO_ROOT}/notebooks/00_quickstart_setup.py` through `${REPO_ROOT}/notebooks/06_review_evidence.py` | All seven notebooks still raise the same explicit DS-IP-001 Phase 2 runtime error and need real package-backed execution. |
+| `${REPO_ROOT}/resources/intake_pipeline.yml`, `${REPO_ROOT}/resources/drift_gate_job.yml`, `${REPO_ROOT}/resources/benchmark_job.yml` | Verify whether the resource files still contain placeholder-only content or already define deployable Databricks resources before editing. |
+| `${REPO_ROOT}/notebooks/00_quickstart_setup.py` through `${REPO_ROOT}/notebooks/06_review_evidence.py` | Verify whether the notebooks still raise the explicit DS-IP-001 Phase 2 runtime error or already call package-backed execution paths. |
 | `${REPO_ROOT}/src/driftsentinel/orchestration/runner.py` | Drift demo thresholds are still embedded inline, which is acceptable for Phase 1 local execution but not sufficient for notebook-driven Databricks packaging. |
 | `${REPO_ROOT}/src/driftsentinel/benchmark/orchestrator.py` | Benchmark execution still falls back to `_DEFAULT_GATES`, which conflicts with the intent to source policy from `templates/`. |
 | `${REPO_ROOT}/src/driftsentinel/config/loader.py` | Benchmark policy loading validates the presence of `gates` but does not normalize the template into the gate schema expected by the evaluator. |
@@ -70,7 +70,7 @@ The repo already contains the product logic needed for Phase 2; the gap is packa
 | `resources/benchmark_job.yml` | Comment-only stub | Defines a real Databricks job resource that runs the benchmark notebook or script path |
 | `notebooks/00` through `06` | Fail-closed runtime errors | Thin Databricks notebooks that gather parameters, install or resolve the package, and call first-party package code |
 | `src/driftsentinel/config/loader.py` + `templates/benchmark_policy.yml` | Template shape and evaluator shape do not match | One source of truth for benchmark gates, loaded from `templates/` or explicit policy paths |
-| `docs/deployment_guide.md` | Explains scaffold validation only | Documents real GitHub-to-Databricks deploy and install paths |
+| `docs/deployment_guide.md` | May explain scaffold validation only; verify current wording before editing | Documents real GitHub-to-Databricks deploy and install paths |
 
 Keep notebook logic thin. The notebooks should orchestrate Databricks-specific concerns such as widgets, install path selection, and evidence output locations, while `src/driftsentinel/` remains the place where business logic executes.
 
@@ -95,10 +95,10 @@ Databricks bundle guidance matters here: use workspace-backed bundle assets for 
 
 | Aspect | Current State | Target State |
 |--------|---------------|--------------|
-| Bundle deployability | Root bundle exists, but resources are empty comments | `databricks bundle validate` succeeds against real job and pipeline resources |
-| Notebook execution | All seven notebooks raise the same DS-IP-001 Phase 2 runtime error | Each notebook runs real package code with deterministic defaults and explicit parameters |
+| Bundle deployability | Root bundle exists; verify whether resources are still empty comments or already operational | `databricks bundle validate` succeeds against real job and pipeline resources |
+| Notebook execution | Verify whether notebooks still raise the DS-IP-001 Phase 2 runtime error or already reach package code | Each notebook runs real package code with deterministic defaults and explicit parameters |
 | Benchmark policy source | `_DEFAULT_GATES` in code diverges from `templates/benchmark_policy.yml` | One normalized policy path drives benchmark threshold evaluation |
-| Deployment docs | Guide documents scaffold validation and future-state commands only | Guide documents real GitHub-to-Databricks install and deploy paths |
+| Deployment docs | Guide may document scaffold validation and future-state commands only; verify current state | Guide documents real GitHub-to-Databricks install and deploy paths |
 | Exit evidence | No proof yet that the repo can deploy into a clean workspace from GitHub | Local validation plus bundle validation, and workspace deploy evidence when credentials are available |
 
 ## Pre-Flight Checks
@@ -111,13 +111,13 @@ Databricks bundle guidance matters here: use workspace-backed bundle assets for 
 
    Expected: command exits with status `0`.
 
-2. **Confirm the current Phase 2 scaffolds are still present.**
+2. **Confirm whether the Phase 2 scaffold gaps are still present.**
 
    ```bash
    cd "$(git rev-parse --show-toplevel)" && rg -n "DS-IP-001 Phase 2|Current status|_DEFAULT_GATES|benchmark_policy:" notebooks resources src/driftsentinel docs/deployment_guide.md templates/benchmark_policy.yml
    ```
 
-   Expected: matches in all seven notebooks, all three resource files, `src/driftsentinel/benchmark/orchestrator.py`, and `templates/benchmark_policy.yml`.
+   Expected: matches identify any remaining scaffold gaps. If matches are missing because the active checkout already implements those surfaces, record that state and adjust the implementation plan instead of recreating completed work.
 
 3. **Confirm the Databricks CLI is available before claiming bundle validation.**
 
@@ -217,7 +217,7 @@ Databricks bundle guidance matters here: use workspace-backed bundle assets for 
 
 ### Phase 4: Document The Deployment Paths And Add Packaging Tests
 
-11. **Rewrite `${REPO_ROOT}/docs/deployment_guide.md` from scaffold language to Phase 2 operational guidance.**
+11. **Update `${REPO_ROOT}/docs/deployment_guide.md` from any remaining scaffold language to Phase 2 operational guidance.**
 
    Document the real GitHub-to-Databricks paths, including at minimum: local clone plus bundle validate/deploy/run, and direct notebook package installation from GitHub for workspace onboarding. Preserve truthfulness about any steps that still depend on Databricks credentials, workspace files, or Unity Catalog setup.
 

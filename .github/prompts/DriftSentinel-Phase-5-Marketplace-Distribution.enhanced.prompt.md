@@ -27,8 +27,8 @@
 | `${REPO_ROOT}/docs/README.md` | `docs/` is the right home for explanatory commercialization and submission-prep material. |
 | `${REPO_ROOT}/assets/README.md` | `assets/` is the correct home for auditable collateral and brand files, including any marketplace-specific asset inventory. |
 | `${REPO_ROOT}/app/README.md` | The App is a read-only Premium-workspace surface, which matters for marketplace positioning and paid-workspace prerequisites. |
-| `${REPO_ROOT}/progress.json` | Current repo state already records `bundle_validate`, `bundle_deploy`, `benchmark_job_run`, and `bundle_destroy` as passed. |
-| `${REPO_ROOT}/progress.txt` | Historical phase notes show Phase 3 proof already included catalog check, bundle validate, deploy, run, and destroy evidence. |
+| `${REPO_ROOT}/progress.json` | If present locally, inspect whether it records `bundle_validate`, `bundle_deploy`, `benchmark_job_run`, and `bundle_destroy` status before making readiness claims. |
+| `${REPO_ROOT}/progress.txt` | If present locally, inspect whether historical phase notes include catalog check, bundle validate, deploy, run, and destroy evidence before using them. |
 | `${REPO_ROOT}/report/2026-04-02T07-36-36Z-bundle-proof-reconciliation.md` | The bundle-validation blocker from earlier work is closed for the `e62-trial` proof path, and validation alone does not prove catalog existence. |
 | `${REPO_ROOT}/report/2026-04-02T23-23-notion-sync-record.md` | Phase 5 is still `Not Started`, there are no marketplace artifacts in the repo, and no sprint is currently marked `Current`. |
 | `${REPO_ROOT}/report/2026-04-03T01-05-notion-sync-record.md` | The latest sync still shows no current sprint and Phase 5 unchanged, but its local “bundle validation not attempted” note is stale relative to repo proof artifacts. |
@@ -69,7 +69,7 @@ Keep the implementation proportional and repo-first.
 
 | Surface | Current State | Phase 5 Target |
 |--------|---------------|----------------|
-| Bundle/deploy proof | Already evidenced in `progress.json`, `progress.txt`, and bundle proof report | Reused as marketplace readiness evidence, not re-litigated unless current work edits executable deploy surfaces |
+| Bundle/deploy proof | May be evidenced in local progress trackers and bundle proof reports; verify before relying on it | Reused as marketplace readiness evidence, not re-litigated unless current work edits executable deploy surfaces |
 | Marketplace collateral | No marketplace artifacts in repo | Repo-backed provider/listing packet exists under `docs/` and `assets/` |
 | README discovery copy | Product and deployment focused | Includes a concise marketplace-prep section that points to the new collateral |
 | Sprint/task coordination | Phase 5 `Not Started`; no sprint marked `Current` | Phase 5 tracking updated truthfully, with live Notion mutation only if available and evidenced |
@@ -93,17 +93,17 @@ Create a fully featured but scope-bounded Phase 5 preparation packet. Handle mis
 1. **Verify the core Phase 5 input set exists before you start.**
 
    ```bash
-   cd "$(git rev-parse --show-toplevel)" && test -f specs/DS-IP-001_Implementation_Plan.md && test -f specs/DS-PRD-001_Product_Requirements_Document.md && test -f specs/DS-SRS-001_Software_Requirements_Specification.md && test -f specs/DS-BI-001_Build_Instructions.md && test -f progress.json && test -f progress.txt && echo "phase5 inputs present"
+   cd "$(git rev-parse --show-toplevel)" && test -f specs/DS-IP-001_Implementation_Plan.md && test -f specs/DS-PRD-001_Product_Requirements_Document.md && test -f specs/DS-SRS-001_Software_Requirements_Specification.md && test -f specs/DS-BI-001_Build_Instructions.md && if test -f progress.json && test -f progress.txt; then echo "phase5 inputs present with local progress trackers"; else echo "phase5 canonical inputs present; local progress trackers absent"; fi
    ```
 
-   Expected: `phase5 inputs present`.
+   Expected: canonical inputs are present, and the output truthfully states whether local progress trackers exist.
 
    *Success: the canonical Phase 5 sources and current progress files are present.*
 
 2. **Verify the current repo still records bundle proof before treating it as blocked.**
 
    ```bash
-   cd "$(git rev-parse --show-toplevel)" && rg -n '"bundle_validate": "passed"|bundle-validate: PASS|Deployment complete!|TERMINATED SUCCESS' progress.json progress.txt report/2026-04-02T07-36-36Z-bundle-proof-reconciliation.md
+   cd "$(git rev-parse --show-toplevel)" && FILES="report/2026-04-02T07-36-36Z-bundle-proof-reconciliation.md" && test -f progress.json && FILES="$FILES progress.json"; test -f progress.txt && FILES="$FILES progress.txt"; rg -n '"bundle_validate": "passed"|bundle-validate: PASS|Deployment complete!|TERMINATED SUCCESS' $FILES
    ```
 
    Expected: matches in all three files.
@@ -136,7 +136,7 @@ Create a fully featured but scope-bounded Phase 5 preparation packet. Handle mis
 
 1. **Read the Phase 5 comparison set in parallel before editing anything.**
 
-   Read `specs/DS-IP-001_Implementation_Plan.md`, `specs/DS-PRD-001_Product_Requirements_Document.md`, `specs/DS-SRS-001_Software_Requirements_Specification.md`, `specs/DS-BI-001_Build_Instructions.md`, `README.md`, `docs/README.md`, `assets/README.md`, `app/README.md`, `progress.json`, `progress.txt`, `report/2026-04-02T07-36-36Z-bundle-proof-reconciliation.md`, `report/2026-04-02T23-23-notion-sync-record.md`, and `report/2026-04-03T01-05-notion-sync-record.md`.
+   Read `specs/DS-IP-001_Implementation_Plan.md`, `specs/DS-PRD-001_Product_Requirements_Document.md`, `specs/DS-SRS-001_Software_Requirements_Specification.md`, `specs/DS-BI-001_Build_Instructions.md`, `README.md`, `docs/README.md`, `assets/README.md`, `app/README.md`, `report/2026-04-02T07-36-36Z-bundle-proof-reconciliation.md`, `report/2026-04-02T23-23-notion-sync-record.md`, and `report/2026-04-03T01-05-notion-sync-record.md`. Also read `progress.json` and `progress.txt` if they exist locally.
 
    *Success: you can restate the Phase 5 exit criterion, the commercialization boundaries, the current bundle-proof state, and the current sprint/task state without guessing.*
 
@@ -150,7 +150,7 @@ Create a fully featured but scope-bounded Phase 5 preparation packet. Handle mis
 
 3. **Activate Phase 5 in the in-repo state trackers before creating artifacts.**
 
-   Update `${REPO_ROOT}/progress.json` and `${REPO_ROOT}/progress.txt` to represent `Phase 5 - Marketplace Distribution`, with explicit checklist entries for: source-state reconciliation, provider-profile draft, listing-material draft, asset inventory, README discovery update, sprint coordination, external mutation status, and verification.
+   Create or update `${REPO_ROOT}/progress.json` and `${REPO_ROOT}/progress.txt` to represent `Phase 5 - Marketplace Distribution`, with explicit checklist entries for: source-state reconciliation, provider-profile draft, listing-material draft, asset inventory, README discovery update, sprint coordination, external mutation status, and verification.
 
    *Success: the progress files name Phase 5 directly and separate completed repo work from blocked external actions.*
 

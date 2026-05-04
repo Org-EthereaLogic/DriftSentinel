@@ -27,9 +27,9 @@
 | `${REPO_ROOT}/specs/DS-TM-001_Traceability_Matrix.md` | Dataset registration traces to `templates/`, config loaders, and the registration notebook; deterministic evidence traces to the evidence writer and integration tests. |
 | `${REPO_ROOT}/src/driftsentinel/README.md` | The package already separates config, evidence, orchestration, intake, drift, and benchmark concerns cleanly. |
 | `${REPO_ROOT}/src/driftsentinel/config/README.md` | The config surface already owns dataset and policy loading and explicitly calls out per-dataset policy overrides. |
-| `${REPO_ROOT}/src/driftsentinel/config/loader.py` | The loader validates one dataset contract, one drift policy, and one benchmark policy at a time, but it does not model a registry, explicit version linkage, or policy compatibility checks. |
+| `${REPO_ROOT}/src/driftsentinel/config/loader.py` | The loader may already include `DatasetRegistry` and `check_policy_compatibility()`; verify current registry, version-linkage, and compatibility behavior before extending it. |
 | `${REPO_ROOT}/src/driftsentinel/evidence/README.md` | The README promises lookup by run ID, dataset, and date range, but this capability must be verified against the implementation rather than assumed. |
-| `${REPO_ROOT}/src/driftsentinel/evidence/writer.py` | The writer produces append-only JSON envelopes and benchmark bundles, but it does not yet encode dataset identity, policy versions, or lookup helpers. |
+| `${REPO_ROOT}/src/driftsentinel/evidence/writer.py` | The writer produces append-only JSON envelopes and may already include lookup helpers; verify dataset identity and policy-version metadata coverage before extending it. |
 | `${REPO_ROOT}/src/driftsentinel/orchestration/runner.py` | The orchestration layer remains demo-oriented with `run_intake_demo`, `run_drift_demo`, and `run_local_pipeline`, all without dataset selectors or registry-backed execution. |
 | `${REPO_ROOT}/notebooks/README.md` | Notebook logic should stay thin and delegate business logic to `src/driftsentinel/`. |
 | `${REPO_ROOT}/notebooks/01_register_dataset.py` | Dataset registration currently validates and prints one contract, but it does not persist or query a dataset registry. |
@@ -37,7 +37,7 @@
 | `${REPO_ROOT}/notebooks/06_review_evidence.py` | Evidence review currently lists and prints every JSON file in a directory rather than supporting dataset, date, or run-ID filters. |
 | `${REPO_ROOT}/templates/dataset_contract.yml`, `${REPO_ROOT}/templates/drift_policy.yml`, `${REPO_ROOT}/templates/benchmark_policy.yml` | Templates are still single-dataset oriented and do not yet expose explicit registry or version metadata. |
 | `${REPO_ROOT}/tests/test_config_loading.py`, `${REPO_ROOT}/tests/test_evidence_writer.py`, `${REPO_ROOT}/tests/test_orchestration.py`, `${REPO_ROOT}/tests/test_packaging.py` | Current tests validate single-config loading, append-only writing, demo orchestration, and notebook packaging, but they do not yet cover multi-dataset registry behavior or historical evidence lookup. |
-| `${REPO_ROOT}/progress.json`, `${REPO_ROOT}/progress.txt` | Phase tracking already exists in-repo and should be reused rather than replaced for this complex implementation. |
+| `${REPO_ROOT}/progress.json`, `${REPO_ROOT}/progress.txt` | Phase tracking may exist locally; reuse it when present, or create local trackers before recording Phase 3 state. |
 
 ## Mission Statement
 
@@ -106,13 +106,13 @@ Implement a fully featured but scope-bounded Phase 3 solution. Handle version mi
 
    Expected: command exits with status `0`.
 
-2. **Confirm the existing progress files are present and reusable for Phase 3 state tracking.**
+2. **Confirm whether local progress files are present and reusable for Phase 3 state tracking.**
 
    ```bash
-   cd "$(git rev-parse --show-toplevel)" && test -f progress.json && test -f progress.txt && echo "progress files present"
+    cd "$(git rev-parse --show-toplevel)" && if test -f progress.json && test -f progress.txt; then echo "progress files present"; else echo "progress files absent; create local trackers before recording state"; fi
    ```
 
-   Expected: `progress files present`.
+    Expected: either `progress files present` or a clear local-tracker creation requirement.
 
 3. **Confirm the current single-dataset execution anchors before editing.**
 
@@ -134,7 +134,7 @@ Implement a fully featured but scope-bounded Phase 3 solution. Handle version mi
 
 ### Phase 1: Re-Baseline The Work And Lock The Shared Phase 3 Contract
 
-1. **Update `progress.json` and `progress.txt` for Phase 3 before you edit product code.**
+1. **Create or update `progress.json` and `progress.txt` for Phase 3 before you edit product code.**
 
    Record the phase name as `Phase 3 - Multi-Dataset Hardening`, list the four Phase 3 deliverables from the source prompt, and convert them into explicit checklists or statuses that can be updated as work lands.
 
@@ -357,7 +357,7 @@ Implement a fully featured but scope-bounded Phase 3 solution. Handle version mi
 - **Required:** Keep notebooks thin and route business logic through `src/driftsentinel/`.
 - **Required:** Preserve deterministic demo behavior for local and test validation even as dataset-aware execution is added.
 - **Required:** Fail explicitly on unknown dataset identifiers, duplicate registry collisions, and policy version mismatches.
-- **Required:** Reuse `progress.json` and `progress.txt` instead of creating new state files.
+- **Required:** Reuse `progress.json` and `progress.txt` when present; otherwise create local state files before recording Phase 3 progress.
 - **Required:** Keep new first-party modules proportional in size and purpose; prefer direct extensions of existing package boundaries over speculative abstractions.
 - **Budget:** Do not introduce new dependencies unless the existing standard library and current dependency set cannot satisfy the requirement.
 - **Budget:** Keep individual source files under the repository’s recommended 500-line ceiling when practical.
