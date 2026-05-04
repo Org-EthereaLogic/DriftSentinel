@@ -8,4 +8,4 @@ tools:
     - opengrep@1.17.0
     - pmd@6.55.0
     - pylint@4.0.5
-    - trivy@0.69.3
+    - trivy@0.70.0

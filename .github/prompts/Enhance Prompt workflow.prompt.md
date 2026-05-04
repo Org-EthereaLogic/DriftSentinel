@@ -24,9 +24,10 @@ Apply expert prompt engineering knowledge to transform ambiguous or underspecifi
 | Variable | Type | Description |
 |----------|------|-------------|
 | `$ARGUMENTS` | Dynamic | The source prompt text, or a file path to the prompt you want to enhance. If a file path is provided, read the file before proceeding. |
-| `OUTPUT_DIR` | Static | `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/docs/prompts/enhanced/` |
-| `EXAMPLES_DIR` | Static | `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/docs/prompts/enhanced/` — repository-local enhanced prompts for structural reference |
-| `DOCS_DIR` | Static | `/Users/etherealogic-2/Dev/Databricks/DriftSentinel/docs/prompts/doc/` — repository-local prompt engineering references |
+| `REPO_ROOT` | Dynamic | Current DriftSentinel checkout, resolved with `git rev-parse --show-toplevel` before creating or reading repository-local prompt assets. |
+| `OUTPUT_DIR` | Static | `${REPO_ROOT}/docs/prompts/enhanced/` |
+| `EXAMPLES_DIR` | Static | `${REPO_ROOT}/docs/prompts/enhanced/` — repository-local enhanced prompts for structural reference |
+| `DOCS_DIR` | Static | `${REPO_ROOT}/docs/prompts/doc/` — repository-local prompt engineering references |
 
 ---
 
