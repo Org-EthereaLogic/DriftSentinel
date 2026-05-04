@@ -3,10 +3,10 @@
 | Field | Value |
 | --- | --- |
 | Document ID | DS-PRD-001 |
-| Version | 1.0 |
+| Version | 1.1 |
 | Status | Draft |
 | Author | Anthony Johnson |
-| Date | 2026-04-01 |
+| Date | 2026-05-04 |
 
 ## 1. Purpose
 
@@ -27,7 +27,7 @@ explicit failure behavior and evidence traceability.
 - standalone DriftSentinel repository with first-party product code
 - canonical SDLC and agent-layer scaffolding
 - pre-implementation quality-control integration (Codacy, Codecov, Snyk)
-- evidence-backed Notion dashboard sync policy
+- evidence-backed GitHub Project (#8) sync policy
 - declarative dataset configuration
 - Databricks Asset Bundle deployment
 - onboarding and operations notebooks
@@ -56,7 +56,7 @@ explicit failure behavior and evidence traceability.
 | DS-FR-009 | Preserve explicit failure reasons, no silent filtering |
 | DS-FR-010 | Record run metadata for replayable evidence |
 | DS-FR-011 | Scaffold Codacy, Codecov, and Snyk before product implementation |
-| DS-FR-012 | Define evidence-backed Notion dashboard sync policy |
+| DS-FR-012 | Define evidence-backed GitHub Project (#8) sync policy |
 
 ## 6. Non-Functional Requirements
 
@@ -70,4 +70,11 @@ explicit failure behavior and evidence traceability.
 | DS-NFR-006 | Fail closed on blocked publication conditions |
 | DS-NFR-007 | No secrets or credentials in repository content |
 | DS-NFR-008 | No product code before quality-control gates are wired |
-| DS-NFR-009 | Notion is external-only; failed sync must not block work |
+| DS-NFR-009 | GitHub Project is external-only; failed sync must not block work |
+
+## 7. Changelog
+
+| Version | Date | Change |
+| --- | --- | --- |
+| 1.1 | 2026-05-04 | Replaced Notion dashboard with GitHub Project (#8) as external coordination surface (DS-FR-012, DS-NFR-009, §3) following governance migration in commit 78bdf82 |
+| 1.0 | 2026-04-01 | Initial draft |

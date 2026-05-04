@@ -3,10 +3,10 @@
 | Field | Value |
 | --- | --- |
 | Document ID | DS-WBS-001 |
-| Version | 1.0 |
+| Version | 1.1 |
 | Status | Draft |
 | Author | Anthony Johnson |
-| Date | 2026-04-01 |
+| Date | 2026-05-04 |
 
 ## Product Scaffold WBS
 
@@ -19,7 +19,7 @@
 | 1.5 | Workflow and evidence placeholders | adws/, report/ |
 | 1.6 | Databricks shell | databricks.yml, resources/, notebooks/, templates/ |
 | 1.7 | Package and test shell | pyproject.toml, src/driftsentinel/, tests/ |
-| 1.8 | Notion sync policy surface | docs/notion_dashboard_sync.md, /sync command |
+| 1.8 | GitHub Project sync policy surface | docs/github_project_sync.md, /sync command |
 | 1.9 | Scaffold verification | local checks and repository review |
 
 ## Implementation WBS
@@ -35,3 +35,10 @@
 | 2.7 | Bundle and notebooks | databricks.yml, resources/, notebooks/ |
 | 2.8 | Test suite | tests/ |
 | 2.9 | Verification and evidence | report/ |
+
+## Changelog
+
+| Version | Date | Change |
+| --- | --- | --- |
+| 1.1 | 2026-05-04 | WBS 1.8 updated from Notion sync surface to GitHub Project sync surface following governance migration in commit 78bdf82 |
+| 1.0 | 2026-04-01 | Initial draft |

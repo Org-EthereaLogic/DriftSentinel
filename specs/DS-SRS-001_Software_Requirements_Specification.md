@@ -3,10 +3,10 @@
 | Field | Value |
 | --- | --- |
 | Document ID | DS-SRS-001 |
-| Version | 1.0 |
+| Version | 1.1 |
 | Status | Draft |
 | Author | Anthony Johnson |
-| Date | 2026-04-01 |
+| Date | 2026-05-04 |
 
 ## 1. Functional Requirements
 
@@ -23,7 +23,7 @@
 | DS-SR-009 | DS-FR-002 | Bundle deployment path and manual import path |
 | DS-SR-010 | DS-FR-010 | Deterministic demo path for local and workspace validation |
 | DS-SR-011 | DS-FR-011 | Pre-implementation Codacy, Codecov, and Snyk setup |
-| DS-SR-012 | DS-FR-012 | Evidence-backed Notion dashboard sync policy with payload fallback |
+| DS-SR-012 | DS-FR-012 | Evidence-backed GitHub Project (#8) sync policy |
 
 ## 2. Non-Functional Requirements
 
@@ -37,7 +37,7 @@
 | DS-SNFR-006 | DS-NFR-001 | No runtime dependency on sibling chapter clones |
 | DS-SNFR-007 | DS-NFR-007 | No secrets or hard-coded customer data in repository content |
 | DS-SNFR-008 | DS-NFR-008 | No coding before quality-control preflight gate is satisfied |
-| DS-SNFR-009 | DS-NFR-009 | Notion sync is non-blocking and truthful |
+| DS-SNFR-009 | DS-NFR-009 | GitHub Project sync is non-blocking and truthful |
 
 ## 3. External Interfaces
 
@@ -45,7 +45,7 @@
 - Databricks notebooks and workspace import
 - Unity Catalog (catalogs, schemas, tables, volumes)
 - Local Python tooling for packaging and tests
-- Notion dashboard as external coordination surface
+- GitHub Issues and DriftSentinel Roadmap Project (#8) as external coordination surface
 
 ## 4. Assumptions
 
@@ -55,3 +55,10 @@
   `CODECOV_PROJECT_TOKEN` for backward compatibility, plus
   `SNYK_PROJECT_TOKEN`; `CODACY_PROJECT_TOKEN` is only required if the project
   switches to Codacy client-side upload mode
+
+## 5. Changelog
+
+| Version | Date | Change |
+| --- | --- | --- |
+| 1.1 | 2026-05-04 | Replaced Notion dashboard with GitHub Issues + Project (#8) as external coordination surface (DS-SR-012, DS-SNFR-009, §3) following governance migration in commit 78bdf82 |
+| 1.0 | 2026-04-01 | Initial draft |
