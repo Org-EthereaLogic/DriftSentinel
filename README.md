@@ -181,6 +181,11 @@ make sync   # installs runtime + dev dependencies via uv
 make test   # runs the pytest suite
 ```
 
+> Databricks bundle and app deploy targets require a terraform-compatible
+> binary on PATH. OpenTofu is recommended (`brew install opentofu`); see
+> the [Terraform binary section in the deployment guide](docs/deployment_guide.md#terraform-binary)
+> for context (terraform 1.5.5 PGP signature expired upstream in 2025).
+
 ### Databricks Bootstrap (wrapper)
 
 ```bash

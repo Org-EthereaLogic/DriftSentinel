@@ -7,6 +7,8 @@ import subprocess
 import sys
 from typing import Any
 
+from driftsentinel.databricks.tf_env import resolve_tf_env
+
 
 class BundleError(RuntimeError):
     """Raised when a bundle CLI command fails."""
@@ -37,7 +39,7 @@ def _run_bundle(
         cmd.extend(["-o", "json"])
 
     print("+", " ".join(cmd), file=sys.stderr)
-    proc = subprocess.run(cmd, text=True, capture_output=True)
+    proc = subprocess.run(cmd, text=True, capture_output=True, env=resolve_tf_env())
     if proc.returncode != 0:
         detail = proc.stderr.strip() or proc.stdout.strip()
         raise BundleError(f"bundle {args[0]} failed (exit {proc.returncode}): {detail}")
@@ -58,8 +60,12 @@ def validate(
 ) -> str:
     """Run ``databricks bundle validate`` and return stdout."""
     result = _run_bundle(
-        ["validate"], profile=profile, target=target,
-        catalog=catalog, schema=schema, volume_name=volume_name,
+        ["validate"],
+        profile=profile,
+        target=target,
+        catalog=catalog,
+        schema=schema,
+        volume_name=volume_name,
     )
     assert isinstance(result, str)
     return result
@@ -75,8 +81,12 @@ def deploy(
 ) -> str:
     """Run ``databricks bundle deploy`` and return stdout."""
     result = _run_bundle(
-        ["deploy"], profile=profile, target=target,
-        catalog=catalog, schema=schema, volume_name=volume_name,
+        ["deploy"],
+        profile=profile,
+        target=target,
+        catalog=catalog,
+        schema=schema,
+        volume_name=volume_name,
     )
     assert isinstance(result, str)
     return result
@@ -115,7 +125,7 @@ def app_start(
         cmd.extend(["-p", profile])
 
     print("+", " ".join(cmd), file=sys.stderr)
-    proc = subprocess.run(cmd, text=True, capture_output=True)
+    proc = subprocess.run(cmd, text=True, capture_output=True, env=resolve_tf_env())
     if proc.returncode != 0:
         detail = proc.stderr.strip() or proc.stdout.strip()
         raise BundleError(f"apps start failed (exit {proc.returncode}): {detail}")
@@ -133,7 +143,7 @@ def app_get(
         cmd.extend(["-p", profile])
 
     print("+", " ".join(cmd), file=sys.stderr)
-    proc = subprocess.run(cmd, text=True, capture_output=True)
+    proc = subprocess.run(cmd, text=True, capture_output=True, env=resolve_tf_env())
     if proc.returncode != 0:
         detail = proc.stderr.strip() or proc.stdout.strip()
         raise BundleError(f"apps get failed (exit {proc.returncode}): {detail}")

@@ -2,7 +2,36 @@ UV ?= uv
 DATABRICKS ?= databricks
 PROFILE_ARG := $(if $(PROFILE),-p $(PROFILE),)
 
-.PHONY: sync hooks-install lint typecheck test coverage bundle-catalog-check bundle-validate app-deploy bootstrap
+# Source scripts/databricks_tf_env.sh before any 'databricks bundle ...' or
+# 'driftsentinel databricks ...' invocation so the upstream terraform 1.5.5
+# PGP-expired download path is bypassed via OpenTofu (or operator override).
+# See specs/DS-PATCH-035_opentofu_auto_detection.md.
+TF_ENV := . scripts/databricks_tf_env.sh
+
+.PHONY: help sync hooks-install lint typecheck test coverage \
+	bundle-catalog-check bundle-validate bundle-deploy app-deploy bootstrap
+
+help:
+	@echo "DriftSentinel — Make targets"
+	@echo ""
+	@echo "Prerequisites:"
+	@echo "  Databricks bundle/app targets require OpenTofu (recommended) or terraform"
+	@echo "  on PATH. Install with: brew install opentofu"
+	@echo "  See specs/DS-PATCH-035_opentofu_auto_detection.md for context."
+	@echo ""
+	@echo "Targets:"
+	@echo "  sync                   Install runtime + dev dependencies (uv sync)"
+	@echo "  hooks-install          Install pre-commit hooks (depends on sync)"
+	@echo "  lint                   ruff check ."
+	@echo "  typecheck              mypy src/driftsentinel tests"
+	@echo "  test                   pytest"
+	@echo "  coverage               pytest with coverage reporting"
+	@echo "  bundle-catalog-check   Verify Unity Catalog catalog exists (CATALOG=, [PROFILE=])"
+	@echo "  bundle-validate        databricks bundle validate (CATALOG=, [PROFILE=])"
+	@echo "  bundle-deploy          databricks bundle deploy (CATALOG=, [PROFILE=])"
+	@echo "  app-deploy             Deploy DriftSentinel App (CATALOG=, [PROFILE=])"
+	@echo "  bootstrap              Dataset-backed Databricks connect flow"
+	@echo "                         (DATASET_ID=, DRIFT_POLICY=, CATALOG=, [...])"
 
 sync:
 	$(UV) sync --all-groups
@@ -26,15 +55,18 @@ bundle-catalog-check:
 	$(DATABRICKS) catalogs get "$${CATALOG:?Set CATALOG}" $(PROFILE_ARG) -o json
 
 bundle-validate:
-	$(DATABRICKS) bundle validate $(PROFILE_ARG) --target dev --var="catalog=$${BUNDLE_VAR_catalog:-$${CATALOG:?Set CATALOG or BUNDLE_VAR_catalog}}"
+	@$(TF_ENV) && $(DATABRICKS) bundle validate $(PROFILE_ARG) --target dev --var="catalog=$${BUNDLE_VAR_catalog:-$${CATALOG:?Set CATALOG or BUNDLE_VAR_catalog}}"
+
+bundle-deploy:
+	@$(TF_ENV) && $(DATABRICKS) bundle deploy $(PROFILE_ARG) --target dev --var="catalog=$${BUNDLE_VAR_catalog:-$${CATALOG:?Set CATALOG or BUNDLE_VAR_catalog}}"
 
 app-deploy:
-	$(UV) run python scripts/deploy_databricks_app.py $(if $(PROFILE),--profile $(PROFILE),) --target dev --catalog "$${BUNDLE_VAR_catalog:-$${CATALOG:?Set CATALOG or BUNDLE_VAR_catalog}}"
+	@$(TF_ENV) && $(UV) run python scripts/deploy_databricks_app.py $(if $(PROFILE),--profile $(PROFILE),) --target dev --catalog "$${BUNDLE_VAR_catalog:-$${CATALOG:?Set CATALOG or BUNDLE_VAR_catalog}}"
 
 bootstrap:
 	@test -n "$(DATASET_ID)" || (echo "Set DATASET_ID=<registered_dataset>" >&2; exit 2)
 	@test -n "$(DRIFT_POLICY)" || (echo "Set DRIFT_POLICY=<local_drift_policy.yml>" >&2; exit 2)
-	$(UV) run driftsentinel databricks connect \
+	@$(TF_ENV) && $(UV) run driftsentinel databricks connect \
 		--catalog "$${BUNDLE_VAR_catalog:-$${CATALOG:?Set CATALOG or BUNDLE_VAR_catalog}}" \
 		$(if $(PROFILE),--profile $(PROFILE),) \
 		--dataset-id "$(DATASET_ID)" \

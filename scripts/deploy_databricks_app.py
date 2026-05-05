@@ -9,15 +9,21 @@ import sys
 import time
 from typing import Any
 
+from driftsentinel.databricks.tf_env import (
+    TerraformBinaryMissingError,
+    resolve_tf_env,
+)
+
 
 def _run(
     cmd: list[str],
     *,
     capture_json: bool = False,
     check: bool = True,
+    env: dict[str, str] | None = None,
 ) -> dict[str, Any] | subprocess.CompletedProcess[str] | None:
     print("+", " ".join(cmd))
-    proc = subprocess.run(cmd, text=True, capture_output=True)
+    proc = subprocess.run(cmd, text=True, capture_output=True, env=env)
     if proc.stdout:
         print(proc.stdout, end="")
     if proc.stderr:
@@ -31,7 +37,7 @@ def _run(
 
 
 def _bundle_flag_args(profile: str | None, target: str, catalog: str) -> list[str]:
-    args = ["--target", target, f'--var=catalog={catalog}']
+    args = ["--target", target, f"--var=catalog={catalog}"]
     if profile:
         args = ["-p", profile, *args]
     return args
@@ -41,26 +47,35 @@ def _app_api_args(profile: str | None) -> list[str]:
     return ["-p", profile] if profile else []
 
 
-def _get_app_state(app_name: str, app_api_args: list[str]) -> dict[str, Any]:
+def _get_app_state(
+    app_name: str,
+    app_api_args: list[str],
+    *,
+    env: dict[str, str] | None = None,
+) -> dict[str, Any]:
     state = _run(
         ["databricks", "apps", "get", app_name, *app_api_args, "-o", "json"],
         capture_json=True,
+        env=env,
     )
     assert isinstance(state, dict)
     return state
 
 
-def _wait_for_active_compute(app_name: str, app_api_args: list[str], *, timeout_s: int = 1200) -> dict[str, Any]:
+def _wait_for_active_compute(
+    app_name: str,
+    app_api_args: list[str],
+    *,
+    env: dict[str, str] | None = None,
+    timeout_s: int = 1200,
+) -> dict[str, Any]:
     deadline = time.time() + timeout_s
     while time.time() < deadline:
-        state = _get_app_state(app_name, app_api_args)
+        state = _get_app_state(app_name, app_api_args, env=env)
         compute = state.get("compute_status", {})
         if compute.get("state") == "ACTIVE":
             return state
-        print(
-            f"Waiting for app compute to become ACTIVE: "
-            f"{compute.get('state')} {compute.get('message')}"
-        )
+        print(f"Waiting for app compute to become ACTIVE: {compute.get('state')} {compute.get('message')}")
         time.sleep(5)
     raise SystemExit("Timed out waiting for app compute to become ACTIVE")
 
@@ -70,11 +85,12 @@ def _wait_for_deployment(
     app_api_args: list[str],
     *,
     source_code_path: str,
+    env: dict[str, str] | None = None,
     timeout_s: int = 1200,
 ) -> dict[str, Any]:
     deadline = time.time() + timeout_s
     while time.time() < deadline:
-        state = _get_app_state(app_name, app_api_args)
+        state = _get_app_state(app_name, app_api_args, env=env)
         active = state.get("active_deployment", {})
         pending = state.get("pending_deployment", {})
         app_status = state.get("app_status", {})
@@ -97,14 +113,9 @@ def _wait_for_deployment(
 
         if active.get("source_code_path") == source_code_path and active.get("status", {}).get("state") == "FAILED":
             status = active.get("status", {})
-            raise SystemExit(
-                f"Active deployment failed: {status.get('state')} {status.get('message')}"
-            )
+            raise SystemExit(f"Active deployment failed: {status.get('state')} {status.get('message')}")
 
-        print(
-            f"Waiting for app to report RUNNING: "
-            f"{app_status.get('state')} {app_status.get('message')}"
-        )
+        print(f"Waiting for app to report RUNNING: {app_status.get('state')} {app_status.get('message')}")
         time.sleep(5)
 
     raise SystemExit("Timed out waiting for app deployment to succeed")
@@ -118,13 +129,20 @@ def main() -> int:
     parser.add_argument("--app-key", default="driftsentinel_app")
     args = parser.parse_args()
 
+    try:
+        env = resolve_tf_env()
+    except TerraformBinaryMissingError as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+
     bundle_args = _bundle_flag_args(args.profile, args.target, args.catalog)
 
-    _run(["databricks", "bundle", "deploy", *bundle_args])
+    _run(["databricks", "bundle", "deploy", *bundle_args], env=env)
 
     summary = _run(
         ["databricks", "bundle", "summary", *bundle_args, "-o", "json"],
         capture_json=True,
+        env=env,
     )
     assert summary is not None
 
@@ -137,18 +155,23 @@ def main() -> int:
 
     app_api_args = _app_api_args(args.profile)
 
-    _run(["databricks", "apps", "start", app_name, *app_api_args])
-    app_state = _wait_for_active_compute(app_name, app_api_args)
+    _run(["databricks", "apps", "start", app_name, *app_api_args], env=env)
+    app_state = _wait_for_active_compute(app_name, app_api_args, env=env)
 
     pending = app_state.get("pending_deployment", {})
 
     if pending and pending.get("source_code_path") == source_code_path:
-        app_state = _wait_for_deployment(app_name, app_api_args, source_code_path=source_code_path)
+        app_state = _wait_for_deployment(
+            app_name,
+            app_api_args,
+            source_code_path=source_code_path,
+            env=env,
+        )
         print(f"App URL: {app_state['url']}")
         return 0
 
     deploy_cmd = ["databricks", "apps", "deploy", *bundle_args]
-    deploy_proc = _run(deploy_cmd, check=False)
+    deploy_proc = _run(deploy_cmd, check=False, env=env)
     assert isinstance(deploy_proc, subprocess.CompletedProcess)
     if deploy_proc.returncode != 0:
         conflict = "pending deployment in progress" in (deploy_proc.stderr or "")
@@ -159,18 +182,19 @@ def main() -> int:
                 deploy_proc.stdout,
                 deploy_proc.stderr,
             )
-    app_state = _wait_for_deployment(app_name, app_api_args, source_code_path=source_code_path)
+    app_state = _wait_for_deployment(
+        app_name,
+        app_api_args,
+        source_code_path=source_code_path,
+        env=env,
+    )
 
     deployment = app_state.get("active_deployment", {}).get("status", {})
     app_status = app_state.get("app_status", {})
     if deployment.get("state") != "SUCCEEDED":
-        raise SystemExit(
-            f"Active deployment did not succeed: {deployment.get('state')} {deployment.get('message')}"
-        )
+        raise SystemExit(f"Active deployment did not succeed: {deployment.get('state')} {deployment.get('message')}")
     if app_status.get("state") != "RUNNING":
-        raise SystemExit(
-            f"App is not running: {app_status.get('state')} {app_status.get('message')}"
-        )
+        raise SystemExit(f"App is not running: {app_status.get('state')} {app_status.get('message')}")
 
     print(f"App URL: {app_state['url']}")
     return 0
