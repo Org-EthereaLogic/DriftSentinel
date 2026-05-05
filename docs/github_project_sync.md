@@ -43,6 +43,12 @@ Labels live in `Org-EthereaLogic/DriftSentinel` and apply to Issues + PRs.
 - Status transitions follow PR/commit evidence — do not move to `Done` without a merged PR or evidence link.
 - `report/` records under this repo remain append-only (no overwrites of existing sync artifacts).
 - The legacy Notion page (ID `4d85af16161b42ed92071933bc90fb10`) is read-only. Updates pushed there after 2026-05-04 are not authoritative.
+- Prefer integrated GitHub tools for read-only inspection of Issues, PRs, and
+  Project metadata. Reserve raw `gh` usage for mutations or for fallback cases
+  where the tool surface cannot perform the required action.
+- Do not retry unsandboxed for inspection-only GitHub work. If a write action
+  requires `gh` and sandboxed auth cannot access the home-directory CLI config,
+  retry only that specific write action unsandboxed and record the reason.
 
 ## Sync Record
 
@@ -61,7 +67,7 @@ Include:
 
 ## Sync Workflow (used by `/sync`)
 
-1. **Pre-flight** — verify `gh auth status` and that `Org-EthereaLogic/DriftSentinel` is reachable.
+1. **Pre-flight** — verify GitHub read access and that `Org-EthereaLogic/DriftSentinel` is reachable with integrated GitHub tools when available. Fallback to `gh auth status` only when the tool surface cannot answer the question.
 2. **Read repo state** — `git log --oneline -10`, branch name, `make test` summary, open PRs.
 3. **Reconcile open issues:**
    - For each open issue assigned to the current iteration: confirm a PR exists or move it to next iteration.

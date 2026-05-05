@@ -18,7 +18,19 @@ target_branch: $ARGUMENTS (default: main)
    when `databricks.yml` exists and Databricks auth plus catalog access are
    available
 7. Push: `git push -u origin $(git branch --show-current)`
-8. Create PR: `gh pr create --title "<title>" --body "<body>" --base <target_branch>`
+8. Create the PR with the GitHub pull-request tool surface when available.
+    Fallback CLI only when the tool surface cannot perform the write action:
+    `gh pr create --title "<title>" --body "<body>" --base <target_branch>`
+
+## GitHub Access Rules
+
+- Use integrated GitHub tools for any read-only PR inspection (`view`, checks,
+   metadata, labels, review state). Do not invoke `gh` only to inspect a PR.
+- If the CLI fallback is required for creation, prefer `GH_TOKEN` or
+   `GITHUB_TOKEN` when already present in the environment.
+- Do not retry unsandboxed for inspection-only steps. Only retry unsandboxed
+   after an actual sandbox auth or config failure on the specific PR creation
+   command.
 
 If any check fails, stop and fix before creating the PR.
 

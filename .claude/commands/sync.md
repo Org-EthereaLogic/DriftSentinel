@@ -55,13 +55,16 @@ current iteration. See `docs/github_project_sync.md` for full policy.
    `report/YYYY-MM-DDTHH-MM-SS-github-project-sync-record.md`
 2. Never rewrite an earlier sync artifact
 3. Each closure claim must cite the merging commit SHA or PR number
-4. If `gh auth status` fails or the Project is unreachable, record the blocker
-   explicitly instead of claiming sync succeeded
+4. If GitHub read access or Project reachability cannot be verified, record the
+   blocker explicitly instead of claiming sync succeeded
 
 **Pre-flight:**
 
-1. Verify `gh auth status` succeeds with `repo` and `project` scopes
-2. Verify the Project is reachable: `gh project view 8 --owner Org-EthereaLogic`
+1. Verify GitHub read access with the integrated GitHub tool surface when
+   available. Fallback: `gh auth status` with `repo` and `project` scopes only
+   when the tool surface cannot answer the question.
+2. Verify the Project is reachable with integrated GitHub project or repository
+   tools when available. Fallback: `gh project view 8 --owner Org-EthereaLogic`
 3. Read local project state: `git log --oneline -10`, current branch, test
    status, open PRs
 
@@ -101,11 +104,22 @@ Mutations NOT allowed in `/sync`:
 
 **Pull (read-only):**
 
-1. List open Issues in the current iteration:
-   `gh issue list -R Org-EthereaLogic/DriftSentinel --state open --json
-   number,title,labels,projectItems`
+1. List open Issues in the current iteration with integrated GitHub issue or
+    repository tools when available. Fallback:
+    `gh issue list -R Org-EthereaLogic/DriftSentinel --state open --json
+    number,title,labels,projectItems`
 2. List Issues with no `area:*` or `type:*` label (triage queue)
 3. Report any open `priority:p0` Issues outside the current iteration
+
+**GitHub access rule:**
+
+- Use integrated GitHub tools for read-only inspection of Issues, PRs, labels,
+   and Project items. Do not use `gh` only to inspect metadata.
+- Reserve `gh` for mutations such as closing an Issue or for fallback cases
+   where the GitHub tool surface cannot perform the required action.
+- Do not retry unsandboxed for inspection-only steps. If a mutation requires
+   `gh` and sandboxed auth fails because the home-directory config is
+   unavailable, retry only that specific mutation unsandboxed and record it.
 
 **Reference IDs:**
 
