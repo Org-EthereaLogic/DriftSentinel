@@ -96,6 +96,28 @@ def _packaged_template(template_name: str) -> Traversable:
     raise ConfigError(f"Packaged template not found: {template_name}")
 
 
+def _validate_quarantine_max_ratio(contract_section: dict[str, Any], context: str) -> None:
+    """Validate the optional `quarantine_max_ratio` knob.
+
+    Returns silently when the key is absent (default 0.0 applied at the gate).
+    Raises ConfigError when the value is non-numeric, non-finite, negative,
+    or greater than 1.0. Booleans are rejected explicitly so that
+    `quarantine_max_ratio: true` does not silently coerce to 1.0.
+    """
+    if "quarantine_max_ratio" not in contract_section:
+        return
+    raw = contract_section["quarantine_max_ratio"]
+    if isinstance(raw, bool) or not isinstance(raw, (int, float)):
+        raise ConfigError(f"contract.quarantine_max_ratio must be a number in [0.0, 1.0] ({context}); got {raw!r}")
+    value = float(raw)
+    if value != value or value in (float("inf"), float("-inf")):  # NaN or inf
+        raise ConfigError(
+            f"contract.quarantine_max_ratio must be a finite number in [0.0, 1.0] ({context}); got {raw!r}"
+        )
+    if value < 0.0 or value > 1.0:
+        raise ConfigError(f"contract.quarantine_max_ratio must be in [0.0, 1.0] ({context}); got {value}")
+
+
 def _validate_dataset_contract(data: dict[str, Any], context: str) -> dict[str, Any]:
     _require_keys(data, ["dataset", "contract"], context)
     _require_keys(
@@ -103,6 +125,7 @@ def _validate_dataset_contract(data: dict[str, Any], context: str) -> dict[str, 
         ["required_columns", "business_key", "batch_identifier"],
         f"contract section ({context})",
     )
+    _validate_quarantine_max_ratio(data["contract"], context)
     return data
 
 

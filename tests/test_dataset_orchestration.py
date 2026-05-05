@@ -11,7 +11,8 @@ import pytest
 
 from driftsentinel.config.loader import DatasetRegistry, RegistryError
 from driftsentinel.orchestration import dataset_runtime
-from driftsentinel.orchestration.runner import run_dataset_pipeline
+from driftsentinel.orchestration.dataset_runtime import LoadedDataset
+from driftsentinel.orchestration.runner import run_dataset_intake, run_dataset_pipeline
 
 FIXED_TS = "2026-04-02T00:00:00+00:00"
 
@@ -241,38 +242,44 @@ class TestDatasetPipeline:
         baseline_table_name = "adb_dev.default.orders_baseline"
         current_table_name = "adb_dev.default.orders_current"
         reg = DatasetRegistry()
-        reg.register({
-            "dataset": {
-                "name": "orders",
-                "contract_version": "1.0.0",
-                "catalog": "adb_dev",
-                "schema": "default",
-                "table": "orders_current",
-            },
-            "source": {
-                "system": "pytest",
-                "format": "table",
-                "table_name": current_table_name,
-            },
-            "contract": {
-                "required_columns": [{"column_name": "id", "type": "long", "nullable": False}],
-                "business_key": ["id"],
-                "batch_identifier": "batch_id",
-            },
-        })
+        reg.register(
+            {
+                "dataset": {
+                    "name": "orders",
+                    "contract_version": "1.0.0",
+                    "catalog": "adb_dev",
+                    "schema": "default",
+                    "table": "orders_current",
+                },
+                "source": {
+                    "system": "pytest",
+                    "format": "table",
+                    "table_name": current_table_name,
+                },
+                "contract": {
+                    "required_columns": [{"column_name": "id", "type": "long", "nullable": False}],
+                    "business_key": ["id"],
+                    "batch_identifier": "batch_id",
+                },
+            }
+        )
 
-        current_df = pd.DataFrame([
-            {"id": 1, "batch_id": "B-2", "amount": 10.0},
-            {"id": 2, "batch_id": "B-2", "amount": 20.0},
-            {"id": 3, "batch_id": "B-2", "amount": 20.0},
-            {"id": 4, "batch_id": "B-2", "amount": 20.0},
-        ])
-        baseline_df = pd.DataFrame([
-            {"id": 1, "batch_id": "B-1", "amount": 10.0},
-            {"id": 2, "batch_id": "B-1", "amount": 20.0},
-            {"id": 3, "batch_id": "B-1", "amount": 30.0},
-            {"id": 4, "batch_id": "B-1", "amount": 40.0},
-        ])
+        current_df = pd.DataFrame(
+            [
+                {"id": 1, "batch_id": "B-2", "amount": 10.0},
+                {"id": 2, "batch_id": "B-2", "amount": 20.0},
+                {"id": 3, "batch_id": "B-2", "amount": 20.0},
+                {"id": 4, "batch_id": "B-2", "amount": 20.0},
+            ]
+        )
+        baseline_df = pd.DataFrame(
+            [
+                {"id": 1, "batch_id": "B-1", "amount": 10.0},
+                {"id": 2, "batch_id": "B-1", "amount": 20.0},
+                {"id": 3, "batch_id": "B-1", "amount": 30.0},
+                {"id": 4, "batch_id": "B-1", "amount": 40.0},
+            ]
+        )
 
         class FakeSparkFrame:
             def __init__(self, frame: pd.DataFrame) -> None:
@@ -314,6 +321,151 @@ class TestDatasetPipeline:
 class TestDemoBehaviorPreserved:
     def test_demo_pipeline_still_deterministic(self, tmp_path: Path) -> None:
         from driftsentinel.orchestration.runner import run_local_pipeline
+
         r1 = run_local_pipeline(run_ts=FIXED_TS)
         r2 = run_local_pipeline(run_ts=FIXED_TS)
         assert r1 == r2
+
+
+def _intake_contract(*, quarantine_max_ratio: float | None = None) -> dict[str, Any]:
+    contract: dict[str, Any] = {
+        "dataset": {
+            "name": "ds_intake",
+            "contract_version": "1.0.0",
+            "catalog": "cat",
+            "schema": "sch",
+            "table": "tbl",
+        },
+        "source": {"system": "pytest", "format": "csv", "landing_path": "/n/a"},
+        "contract": {
+            "required_columns": [
+                {"column_name": "id", "type": "long", "nullable": False},
+                {"column_name": "amount", "type": "double", "nullable": False},
+            ],
+            "business_key": ["id"],
+            "batch_identifier": "batch_id",
+        },
+    }
+    if quarantine_max_ratio is not None:
+        contract["contract"]["quarantine_max_ratio"] = quarantine_max_ratio
+    return contract
+
+
+def _loaded(frame: pd.DataFrame) -> LoadedDataset:
+    return LoadedDataset(
+        frame=frame,
+        source_path="(test)",
+        source_format="memory",
+        files_loaded=tuple(),
+    )
+
+
+class TestIntakeToleranceEvidence:
+    """Coverage for DS-PATCH-036 — intake artifact records the gate decision."""
+
+    def test_tolerated_intake_passes_and_records_threshold(self, tmp_path: Path) -> None:
+        contract = _intake_contract(quarantine_max_ratio=0.10)
+        rows: list[dict[str, Any]] = []
+        rows.append({"id": 1, "batch_id": "B-1", "amount": 1.0})
+        rows.append({"id": 1, "batch_id": "B-1", "amount": 2.0})  # 1 dupe pair = 2 quarantined rows
+        rows.append({"id": 1, "batch_id": "B-1", "amount": 3.0})
+        rows.append({"id": 1, "batch_id": "B-1", "amount": 4.0})
+        rows.append({"id": 1, "batch_id": "B-1", "amount": 5.0})  # 5 dupes total
+        for index in range(95):
+            rows.append({"id": index + 2, "batch_id": "B-1", "amount": float(index)})
+        frame = pd.DataFrame(rows)
+
+        result = run_dataset_intake(
+            contract,
+            current_data=_loaded(frame),
+            evidence_dir=tmp_path,
+            run_ts=FIXED_TS,
+            dataset_id="ds_intake",
+            contract_version="1.0.0",
+            run_id="intake-tolerated",
+        )
+        assert result["overall_verdict"] == "PASS"
+        assert result["tolerance_applied"] is True
+        assert result["quarantine_max_ratio"] == 0.10
+        assert result["quarantined"] == 5
+        assert result["quarantine_ratio"] == pytest.approx(0.05, abs=1e-6)
+
+        artifacts = list(tmp_path.glob("intake_ds_intake*.json"))
+        assert len(artifacts) == 1
+        envelope = json.loads(artifacts[0].read_text())
+        payload = envelope["payload"]
+        assert payload["overall_verdict"] == "PASS"
+        assert payload["tolerance_applied"] is True
+        assert payload["quarantine_max_ratio"] == 0.10
+        assert payload["quarantine_ratio"] == pytest.approx(0.05, abs=1e-6)
+
+    def test_over_threshold_intake_fails_and_records_decision(self, tmp_path: Path) -> None:
+        contract = _intake_contract(quarantine_max_ratio=0.05)
+        rows: list[dict[str, Any]] = []
+        for _ in range(7):
+            rows.append({"id": 1, "batch_id": "B-1", "amount": 0.0})
+        for index in range(93):
+            rows.append({"id": index + 2, "batch_id": "B-1", "amount": float(index)})
+        frame = pd.DataFrame(rows)
+
+        result = run_dataset_intake(
+            contract,
+            current_data=_loaded(frame),
+            evidence_dir=tmp_path,
+            run_ts=FIXED_TS,
+            dataset_id="ds_intake",
+            contract_version="1.0.0",
+            run_id="intake-over",
+        )
+        assert result["overall_verdict"] == "FAIL"
+        assert result["tolerance_applied"] is False
+        assert result["quarantine_max_ratio"] == 0.05
+        assert result["quarantined"] == 7
+
+        artifacts = list(tmp_path.glob("intake_ds_intake*.json"))
+        assert len(artifacts) == 1
+        envelope = json.loads(artifacts[0].read_text())
+        payload = envelope["payload"]
+        assert payload["overall_verdict"] == "FAIL"
+        assert payload["tolerance_applied"] is False
+        assert payload["quarantine_max_ratio"] == 0.05
+
+    def test_schema_violation_records_threshold_with_tolerance_off(self, tmp_path: Path) -> None:
+        contract = _intake_contract(quarantine_max_ratio=1.0)
+        # Missing the required `amount` column — schema invalid.
+        frame = pd.DataFrame([{"id": 1, "batch_id": "B-1"}, {"id": 2, "batch_id": "B-1"}])
+
+        result = run_dataset_intake(
+            contract,
+            current_data=_loaded(frame),
+            evidence_dir=tmp_path,
+            run_ts=FIXED_TS,
+            dataset_id="ds_intake",
+            contract_version="1.0.0",
+            run_id="intake-schema",
+        )
+        assert result["overall_verdict"] == "FAIL"
+        assert result["tolerance_applied"] is False
+        assert result["quarantine_max_ratio"] == 1.0
+        assert "amount" in list(result.get("schema_missing_columns", []))
+
+    def test_default_threshold_preserves_pre_patch_behavior(self, tmp_path: Path) -> None:
+        contract = _intake_contract()  # no quarantine_max_ratio key
+        frame = pd.DataFrame(
+            [
+                {"id": 1, "batch_id": "B-1", "amount": 1.0},
+                {"id": 2, "batch_id": "B-1", "amount": 2.0},
+            ]
+        )
+        result = run_dataset_intake(
+            contract,
+            current_data=_loaded(frame),
+            evidence_dir=tmp_path,
+            run_ts=FIXED_TS,
+            dataset_id="ds_intake",
+            contract_version="1.0.0",
+            run_id="intake-default",
+        )
+        assert result["overall_verdict"] == "PASS"
+        assert result["tolerance_applied"] is False
+        assert result["quarantine_max_ratio"] == 0.0

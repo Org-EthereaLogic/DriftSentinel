@@ -36,3 +36,10 @@ contract:
       nullable: false
   business_key: [id]
   batch_identifier: batch_id
+  # Optional ratio in [0.0, 1.0]. Default 0.0 (zero tolerance — current
+  # behavior). Set above 0.0 to allow up to that ratio of row-level
+  # quarantine (business-key duplicates, batch-identifier nulls, type or
+  # null violations on present columns) before drift / benchmark stages
+  # fail closed. Schema-level violations (missing required columns or
+  # missing business-key columns) always fail regardless of this value.
+  quarantine_max_ratio: 0.0
