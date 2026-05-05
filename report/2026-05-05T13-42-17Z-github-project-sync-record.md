@@ -47,6 +47,7 @@ Working tree is clean. HEAD advanced to `76dbeeb` (PR #46 merged) since the prio
 ## Phase 4: GitHub Project Reconciliation
 
 ### Pre-flight
+
 - `gh auth status`: Logged in as `AJ-EthereaLogic-ai` — scopes include `repo`, `project` ✓
 - Project #8 reachable via `gh project item-list 8 --owner Org-EthereaLogic`: 29 items ✓
 
@@ -71,18 +72,23 @@ The pre-`/sync` action that closed #35 cited PR #46 and commit `76dbeeb` in [iss
 **Total open in Sprint 1:** 5 (down from 6 — #35 closed this sync)
 
 ### Label audit (open issues)
-All 5 open issues carry one `area:*`, one `type:*`, and one `priority:p*` label. No triage flags.
+
+All 5 open issues carry at least one `area:*`, one `type:*`, and one `priority:p*` label. No triage flags.
 
 ### Status field consistency (open issues)
+
 All 5 open Sprint 1 issues show `Status: Todo` and have no linked branches or PRs in the project metadata pull. Reality matches.
 
 ### priority:p0 outside current iteration
+
 None.
 
 ### Iteration carry-over
+
 Sprint 1 closes 2026-05-10. Today is 2026-05-05 (day 2). No carry-over required.
 
 ### Mutations applied this sync
+
 None during this `/sync` run. The #35 closure happened immediately before `/sync` was invoked, in the same operator session, and is recorded above as the closure-citation source for traceability.
 
 ---
