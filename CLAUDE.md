@@ -57,6 +57,15 @@ When prior repository patterns conflict, use this precedence:
 
 ## Agent Surface
 
+## GitHub Access Note
+
+- For read-only GitHub inspection, prefer the built-in GitHub tool surface over
+   raw `gh` commands.
+- Use `gh` only for write actions or when the GitHub tools cannot perform the
+   required operation.
+- Do not assume sandboxed access to `~/.config/gh`; if `gh` is required, prefer
+   `GH_TOKEN` or `GITHUB_TOKEN` when already provided by the environment.
+
 | Agent | Role |
 | --- | --- |
 | `lead-software-engineer` | Production implementation and spec-to-code translation |

@@ -87,3 +87,17 @@ Use sources in this order:
 - `uv run mypy src/driftsentinel tests`
 - `uv run pytest`
 - `databricks bundle validate` (when bundle surfaces exist)
+
+## GitHub Access Policy
+
+- Prefer integrated GitHub tools for read-only inspection of pull requests,
+  issues, labels, project items, and repository metadata.
+- Do not use `gh` for read-only inspection when the integrated tool surface can
+  answer the question. This avoids repeated sandbox fallbacks to the home
+  directory GitHub CLI config.
+- Reserve `gh` for write actions not covered by the available GitHub tools, or
+  when a command contract explicitly requires a CLI mutation.
+- When `gh` is unavoidable, first prefer explicit credentials already present
+  in the environment (`GH_TOKEN` or `GITHUB_TOKEN`). Do not assume sandboxed
+  access to `~/.config/gh`. Retry unsandboxed only after a real sandbox auth or
+  config failure, and only for the specific action that requires local login.
