@@ -3,7 +3,7 @@
 | Field | Value |
 | --- | --- |
 | Document ID | DS-TM-001 |
-| Version | 1.2 |
+| Version | 1.3 |
 | Status | Draft |
 | Author | Anthony Johnson |
 | Date | 2026-05-05 |
@@ -11,7 +11,7 @@
 | PRD Requirement | SRS Requirement | Spec Surface | Verification Surface |
 | --- | --- | --- | --- |
 | DS-FR-001 | DS-SR-001 | PRD, SDD | repo taxonomy, CLAUDE.md, specs/ |
-| DS-FR-002 | DS-SR-009 | PRD, SRS, DS-PATCH-034 | databricks.yml (incl. sync.exclude defaults), resources/, bundle validation, tests/test_packaging.py |
+| DS-FR-002 | DS-SR-009 | PRD, SRS, DS-PATCH-034, DS-PATCH-035 | databricks.yml (incl. sync.exclude defaults), resources/, bundle validation, tests/test_packaging.py, Makefile (TF_ENV-wrapped bundle/app/bootstrap targets), scripts/databricks_tf_env.sh, src/driftsentinel/databricks/tf_env.py, tests/test_databricks_tf_env.py |
 | DS-FR-003 | DS-SR-008 | PRD, SRS | notebooks, manual import path |
 | DS-FR-004 | DS-SR-005 | PRD, SRS | templates/, config loaders, registration notebook |
 | DS-FR-005 | DS-SR-002 | PRD, SDD | src/driftsentinel/intake/, quarantine outputs |
@@ -36,6 +36,7 @@
 
 | Version | Date | Change |
 | --- | --- | --- |
+| 1.3 | 2026-05-05 | Linked DS-FR-002 / DS-SR-009 to DS-PATCH-035 (auto-detect OpenTofu and pre-set `DATABRICKS_TF_EXEC_PATH` for the bundle/app/bootstrap surface; shell + Python helpers; env-propagation contract test) |
 | 1.2 | 2026-05-05 | Linked DS-FR-002 / DS-SR-009 to DS-PATCH-034 (default `sync.exclude` patterns and packaging test coverage) |
 | 1.1 | 2026-05-04 | Updated DS-FR-012 and DS-NFR-009 verification surfaces from Notion to GitHub Project (#8) following governance migration in commit 78bdf82 |
 | 1.0 | 2026-04-01 | Initial draft |

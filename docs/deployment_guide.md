@@ -8,6 +8,65 @@
 - Compute cluster with Python 3.11+
 - Databricks CLI installed and authenticated through `.databrickscfg`,
   `DATABRICKS_CONFIG_PROFILE`, or `DATABRICKS_*` environment variables
+- A terraform-compatible binary on PATH for any `databricks bundle …`
+  invocation. **OpenTofu (`tofu`) is recommended** — see
+  [Terraform binary](#terraform-binary) below.
+
+### Terraform binary
+
+The Databricks CLI pins terraform `1.5.5` and verifies the auto-downloaded
+binary against an upstream PGP signature that expired in 2025. On a fresh
+machine the first `databricks bundle deploy` (or any other bundle command
+that materializes terraform state) fails with:
+
+> `Error: error downloading Terraform: unable to verify checksums signature: openpgp: key expired`
+
+The fix is to point the Databricks CLI at a terraform-compatible binary
+through two environment variables it already honors:
+`DATABRICKS_TF_EXEC_PATH` and `DATABRICKS_TF_VERSION`. OpenTofu (`tofu`)
+is a wire-compatible drop-in for terraform that the Databricks CLI accepts.
+
+**Recommended install (macOS):**
+
+```bash
+brew install opentofu
+```
+
+**Make targets handle the wiring automatically.** Every Make target that
+invokes `databricks bundle …` or `driftsentinel databricks …`
+(`bundle-validate`, `bundle-deploy`, `app-deploy`, `bootstrap`) sources
+`scripts/databricks_tf_env.sh` before the underlying command runs. The
+helper applies this precedence:
+
+1. **Operator override.** If `DATABRICKS_TF_EXEC_PATH` is already set,
+   it is honored verbatim.
+2. **OpenTofu on PATH.** If `tofu` is on PATH, the helper exports
+   `DATABRICKS_TF_EXEC_PATH=$(command -v tofu)` and (when unset)
+   `DATABRICKS_TF_VERSION=1.11.6`.
+3. **System terraform on PATH.** If only `terraform` is available, the
+   helper exports `DATABRICKS_TF_EXEC_PATH=$(command -v terraform)` and
+   leaves `DATABRICKS_TF_VERSION` to the CLI's default handling.
+4. **Neither available.** The Make target fails fast — before the
+   `databricks` command runs — with a single message recommending
+   `brew install opentofu`.
+
+The same precedence is applied inside the `driftsentinel` Python package
+(`src/driftsentinel/databricks/tf_env.py`) so direct CLI calls
+(`uv run driftsentinel databricks connect …`) and the app deploy script
+(`scripts/deploy_databricks_app.py`) work the same way.
+
+**Manual override.** Operators with a non-Homebrew binary or an alternate
+version can export the env vars before calling Make or running raw
+`databricks bundle …` commands:
+
+```bash
+export DATABRICKS_TF_EXEC_PATH=/path/to/tofu-or-terraform
+export DATABRICKS_TF_VERSION=1.11.6     # optional
+```
+
+See `specs/DS-PATCH-035_opentofu_auto_detection.md` for the full design
+context, including non-goals (this is a shim; the upstream Databricks
+CLI pin is not changed) and the tested precedence contract.
 
 ## Option 1: Databricks Asset Bundle Deploy
 

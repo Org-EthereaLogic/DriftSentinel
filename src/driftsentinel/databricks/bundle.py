@@ -7,9 +7,44 @@ import subprocess
 import sys
 from typing import Any
 
+from driftsentinel.databricks.tf_env import TerraformBinaryMissingError, resolve_tf_env
+
 
 class BundleError(RuntimeError):
     """Raised when a bundle CLI command fails."""
+
+
+def _run_cli(
+    cmd: list[str],
+    *,
+    failure_context: str,
+    capture_json: bool = False,
+    wrap_tf_env_error: bool = False,
+) -> dict[str, Any] | str:
+    """Run a Databricks CLI command and return stdout or parsed JSON."""
+    print("+", " ".join(cmd), file=sys.stderr)
+    try:
+        env = resolve_tf_env()
+    except TerraformBinaryMissingError as exc:
+        if wrap_tf_env_error:
+            raise BundleError(str(exc)) from exc
+        raise
+
+    proc = subprocess.run(
+        cmd,
+        text=True,
+        capture_output=True,
+        env=env,
+        check=False,
+    )
+    if proc.returncode != 0:
+        detail = proc.stderr.strip() or proc.stdout.strip()
+        raise BundleError(f"{failure_context} failed (exit {proc.returncode}): {detail}")
+
+    stdout = proc.stdout.strip()
+    if capture_json:
+        return json.loads(stdout)  # type: ignore[no-any-return]
+    return stdout
 
 
 def _run_bundle(
@@ -35,17 +70,11 @@ def _run_bundle(
         cmd.append(f"--var=runtime_volume_name={volume_name}")
     if capture_json:
         cmd.extend(["-o", "json"])
-
-    print("+", " ".join(cmd), file=sys.stderr)
-    proc = subprocess.run(cmd, text=True, capture_output=True)
-    if proc.returncode != 0:
-        detail = proc.stderr.strip() or proc.stdout.strip()
-        raise BundleError(f"bundle {args[0]} failed (exit {proc.returncode}): {detail}")
-
-    stdout = proc.stdout.strip()
-    if capture_json:
-        return json.loads(stdout)  # type: ignore[no-any-return]
-    return stdout
+    return _run_cli(
+        cmd,
+        failure_context=f"bundle {args[0]}",
+        capture_json=capture_json,
+    )
 
 
 def validate(
@@ -58,10 +87,15 @@ def validate(
 ) -> str:
     """Run ``databricks bundle validate`` and return stdout."""
     result = _run_bundle(
-        ["validate"], profile=profile, target=target,
-        catalog=catalog, schema=schema, volume_name=volume_name,
+        ["validate"],
+        profile=profile,
+        target=target,
+        catalog=catalog,
+        schema=schema,
+        volume_name=volume_name,
     )
-    assert isinstance(result, str)
+    if not isinstance(result, str):
+        raise BundleError("bundle validate returned non-text output")
     return result
 
 
@@ -75,10 +109,15 @@ def deploy(
 ) -> str:
     """Run ``databricks bundle deploy`` and return stdout."""
     result = _run_bundle(
-        ["deploy"], profile=profile, target=target,
-        catalog=catalog, schema=schema, volume_name=volume_name,
+        ["deploy"],
+        profile=profile,
+        target=target,
+        catalog=catalog,
+        schema=schema,
+        volume_name=volume_name,
     )
-    assert isinstance(result, str)
+    if not isinstance(result, str):
+        raise BundleError("bundle deploy returned non-text output")
     return result
 
 
@@ -100,7 +139,8 @@ def summary(
         volume_name=volume_name,
         capture_json=True,
     )
-    assert isinstance(result, dict)
+    if not isinstance(result, dict):
+        raise BundleError("bundle summary returned a non-object JSON payload")
     return result
 
 
@@ -113,13 +153,10 @@ def app_start(
     cmd = ["databricks", "apps", "start", app_name]
     if profile:
         cmd.extend(["-p", profile])
-
-    print("+", " ".join(cmd), file=sys.stderr)
-    proc = subprocess.run(cmd, text=True, capture_output=True)
-    if proc.returncode != 0:
-        detail = proc.stderr.strip() or proc.stdout.strip()
-        raise BundleError(f"apps start failed (exit {proc.returncode}): {detail}")
-    return proc.stdout.strip()
+    result = _run_cli(cmd, failure_context="apps start", wrap_tf_env_error=True)
+    if not isinstance(result, str):
+        raise BundleError("apps start returned non-text output")
+    return result
 
 
 def app_get(
@@ -131,10 +168,12 @@ def app_get(
     cmd = ["databricks", "apps", "get", app_name, "-o", "json"]
     if profile:
         cmd.extend(["-p", profile])
-
-    print("+", " ".join(cmd), file=sys.stderr)
-    proc = subprocess.run(cmd, text=True, capture_output=True)
-    if proc.returncode != 0:
-        detail = proc.stderr.strip() or proc.stdout.strip()
-        raise BundleError(f"apps get failed (exit {proc.returncode}): {detail}")
-    return json.loads(proc.stdout)  # type: ignore[no-any-return]
+    result = _run_cli(
+        cmd,
+        failure_context="apps get",
+        capture_json=True,
+        wrap_tf_env_error=True,
+    )
+    if not isinstance(result, dict):
+        raise BundleError("apps get returned a non-object JSON payload")
+    return result
