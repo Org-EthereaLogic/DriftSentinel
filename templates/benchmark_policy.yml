@@ -31,6 +31,10 @@ benchmark_policy:
     - type: gradual_decay
       columns: [amount]
 
+  # Recall, precision, F1, and FPR are statistically noisy below
+  # n_rows ~ 5000 because the injected fault population is small in
+  # absolute terms; recommend n_rows >= 10000 for trustworthy gates.
+  # See specs/DS-PATCH-037_benchmark_n_rows_default.md.
   gates:
     - name: quality_recall
       type: FAIL
