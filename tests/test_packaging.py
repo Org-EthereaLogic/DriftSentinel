@@ -72,18 +72,14 @@ def test_no_notebook_contains_phase_two_runtime_error() -> None:
         text = (NOTEBOOKS / name).read_text(encoding="utf-8")
         if "DS-IP-001 Phase 2" in text:
             violations.append(name)
-    assert not violations, (
-        f"Notebooks still contain DS-IP-001 Phase 2 RuntimeError: {violations}"
-    )
+    assert not violations, f"Notebooks still contain DS-IP-001 Phase 2 RuntimeError: {violations}"
 
 
 def test_all_notebooks_have_databricks_header() -> None:
     """Every notebook must start with the Databricks notebook source header."""
     for name in NOTEBOOK_FILES:
         text = (NOTEBOOKS / name).read_text(encoding="utf-8")
-        assert text.startswith("# Databricks notebook source"), (
-            f"{name} missing '# Databricks notebook source' header"
-        )
+        assert text.startswith("# Databricks notebook source"), f"{name} missing '# Databricks notebook source' header"
 
 
 def test_all_notebooks_have_bootstrap_install_logic() -> None:
@@ -101,9 +97,7 @@ def test_all_notebooks_support_bundle_local_bootstrap() -> None:
     for name in NOTEBOOK_FILES:
         text = (NOTEBOOKS / name).read_text(encoding="utf-8")
         assert 'Path("/Workspace")' in text, f"{name} missing workspace bundle bootstrap logic"
-        assert 'source_root = str(Path(install_target) / "src")' in text, (
-            f"{name} missing src-layout bootstrap logic"
-        )
+        assert 'source_root = str(Path(install_target) / "src")' in text, f"{name} missing src-layout bootstrap logic"
         assert "serverless runs do not rely on writing a temp file" in text, (
             f"{name} missing serverless bootstrap guard comment"
         )
@@ -113,9 +107,7 @@ def test_all_notebooks_have_command_separators() -> None:
     """Every notebook should use COMMAND separators between cells."""
     for name in NOTEBOOK_FILES:
         text = (NOTEBOOKS / name).read_text(encoding="utf-8")
-        assert "# COMMAND ----------" in text, (
-            f"{name} missing COMMAND separator"
-        )
+        assert "# COMMAND ----------" in text, f"{name} missing COMMAND separator"
 
 
 # --- Resource files ---
@@ -182,8 +174,13 @@ def test_benchmark_job_resource_structure() -> None:
     assert params["require_dataset_backed"] == "true"
     job_params = {p["name"] for p in job["parameters"]}
     expected_params = {
-        "dataset_id", "registry_path", "drift_policy_path",
-        "benchmark_policy_path", "evidence_dir", "seed", "n_rows",
+        "dataset_id",
+        "registry_path",
+        "drift_policy_path",
+        "benchmark_policy_path",
+        "evidence_dir",
+        "seed",
+        "n_rows",
     }
     assert expected_params <= job_params
 
@@ -201,8 +198,13 @@ def test_dataset_pipeline_job_resource_structure() -> None:
     assert params["policy_path"] == "{{job.parameters.benchmark_policy_path}}"
     job_params = {p["name"] for p in job["parameters"]}
     expected_params = {
-        "dataset_id", "registry_path", "drift_policy_path",
-        "benchmark_policy_path", "evidence_dir", "seed", "n_rows",
+        "dataset_id",
+        "registry_path",
+        "drift_policy_path",
+        "benchmark_policy_path",
+        "evidence_dir",
+        "seed",
+        "n_rows",
     }
     assert expected_params <= job_params
 
@@ -235,21 +237,44 @@ def test_bundle_requires_explicit_catalog_var() -> None:
     assert "n_rows" not in variables
 
 
+def test_bundle_sync_excludes_default_artifacts() -> None:
+    """databricks.yml ships fail-closed sync.exclude defaults — see DS-PATCH-034."""
+    with open(BUNDLE_CONFIG, encoding="utf-8") as f:
+        data = yaml.safe_load(f)
+    assert isinstance(data, dict), "databricks.yml must parse to a top-level mapping"
+    sync = data.get("sync")
+    assert isinstance(sync, dict), "databricks.yml must define a top-level 'sync' mapping"
+    excludes = sync.get("exclude")
+    assert isinstance(excludes, list), "'sync.exclude' must be a list"
+    required_patterns = {
+        "/data/",
+        "/evidence_pulled/",
+        "/archive_exports/",
+        "/orphaned_state_backup/",
+        "/report/",
+        ".venv/",
+        "**/__pycache__/",
+        ".pytest_cache/",
+        ".mypy_cache/",
+        ".ruff_cache/",
+    }
+    missing = required_patterns - set(excludes)
+    assert not missing, f"databricks.yml sync.exclude is missing required patterns: {sorted(missing)}"
+
+
 def test_makefile_exposes_catalog_check_and_profile_override() -> None:
     text = MAKEFILE.read_text(encoding="utf-8")
     assert "bundle-catalog-check:" in text
     assert 'catalogs get "$${CATALOG:?Set CATALOG}" $(PROFILE_ARG) -o json' in text
     expected_validate = (
-        'bundle validate $(PROFILE_ARG) --target dev '
+        "bundle validate $(PROFILE_ARG) --target dev "
         '--var="catalog=$${BUNDLE_VAR_catalog:-$${CATALOG:?Set CATALOG or '
         'BUNDLE_VAR_catalog}}"'
     )
-    assert (
-        expected_validate in text
-    )
+    assert expected_validate in text
     expected_app_deploy = (
-        '$(UV) run python scripts/deploy_databricks_app.py '
-        '$(if $(PROFILE),--profile $(PROFILE),) --target dev '
+        "$(UV) run python scripts/deploy_databricks_app.py "
+        "$(if $(PROFILE),--profile $(PROFILE),) --target dev "
         '--catalog "$${BUNDLE_VAR_catalog:-$${CATALOG:?Set CATALOG or '
         'BUNDLE_VAR_catalog}}"'
     )
@@ -284,17 +309,13 @@ def test_command_docs_do_not_use_bare_bundle_validate() -> None:
         assert "databricks bundle validate" not in text, (
             f"{name} should route bundle validation through the safe make target"
         )
-        assert "make bundle-validate" in text, (
-            f"{name} should document the safe make bundle-validate command"
-        )
+        assert "make bundle-validate" in text, f"{name} should document the safe make bundle-validate command"
 
 
 def test_start_test_and_sync_docs_require_catalog_check() -> None:
     for name in ["start.md", "test.md", "sync.md"]:
         text = (COMMANDS_DIR / name).read_text(encoding="utf-8")
-        assert "make bundle-catalog-check" in text, (
-            f"{name} should require an explicit catalog existence check"
-        )
+        assert "make bundle-catalog-check" in text, f"{name} should require an explicit catalog existence check"
 
 
 def test_bundle_docs_distinguish_catalog_check_validate_and_deploy() -> None:
@@ -307,9 +328,7 @@ def test_bundle_docs_distinguish_catalog_check_validate_and_deploy() -> None:
         text = path.read_text(encoding="utf-8")
         assert "make bundle-catalog-check" in text
         assert "databricks catalogs get" in text
-        assert "does not" in text and "prove" in text, (
-            f"{path.name} should distinguish validate from deploy proof"
-        )
+        assert "does not" in text and "prove" in text, f"{path.name} should distinguish validate from deploy proof"
 
 
 def _load_ci_workflow() -> dict[str, Any]:
@@ -339,12 +358,8 @@ def test_ci_workflow_pins_current_setup_uv_and_codecov_actions() -> None:
     checkout_step = lint_steps[0]
     assert checkout_step["uses"] == "actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5"
 
-    setup_python_step = next(
-        step for step in lint_steps if step.get("name", "").startswith("Set up Python")
-    )
-    assert setup_python_step["uses"] == (
-        "actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065"
-    )
+    setup_python_step = next(step for step in lint_steps if step.get("name", "").startswith("Set up Python"))
+    assert setup_python_step["uses"] == ("actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065")
 
     setup_uv_step = next(step for step in lint_steps if step.get("name") == "Install uv")
     assert setup_uv_step["uses"] == "astral-sh/setup-uv@8d55fbecc275b1c35dbe060458839f8d30439ccf"
@@ -385,17 +400,13 @@ def test_publish_workflow_pins_current_release_actions() -> None:
     assert checkout_step["uses"] == "actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5"
 
     setup_python_step = next(step for step in publish_steps if step.get("name") == "Set up Python 3.11")
-    assert setup_python_step["uses"] == (
-        "actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065"
-    )
+    assert setup_python_step["uses"] == ("actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065")
 
     setup_uv_step = next(step for step in publish_steps if step.get("name") == "Install uv")
     assert setup_uv_step["uses"] == "astral-sh/setup-uv@8d55fbecc275b1c35dbe060458839f8d30439ccf"
 
     publish_step = next(step for step in publish_steps if step.get("name") == "Publish to PyPI")
-    assert publish_step["uses"] == (
-        "pypa/gh-action-pypi-publish@ed0c53931b1dc9bd32cbe73a98c7f6766f8a527e"
-    )
+    assert publish_step["uses"] == ("pypa/gh-action-pypi-publish@ed0c53931b1dc9bd32cbe73a98c7f6766f8a527e")
 
 
 def test_all_workflow_actions_are_pinned_to_immutable_commits() -> None:
@@ -411,8 +422,7 @@ def test_all_workflow_actions_are_pinned_to_immutable_commits() -> None:
                 violations.append(f"{workflow_path.relative_to(ROOT)}: {action}@{ref}")
 
     assert not violations, (
-        "GitHub Actions workflows must pin every external action to a full commit SHA:\n"
-        + "\n".join(violations)
+        "GitHub Actions workflows must pin every external action to a full commit SHA:\n" + "\n".join(violations)
     )
 
 
@@ -457,13 +467,9 @@ def test_app_deploy_docs_distinguish_resource_creation_from_app_runtime_deploy()
             f"{path.name} should document the app deployment step"
         )
         assert "bundle deploy" in text, f"{path.name} should still reference bundle deploy"
-        assert "databricks apps get" in text, (
-            f"{path.name} should document the app status proof surface"
-        )
+        assert "databricks apps get" in text, f"{path.name} should document the app status proof surface"
 
-    spec_text = (ROOT / "specs" / "DS-IP-001-P4_Phase_4_App_UI_Plan.md").read_text(
-        encoding="utf-8"
-    )
+    spec_text = (ROOT / "specs" / "DS-IP-001-P4_Phase_4_App_UI_Plan.md").read_text(encoding="utf-8")
     assert "make app-deploy" in spec_text
     assert "bundle deploy" in spec_text
 
@@ -478,7 +484,12 @@ def test_benchmark_policy_loads_and_normalizes() -> None:
     assert len(gates) > 0
     for gate in gates:
         assert set(gate.keys()) == {
-            "name", "type", "operator", "threshold", "track", "description",
+            "name",
+            "type",
+            "operator",
+            "threshold",
+            "track",
+            "description",
         }
         assert gate["type"] in ("FAIL", "WARN")
         assert gate["operator"] in (">=", "<=")
@@ -526,17 +537,13 @@ def test_register_notebook_has_registry_widget() -> None:
 def test_run_notebooks_have_dataset_id_widget() -> None:
     for name in ["03_run_intake_controls.py", "04_run_drift_gate.py", "05_run_control_benchmark.py"]:
         text = (NOTEBOOKS / name).read_text(encoding="utf-8")
-        assert 'dbutils.widgets.text("dataset_id"' in text, (
-            f"{name} missing dataset_id widget"
-        )
+        assert 'dbutils.widgets.text("dataset_id"' in text, f"{name} missing dataset_id widget"
 
 
 def test_review_notebook_has_filter_widgets() -> None:
     text = (NOTEBOOKS / "06_review_evidence.py").read_text(encoding="utf-8")
     for widget in ["catalog", "schema", "evidence_dir", "dataset_id", "run_kind", "run_id", "date_from", "date_to"]:
-        assert f'dbutils.widgets.text("{widget}"' in text, (
-            f"06_review_evidence.py missing {widget} widget"
-        )
+        assert f'dbutils.widgets.text("{widget}"' in text, f"06_review_evidence.py missing {widget} widget"
     assert "list_evidence" in text
     assert "load_evidence" in text
     assert "runtime_evidence_dir" in text
@@ -546,12 +553,8 @@ def test_notebooks_delegate_to_package_code() -> None:
     """Notebooks must not re-implement registry, lookup, or orchestration logic."""
     for name in NOTEBOOK_FILES:
         text = (NOTEBOOKS / name).read_text(encoding="utf-8")
-        assert "class DatasetRegistry" not in text, (
-            f"{name} re-implements DatasetRegistry instead of importing"
-        )
-        assert "def list_evidence" not in text, (
-            f"{name} re-implements list_evidence instead of importing"
-        )
+        assert "class DatasetRegistry" not in text, f"{name} re-implements DatasetRegistry instead of importing"
+        assert "def list_evidence" not in text, f"{name} re-implements list_evidence instead of importing"
 
 
 def test_built_wheel_includes_packaged_templates(tmp_path: Path) -> None:

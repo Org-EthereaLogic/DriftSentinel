@@ -7,6 +7,23 @@ bundle:
 include:
   - "resources/*.yml"
 
+# Local artifacts that must never be synced to the workspace bundle path.
+# Workspace files are capped at 52428800 bytes per file; staged datasets and
+# evidence dumps routinely exceed this. See
+# specs/DS-PATCH-034_bundle_sync_exclude_defaults.md for rationale.
+sync:
+  exclude:
+    - /data/
+    - /evidence_pulled/
+    - /archive_exports/
+    - /orphaned_state_backup/
+    - /report/
+    - .venv/
+    - "**/__pycache__/"
+    - .pytest_cache/
+    - .mypy_cache/
+    - .ruff_cache/
+
 variables:
   catalog:
     description: Existing Unity Catalog catalog name
