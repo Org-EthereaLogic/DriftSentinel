@@ -7,7 +7,7 @@ import subprocess
 import sys
 from typing import Any
 
-from driftsentinel.databricks.tf_env import resolve_tf_env
+from driftsentinel.databricks.tf_env import TerraformBinaryMissingError, resolve_tf_env
 
 
 class BundleError(RuntimeError):
@@ -19,14 +19,22 @@ def _run_cli(
     *,
     failure_context: str,
     capture_json: bool = False,
+    wrap_tf_env_error: bool = False,
 ) -> dict[str, Any] | str:
     """Run a Databricks CLI command and return stdout or parsed JSON."""
     print("+", " ".join(cmd), file=sys.stderr)
+    try:
+        env = resolve_tf_env()
+    except TerraformBinaryMissingError as exc:
+        if wrap_tf_env_error:
+            raise BundleError(str(exc)) from exc
+        raise
+
     proc = subprocess.run(
         cmd,
         text=True,
         capture_output=True,
-        env=resolve_tf_env(),
+        env=env,
         check=False,
     )
     if proc.returncode != 0:
@@ -86,7 +94,8 @@ def validate(
         schema=schema,
         volume_name=volume_name,
     )
-    assert isinstance(result, str)
+    if not isinstance(result, str):
+        raise BundleError("bundle validate returned non-text output")
     return result
 
 
@@ -107,7 +116,8 @@ def deploy(
         schema=schema,
         volume_name=volume_name,
     )
-    assert isinstance(result, str)
+    if not isinstance(result, str):
+        raise BundleError("bundle deploy returned non-text output")
     return result
 
 
@@ -129,7 +139,8 @@ def summary(
         volume_name=volume_name,
         capture_json=True,
     )
-    assert isinstance(result, dict)
+    if not isinstance(result, dict):
+        raise BundleError("bundle summary returned a non-object JSON payload")
     return result
 
 
@@ -142,8 +153,9 @@ def app_start(
     cmd = ["databricks", "apps", "start", app_name]
     if profile:
         cmd.extend(["-p", profile])
-    result = _run_cli(cmd, failure_context="apps start")
-    assert isinstance(result, str)
+    result = _run_cli(cmd, failure_context="apps start", wrap_tf_env_error=True)
+    if not isinstance(result, str):
+        raise BundleError("apps start returned non-text output")
     return result
 
 
@@ -156,6 +168,12 @@ def app_get(
     cmd = ["databricks", "apps", "get", app_name, "-o", "json"]
     if profile:
         cmd.extend(["-p", profile])
-    result = _run_cli(cmd, failure_context="apps get", capture_json=True)
-    assert isinstance(result, dict)
+    result = _run_cli(
+        cmd,
+        failure_context="apps get",
+        capture_json=True,
+        wrap_tf_env_error=True,
+    )
+    if not isinstance(result, dict):
+        raise BundleError("apps get returned a non-object JSON payload")
     return result

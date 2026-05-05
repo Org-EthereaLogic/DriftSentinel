@@ -267,6 +267,20 @@ class TestBundleEnvPropagation:
         env_kwarg: dict[str, str] = mock_run.call_args.kwargs["env"]
         assert env_kwarg["DATABRICKS_TF_EXEC_PATH"] == "/opt/homebrew/bin/tofu"
 
+    @pytest.mark.parametrize("method_name", ["app_start", "app_get"])
+    def test_app_commands_wrap_resolution_failure_as_bundle_error(self, method_name: str) -> None:
+        with (
+            mock.patch(
+                "driftsentinel.databricks.bundle.resolve_tf_env",
+                side_effect=TerraformBinaryMissingError("no tf binary"),
+            ),
+            mock.patch("driftsentinel.databricks.bundle.subprocess.run") as mock_run,
+        ):
+            command = getattr(bundle_mod, method_name)
+            with pytest.raises(bundle_mod.BundleError, match="no tf binary"):
+                command("driftsentinel")
+            mock_run.assert_not_called()
+
     def test_validate_propagates_resolution_failure(self) -> None:
         """If resolve_tf_env raises, bundle.validate must not call subprocess.run."""
         with (
@@ -322,6 +336,7 @@ class TestShellHelperParity:
             capture_output=True,
             text=True,
             env=env,
+            check=False,
         )
         assert result.returncode == 0, result.stderr
         lines = result.stdout.strip().splitlines()
@@ -343,6 +358,7 @@ class TestShellHelperParity:
             capture_output=True,
             text=True,
             env=env,
+            check=False,
         )
         assert result.returncode != 0
         assert "OK" not in result.stdout
@@ -368,6 +384,7 @@ class TestShellHelperParity:
             capture_output=True,
             text=True,
             env=env,
+            check=False,
         )
         assert result.returncode == 0, result.stderr
         lines = result.stdout.strip().splitlines()
