@@ -42,22 +42,37 @@ class TestCLIParser:
 
     def test_connect_parses_all_args(self) -> None:
         parser = build_parser()
-        args = parser.parse_args([
-            "databricks", "connect",
-            "--catalog", "adb_dev",
-            "--schema", "governed",
-            "--volume-name", "my_vol",
-            "--dataset-id", "test_ds",
-            "--registry", "./registry.json",
-            "--drift-policy", "./drift.yml",
-            "--benchmark-policy", "./bench.yml",
-            "--landing-path", "./data/current",
-            "--baseline-path", "./data/baseline",
-            "--profile", "dev",
-            "--target", "prod",
-            "--wait",
-            "--timeout", "600",
-        ])
+        args = parser.parse_args(
+            [
+                "databricks",
+                "connect",
+                "--catalog",
+                "adb_dev",
+                "--schema",
+                "governed",
+                "--volume-name",
+                "my_vol",
+                "--dataset-id",
+                "test_ds",
+                "--registry",
+                "./registry.json",
+                "--drift-policy",
+                "./drift.yml",
+                "--benchmark-policy",
+                "./bench.yml",
+                "--landing-path",
+                "./data/current",
+                "--baseline-path",
+                "./data/baseline",
+                "--profile",
+                "dev",
+                "--target",
+                "prod",
+                "--wait",
+                "--timeout",
+                "600",
+            ]
+        )
         assert args.catalog == "adb_dev"
         assert args.schema == "governed"
         assert args.volume_name == "my_vol"
@@ -74,43 +89,62 @@ class TestCLIParser:
 
     def test_run_parses_required_args(self) -> None:
         parser = build_parser()
-        args = parser.parse_args([
-            "databricks", "run",
-            "--catalog", "adb_dev",
-            "--dataset-id", "test_ds",
-            "--wait",
-        ])
+        args = parser.parse_args(
+            [
+                "databricks",
+                "run",
+                "--catalog",
+                "adb_dev",
+                "--dataset-id",
+                "test_ds",
+                "--wait",
+            ]
+        )
         assert args.catalog == "adb_dev"
         assert args.dataset_id == "test_ds"
         assert args.wait is True
 
     def test_status_parses_required_args(self) -> None:
         parser = build_parser()
-        args = parser.parse_args([
-            "databricks", "status",
-            "--catalog", "adb_dev",
-        ])
+        args = parser.parse_args(
+            [
+                "databricks",
+                "status",
+                "--catalog",
+                "adb_dev",
+            ]
+        )
         assert args.catalog == "adb_dev"
         assert args.schema == "default"
 
     def test_sync_parses_file_args(self) -> None:
         parser = build_parser()
-        args = parser.parse_args([
-            "databricks", "sync",
-            "--catalog", "adb_dev",
-            "--dataset-id", "test_ds",
-            "--registry", "./r.json",
-        ])
+        args = parser.parse_args(
+            [
+                "databricks",
+                "sync",
+                "--catalog",
+                "adb_dev",
+                "--dataset-id",
+                "test_ds",
+                "--registry",
+                "./r.json",
+            ]
+        )
         assert args.catalog == "adb_dev"
         assert args.dataset_id == "test_ds"
         assert args.registry == "./r.json"
 
     def test_doctor_parses_required_args(self) -> None:
         parser = build_parser()
-        args = parser.parse_args([
-            "databricks", "doctor",
-            "--catalog", "adb_dev",
-        ])
+        args = parser.parse_args(
+            [
+                "databricks",
+                "doctor",
+                "--catalog",
+                "adb_dev",
+            ]
+        )
         assert args.catalog == "adb_dev"
 
     def test_all_subcommands_have_func(self) -> None:
@@ -147,15 +181,20 @@ class TestWorkspaceIdentity:
 class TestRunResult:
     def test_succeeded_property(self) -> None:
         r = RunResult(
-            run_id=1, state="TERMINATED", result_state="SUCCESS",
+            run_id=1,
+            state="TERMINATED",
+            result_state="SUCCESS",
             run_page_url="https://example.com/run/1",
         )
         assert r.succeeded is True
 
     def test_failed_property(self) -> None:
         r = RunResult(
-            run_id=2, state="TERMINATED", result_state="FAILED",
-            run_page_url="https://example.com/run/2", message="Task failed",
+            run_id=2,
+            state="TERMINATED",
+            result_state="FAILED",
+            run_page_url="https://example.com/run/2",
+            message="Task failed",
         )
         assert r.succeeded is False
         assert r.message == "Task failed"
@@ -167,24 +206,26 @@ class TestRunResult:
 
 
 class TestBundleModule:
+    @pytest.fixture(autouse=True)
+    def _set_tf_exec_path(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("DATABRICKS_TF_EXEC_PATH", "/tmp/fake-terraform")
+
     def test_bundle_error_is_runtime_error(self) -> None:
         assert issubclass(BundleError, RuntimeError)
 
     @mock.patch("driftsentinel.databricks.bundle.subprocess.run")
     def test_validate_raises_on_nonzero(self, mock_run: mock.MagicMock) -> None:
-        mock_run.return_value = mock.MagicMock(
-            returncode=1, stdout="", stderr="validation error"
-        )
+        mock_run.return_value = mock.MagicMock(returncode=1, stdout="", stderr="validation error")
         with pytest.raises(BundleError, match="validation error"):
             from driftsentinel.databricks.bundle import validate
+
             validate(catalog="test_cat")
 
     @mock.patch("driftsentinel.databricks.bundle.subprocess.run")
     def test_validate_returns_stdout_on_success(self, mock_run: mock.MagicMock) -> None:
-        mock_run.return_value = mock.MagicMock(
-            returncode=0, stdout="Validation OK!", stderr=""
-        )
+        mock_run.return_value = mock.MagicMock(returncode=0, stdout="Validation OK!", stderr="")
         from driftsentinel.databricks.bundle import validate
+
         result = validate(catalog="test_cat")
         assert "Validation OK!" in result
 
@@ -196,6 +237,7 @@ class TestBundleModule:
             stderr="",
         )
         from driftsentinel.databricks.bundle import summary
+
         result = summary(catalog="test_cat")
         assert result["resources"]["jobs"]["dataset_pipeline_job"]["id"] == "123"
 
@@ -203,6 +245,7 @@ class TestBundleModule:
     def test_deploy_forwards_schema_and_volume_name(self, mock_run: mock.MagicMock) -> None:
         mock_run.return_value = mock.MagicMock(returncode=0, stdout="ok", stderr="")
         from driftsentinel.databricks.bundle import deploy
+
         deploy(catalog="cat", schema="governed", volume_name="custom_vol")
         cmd = mock_run.call_args[0][0]
         assert "--var=schema=governed" in cmd
@@ -212,6 +255,7 @@ class TestBundleModule:
     def test_deploy_omits_default_schema_and_volume(self, mock_run: mock.MagicMock) -> None:
         mock_run.return_value = mock.MagicMock(returncode=0, stdout="ok", stderr="")
         from driftsentinel.databricks.bundle import deploy
+
         deploy(catalog="cat", schema="default", volume_name="driftsentinel_runtime")
         cmd = mock_run.call_args[0][0]
         assert "--var=schema=default" not in cmd
@@ -235,6 +279,7 @@ class TestFilesModule:
         mock_client.files.upload.return_value = None
 
         from driftsentinel.databricks.files import ensure_volume_layout
+
         paths = ensure_volume_layout(
             mock_client,
             catalog="adb_dev",
@@ -252,6 +297,7 @@ class TestFilesModule:
     def test_upload_file_raises_for_missing_file(self) -> None:
         mock_client = mock.MagicMock()
         from driftsentinel.databricks.files import upload_file
+
         with pytest.raises(FileNotFoundError):
             upload_file(mock_client, "/nonexistent/file.json", "/remote/file.json")
 
@@ -261,6 +307,7 @@ class TestFilesModule:
         mock_client = mock.MagicMock()
 
         from driftsentinel.databricks.files import upload_file
+
         result = upload_file(mock_client, local, "/remote/test.json")
         assert result == "/remote/test.json"
         mock_client.files.upload.assert_called_once()
@@ -272,6 +319,7 @@ class TestFilesModule:
         mock_client = mock.MagicMock()
 
         from driftsentinel.databricks.files import upload_directory
+
         result = upload_directory(mock_client, tmp_path, "/remote/data")
         assert len(result) == 2
         assert "/remote/data/a.csv" in result
@@ -286,17 +334,18 @@ class TestFilesModule:
 class TestJobsModule:
     def test_resolve_job_id_from_summary(self) -> None:
         from driftsentinel.databricks.jobs import _resolve_job_id
-        bsummary: dict[str, Any] = {
-            "resources": {"jobs": {"dataset_pipeline_job": {"id": "42"}}}
-        }
+
+        bsummary: dict[str, Any] = {"resources": {"jobs": {"dataset_pipeline_job": {"id": "42"}}}}
         assert _resolve_job_id(None, bundle_summary=bsummary) == 42
 
     def test_resolve_job_id_explicit_override(self) -> None:
         from driftsentinel.databricks.jobs import _resolve_job_id
+
         assert _resolve_job_id(None, job_id=99) == 99
 
     def test_resolve_job_id_raises_without_info(self) -> None:
         from driftsentinel.databricks.jobs import _resolve_job_id
+
         with pytest.raises(ValueError, match="Cannot resolve"):
             _resolve_job_id(None)
 
@@ -309,6 +358,7 @@ class TestJobsModule:
 class TestConnectHelpers:
     def test_build_job_parameters_with_policies(self) -> None:
         from driftsentinel.databricks.connect import _build_job_parameters
+
         params = _build_job_parameters(
             catalog="adb_dev",
             schema="default",
@@ -329,6 +379,7 @@ class TestConnectHelpers:
 
     def test_build_job_parameters_without_policies(self) -> None:
         from driftsentinel.databricks.connect import _build_job_parameters
+
         params = _build_job_parameters(
             catalog="adb_dev",
             schema="default",
@@ -349,6 +400,7 @@ class TestConnectHelpers:
 class TestEntryPoint:
     def test_scripts_entry_in_pyproject(self) -> None:
         import tomllib
+
         root = Path(__file__).resolve().parent.parent
         with open(root / "pyproject.toml", "rb") as f:
             data = tomllib.load(f)
