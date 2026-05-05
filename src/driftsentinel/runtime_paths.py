@@ -44,3 +44,33 @@ def runtime_evidence_dir(
 ) -> str:
     """Return the shared evidence directory inside the runtime volume."""
     return str(PurePosixPath(runtime_volume_root(catalog, schema, volume_name=volume_name)) / "evidence")
+
+
+def runtime_policies_dir(
+    catalog: str,
+    schema: str,
+    *,
+    volume_name: str = DEFAULT_RUNTIME_VOLUME_NAME,
+) -> str:
+    """Return the shared policies directory inside the runtime volume."""
+    return str(PurePosixPath(runtime_volume_root(catalog, schema, volume_name=volume_name)) / "policies")
+
+
+def runtime_drift_policy_path(
+    catalog: str,
+    schema: str,
+    *,
+    volume_name: str = DEFAULT_RUNTIME_VOLUME_NAME,
+) -> str:
+    """Return the canonical runtime-volume path for the drift policy YAML."""
+    return str(PurePosixPath(runtime_policies_dir(catalog, schema, volume_name=volume_name)) / "drift_policy.yml")
+
+
+def runtime_benchmark_policy_path(
+    catalog: str,
+    schema: str,
+    *,
+    volume_name: str = DEFAULT_RUNTIME_VOLUME_NAME,
+) -> str:
+    """Return the canonical runtime-volume path for the benchmark policy YAML."""
+    return str(PurePosixPath(runtime_policies_dir(catalog, schema, volume_name=volume_name)) / "benchmark_policy.yml")

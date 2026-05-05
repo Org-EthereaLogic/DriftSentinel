@@ -17,6 +17,8 @@ from driftsentinel.config.loader import load_benchmark_policy, load_drift_policy
 from driftsentinel.databricks import bundle, client, files, jobs
 from driftsentinel.runtime_paths import (
     DEFAULT_RUNTIME_VOLUME_NAME,
+    runtime_benchmark_policy_path,
+    runtime_drift_policy_path,
     runtime_evidence_dir,
     runtime_registry_path,
     runtime_volume_root,
@@ -245,6 +247,70 @@ def _print_connect_summary(
 # ---------------------------------------------------------------------------
 
 
+def _remote_file_exists(ws: Any, remote_path: str) -> bool:
+    """Return True iff the runtime-volume file is reachable via the Files API."""
+    try:
+        ws.files.get_metadata(remote_path)
+        return True
+    except Exception:
+        try:
+            ws.files.get_status(remote_path)
+            return True
+        except Exception:
+            return False
+
+
+def _resolve_drift_policy_for_run(
+    ws: Any,
+    *,
+    catalog: str,
+    schema: str,
+    volume_name: str,
+    dataset_id: str,
+    drift_policy: str | None,
+) -> str:
+    """Return the drift policy path to pass to the dataset pipeline job.
+
+    Explicit ``drift_policy`` overrides win unchanged. When omitted, falls back
+    to the canonical runtime-volume path written by ``connect``. Raises
+    ``ValueError`` with an actionable message when the canonical file is
+    absent — drift is mandatory at the orchestration layer.
+    """
+    if drift_policy:
+        return drift_policy
+    canonical = runtime_drift_policy_path(catalog, schema, volume_name=volume_name)
+    if _remote_file_exists(ws, canonical):
+        return canonical
+    raise ValueError(
+        f"No drift policy registered for dataset '{dataset_id}'. "
+        f"Run 'driftsentinel databricks connect --drift-policy <path>' to register one, "
+        f"or pass '--drift-policy' explicitly."
+    )
+
+
+def _resolve_benchmark_policy_for_run(
+    ws: Any,
+    *,
+    catalog: str,
+    schema: str,
+    volume_name: str,
+    benchmark_policy: str | None,
+) -> str | None:
+    """Return the benchmark policy path or ``None`` when none is registered.
+
+    Explicit ``benchmark_policy`` overrides win unchanged. When omitted, falls
+    back to the canonical runtime-volume path; if that file is absent the
+    parameter is left unset so the orchestration layer can run intake + drift
+    without a benchmark policy.
+    """
+    if benchmark_policy:
+        return benchmark_policy
+    canonical = runtime_benchmark_policy_path(catalog, schema, volume_name=volume_name)
+    if _remote_file_exists(ws, canonical):
+        return canonical
+    return None
+
+
 def run(
     *,
     catalog: str,
@@ -269,15 +335,30 @@ def run(
     )
     job_id = jobs._resolve_job_id(ws, bundle_summary=bsummary, job_key=PIPELINE_JOB_KEY)
 
+    resolved_drift = _resolve_drift_policy_for_run(
+        ws,
+        catalog=catalog,
+        schema=schema,
+        volume_name=volume_name,
+        dataset_id=dataset_id,
+        drift_policy=drift_policy,
+    )
+    resolved_benchmark = _resolve_benchmark_policy_for_run(
+        ws,
+        catalog=catalog,
+        schema=schema,
+        volume_name=volume_name,
+        benchmark_policy=benchmark_policy,
+    )
+
     params: dict[str, str] = {
         "dataset_id": dataset_id,
         "registry_path": runtime_registry_path(catalog, schema, volume_name=volume_name),
         "evidence_dir": runtime_evidence_dir(catalog, schema, volume_name=volume_name),
+        "drift_policy_path": resolved_drift,
     }
-    if drift_policy:
-        params["drift_policy_path"] = drift_policy
-    if benchmark_policy:
-        params["benchmark_policy_path"] = benchmark_policy
+    if resolved_benchmark:
+        params["benchmark_policy_path"] = resolved_benchmark
 
     _print(f"Triggering dataset pipeline (job {job_id}) for {dataset_id}...")
 

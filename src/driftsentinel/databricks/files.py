@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
-import os
 import sys
 from pathlib import Path, PurePosixPath
 from typing import Any
 
 from driftsentinel.runtime_paths import (
     DEFAULT_RUNTIME_VOLUME_NAME,
+    runtime_benchmark_policy_path,
+    runtime_drift_policy_path,
     runtime_evidence_dir,
     runtime_registry_path,
     runtime_volume_root,
@@ -136,11 +137,11 @@ def sync_files(
         remote["registry"] = upload_file(client, registry_path, layout["registry"])
 
     if drift_policy_path:
-        dest = str(PurePosixPath(layout["policies"]) / os.path.basename(str(drift_policy_path)))
+        dest = runtime_drift_policy_path(catalog, schema, volume_name=volume_name)
         remote["drift_policy"] = upload_file(client, drift_policy_path, dest)
 
     if benchmark_policy_path:
-        dest = str(PurePosixPath(layout["policies"]) / os.path.basename(str(benchmark_policy_path)))
+        dest = runtime_benchmark_policy_path(catalog, schema, volume_name=volume_name)
         remote["benchmark_policy"] = upload_file(client, benchmark_policy_path, dest)
 
     if landing_path:
