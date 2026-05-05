@@ -36,6 +36,6 @@
 
 | Version | Date | Change |
 | --- | --- | --- |
-| 1.2 | 2026-05-05 | Linked DS-FR-002 / DS-SR-009 to DS-PATCH-034 (default `bundle.sync.exclude` patterns and packaging test coverage) |
+| 1.2 | 2026-05-05 | Linked DS-FR-002 / DS-SR-009 to DS-PATCH-034 (default `sync.exclude` patterns and packaging test coverage) |
 | 1.1 | 2026-05-04 | Updated DS-FR-012 and DS-NFR-009 verification surfaces from Notion to GitHub Project (#8) following governance migration in commit 78bdf82 |
 | 1.0 | 2026-04-01 | Initial draft |

@@ -241,6 +241,7 @@ def test_bundle_sync_excludes_default_artifacts() -> None:
     """databricks.yml ships fail-closed sync.exclude defaults — see DS-PATCH-034."""
     with open(BUNDLE_CONFIG, encoding="utf-8") as f:
         data = yaml.safe_load(f)
+    assert isinstance(data, dict), "databricks.yml must parse to a top-level mapping"
     sync = data.get("sync")
     assert isinstance(sync, dict), "databricks.yml must define a top-level 'sync' mapping"
     excludes = sync.get("exclude")

@@ -9,7 +9,8 @@ include:
 
 # Local artifacts that must never be synced to the workspace bundle path.
 # Workspace files are capped at 52428800 bytes per file; staged datasets and
-# evidence dumps routinely exceed this. See specs/DS-PATCH-034 for rationale.
+# evidence dumps routinely exceed this. See
+# specs/DS-PATCH-034_bundle_sync_exclude_defaults.md for rationale.
 sync:
   exclude:
     - /data/

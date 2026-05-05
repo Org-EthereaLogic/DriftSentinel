@@ -1,4 +1,4 @@
-# DS-PATCH-034 — Default `bundle.sync.exclude` for Local Build Artifacts
+# DS-PATCH-034 — Default `sync.exclude` for Local Build Artifacts
 
 | Field | Value |
 | --- | --- |
@@ -52,11 +52,11 @@ on its own line. The order is deliberate (largest blast radius first):
 
 | Pattern | Rationale |
 | --- | --- |
-| `data/` | Local dataset staging directory; can contain >50 MB files |
-| `evidence_pulled/` | Operator-side dump of pulled evidence; never needed in the workspace |
-| `archive_exports/` | Local archive exports of evidence or registry state |
-| `orphaned_state_backup/` | Local backup of orphaned bundle state |
-| `report/` | Append-only evidence; canonical surface lives in the runtime volume, not the workspace |
+| `/data/` | Top-level local dataset staging directory; can contain >50 MB files |
+| `/evidence_pulled/` | Top-level operator-side dump of pulled evidence; never needed in the workspace |
+| `/archive_exports/` | Top-level local archive exports of evidence or registry state |
+| `/orphaned_state_backup/` | Top-level local backup of orphaned bundle state |
+| `/report/` | Top-level append-only local evidence; canonical production surface lives in the runtime volume, not the workspace |
 | `.venv/` | Python virtual environment; large and machine-specific |
 | `**/__pycache__/` | Python bytecode caches anywhere in the tree |
 | `.pytest_cache/` | Test runner cache |
@@ -78,11 +78,11 @@ implicit `.git/` exclusion that the CLI applies on its own.
 ```yaml
 sync:
   exclude:
-    - data/
-    - evidence_pulled/
-    - archive_exports/
-    - orphaned_state_backup/
-    - report/
+    - /data/
+    - /evidence_pulled/
+    - /archive_exports/
+    - /orphaned_state_backup/
+    - /report/
     - .venv/
     - "**/__pycache__/"
     - .pytest_cache/
