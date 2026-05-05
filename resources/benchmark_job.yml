@@ -16,7 +16,7 @@ resources:
         - name: seed
           default: "42"
         - name: n_rows
-          default: "1000"
+          default: "10000"
       tasks:
         - task_key: run_benchmark
           notebook_task:

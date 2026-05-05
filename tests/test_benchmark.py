@@ -130,8 +130,12 @@ def test_drift_scoring() -> None:
 def test_benchmark_gates() -> None:
     gates = [
         {
-            "name": "quality_recall", "type": "FAIL", "operator": ">=",
-            "threshold": 0.5, "track": "quality", "description": "test",
+            "name": "quality_recall",
+            "type": "FAIL",
+            "operator": ">=",
+            "threshold": 0.5,
+            "track": "quality",
+            "description": "test",
         },
     ]
     results, overall = evaluate_gates_from_dicts(gates, {"quality_recall": 0.8})
@@ -157,13 +161,24 @@ def test_run_benchmark_with_evidence(tmp_path: Path) -> None:
     assert "payload" in data
 
 
+def test_run_benchmark_at_default_n_rows_meets_recall_gate() -> None:
+    """At the bundle default n=10000, challenger quality_recall must clear
+    the 0.80 FAIL gate on the synthetic clean dataset (DS-PATCH-037)."""
+    result = run_benchmark(seed=SEED, n_rows=10000)
+    assert result["measured"]["quality_recall"] >= 0.80, (
+        f"quality_recall {result['measured']['quality_recall']:.3f} below 0.80 PASS gate at n=10000 — see DS-PATCH-037"
+    )
+
+
 def test_run_benchmark_with_reference_data() -> None:
-    reference_df = pd.DataFrame([
-        {"id": 1, "batch_id": "B-1", "category": "A", "amount": 10.0},
-        {"id": 2, "batch_id": "B-1", "category": "B", "amount": 15.0},
-        {"id": 3, "batch_id": "B-1", "category": "A", "amount": 20.0},
-        {"id": 4, "batch_id": "B-1", "category": "C", "amount": 25.0},
-    ])
+    reference_df = pd.DataFrame(
+        [
+            {"id": 1, "batch_id": "B-1", "category": "A", "amount": 10.0},
+            {"id": 2, "batch_id": "B-1", "category": "B", "amount": 15.0},
+            {"id": 3, "batch_id": "B-1", "category": "A", "amount": 20.0},
+            {"id": 4, "batch_id": "B-1", "category": "C", "amount": 25.0},
+        ]
+    )
 
     result = run_benchmark(
         seed=SEED,
@@ -181,13 +196,15 @@ def test_run_benchmark_with_reference_data() -> None:
 
 def test_run_benchmark_with_boolean_columns() -> None:
     """Benchmark fault injection must handle boolean dtype columns without crashing."""
-    reference_df = pd.DataFrame({
-        "id": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
-        "batch_id": ["B-1"] * 10,
-        "is_active": [True, False, True, True, False, True, False, True, False, True],
-        "is_verified": [False, True, False, True, True, False, True, False, True, False],
-        "amount": [10.0, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0],
-    })
+    reference_df = pd.DataFrame(
+        {
+            "id": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+            "batch_id": ["B-1"] * 10,
+            "is_active": [True, False, True, True, False, True, False, True, False, True],
+            "is_verified": [False, True, False, True, True, False, True, False, True, False],
+            "amount": [10.0, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0],
+        }
+    )
     assert pd.api.types.is_bool_dtype(reference_df["is_active"])
 
     result = run_benchmark(
@@ -218,13 +235,15 @@ def test_run_benchmark_with_boolean_columns() -> None:
 
 def _bool_df() -> pd.DataFrame:
     """Return a small DataFrame with boolean columns for injection testing."""
-    df = pd.DataFrame({
-        "id": range(20),
-        "flag_a": [True, False] * 10,
-        "flag_b": [False, True, True, False] * 5,
-        "amount": [float(i) for i in range(20)],
-        ORDER_COLUMN: range(20),
-    })
+    df = pd.DataFrame(
+        {
+            "id": range(20),
+            "flag_a": [True, False] * 10,
+            "flag_b": [False, True, True, False] * 5,
+            "amount": [float(i) for i in range(20)],
+            ORDER_COLUMN: range(20),
+        }
+    )
     assert pd.api.types.is_bool_dtype(df["flag_a"])
     assert pd.api.types.is_bool_dtype(df["flag_b"])
     return df

@@ -207,6 +207,11 @@ uv run driftsentinel databricks doctor --catalog my_catalog
 Runtime inputs (`dataset_id`, policy paths, `seed`, `n_rows`) are Databricks
 job parameters, not bundle variables. Pass them with `--params`:
 
+The `n_rows` parameter defaults to `10000` in the bundle resources (raised
+from `1000` in DS-PATCH-037). Lower values are statistically noisy on the
+quality recall gate; see
+`specs/DS-PATCH-037_benchmark_n_rows_default.md`.
+
 ```bash
 databricks bundle run dataset_pipeline_job -p <profile> --target dev \
   --var="catalog=my_catalog" \
