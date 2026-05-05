@@ -7,7 +7,7 @@ import json
 import subprocess
 import sys
 import time
-from typing import Any
+from typing import Any, Callable
 
 from driftsentinel.databricks.tf_env import (
     TerraformBinaryMissingError,
@@ -23,7 +23,7 @@ def _run(
     env: dict[str, str] | None = None,
 ) -> dict[str, Any] | subprocess.CompletedProcess[str] | None:
     print("+", " ".join(cmd))
-    proc = subprocess.run(cmd, text=True, capture_output=True, env=env)
+    proc = subprocess.run(cmd, text=True, capture_output=True, env=env, check=False)
     if proc.stdout:
         print(proc.stdout, end="")
     if proc.stderr:
@@ -62,6 +62,26 @@ def _get_app_state(
     return state
 
 
+def _wait_for_app_state(
+    app_name: str,
+    app_api_args: list[str],
+    *,
+    env: dict[str, str] | None = None,
+    timeout_s: int,
+    timeout_message: str,
+    is_ready: Callable[[dict[str, Any]], bool],
+    waiting_message: Callable[[dict[str, Any]], str],
+) -> dict[str, Any]:
+    deadline = time.time() + timeout_s
+    while time.time() < deadline:
+        state = _get_app_state(app_name, app_api_args, env=env)
+        if is_ready(state):
+            return state
+        print(waiting_message(state))
+        time.sleep(5)
+    raise SystemExit(timeout_message)
+
+
 def _wait_for_active_compute(
     app_name: str,
     app_api_args: list[str],
@@ -69,15 +89,23 @@ def _wait_for_active_compute(
     env: dict[str, str] | None = None,
     timeout_s: int = 1200,
 ) -> dict[str, Any]:
-    deadline = time.time() + timeout_s
-    while time.time() < deadline:
-        state = _get_app_state(app_name, app_api_args, env=env)
+    def _is_ready(state: dict[str, Any]) -> bool:
         compute = state.get("compute_status", {})
-        if compute.get("state") == "ACTIVE":
-            return state
-        print(f"Waiting for app compute to become ACTIVE: {compute.get('state')} {compute.get('message')}")
-        time.sleep(5)
-    raise SystemExit("Timed out waiting for app compute to become ACTIVE")
+        return compute.get("state") == "ACTIVE"
+
+    def _waiting_message(state: dict[str, Any]) -> str:
+        compute = state.get("compute_status", {})
+        return f"Waiting for app compute to become ACTIVE: {compute.get('state')} {compute.get('message')}"
+
+    return _wait_for_app_state(
+        app_name,
+        app_api_args,
+        env=env,
+        timeout_s=timeout_s,
+        timeout_message="Timed out waiting for app compute to become ACTIVE",
+        is_ready=_is_ready,
+        waiting_message=_waiting_message,
+    )
 
 
 def _wait_for_deployment(
@@ -88,37 +116,42 @@ def _wait_for_deployment(
     env: dict[str, str] | None = None,
     timeout_s: int = 1200,
 ) -> dict[str, Any]:
-    deadline = time.time() + timeout_s
-    while time.time() < deadline:
-        state = _get_app_state(app_name, app_api_args, env=env)
+    def _is_ready(state: dict[str, Any]) -> bool:
+        active = state.get("active_deployment", {})
+        app_status = state.get("app_status", {})
+        return (
+            active.get("source_code_path") == source_code_path
+            and active.get("status", {}).get("state") == "SUCCEEDED"
+            and app_status.get("state") == "RUNNING"
+        )
+
+    def _waiting_message(state: dict[str, Any]) -> str:
         active = state.get("active_deployment", {})
         pending = state.get("pending_deployment", {})
         app_status = state.get("app_status", {})
 
-        if (
-            active.get("source_code_path") == source_code_path
-            and active.get("status", {}).get("state") == "SUCCEEDED"
-            and app_status.get("state") == "RUNNING"
-        ):
-            return state
-
         if pending and pending.get("source_code_path") == source_code_path:
             status = pending.get("status", {})
-            print(
+            return (
                 f"Waiting for pending deployment {pending.get('deployment_id')}: "
                 f"{status.get('state')} {status.get('message')}"
             )
-            time.sleep(5)
-            continue
 
         if active.get("source_code_path") == source_code_path and active.get("status", {}).get("state") == "FAILED":
             status = active.get("status", {})
             raise SystemExit(f"Active deployment failed: {status.get('state')} {status.get('message')}")
 
-        print(f"Waiting for app to report RUNNING: {app_status.get('state')} {app_status.get('message')}")
-        time.sleep(5)
+        return f"Waiting for app to report RUNNING: {app_status.get('state')} {app_status.get('message')}"
 
-    raise SystemExit("Timed out waiting for app deployment to succeed")
+    return _wait_for_app_state(
+        app_name,
+        app_api_args,
+        env=env,
+        timeout_s=timeout_s,
+        timeout_message="Timed out waiting for app deployment to succeed",
+        is_ready=_is_ready,
+        waiting_message=_waiting_message,
+    )
 
 
 def main() -> int:

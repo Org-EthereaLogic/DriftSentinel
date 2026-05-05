@@ -1,3 +1,4 @@
+#!/bin/sh
 # scripts/databricks_tf_env.sh
 # Source me. I export DATABRICKS_TF_EXEC_PATH (and DATABRICKS_TF_VERSION
 # when unset) so 'databricks bundle ...' bypasses the upstream
