@@ -14,7 +14,11 @@ from driftsentinel.databricks import connect
 from driftsentinel.databricks.bundle import BundleError
 from driftsentinel.databricks.client import WorkspaceIdentity
 from driftsentinel.databricks.jobs import RunResult
-from driftsentinel.runtime_paths import DEFAULT_RUNTIME_VOLUME_NAME
+from driftsentinel.runtime_paths import (
+    DEFAULT_RUNTIME_VOLUME_NAME,
+    runtime_benchmark_policy_path,
+    runtime_drift_policy_path,
+)
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -399,13 +403,17 @@ class TestRunPolicyAutoResolution:
         )
 
         params = mock_submit.call_args[1]["parameters"]
-        assert (
-            params["drift_policy_path"]
-            == f"/Volumes/adb_dev/governed/{DEFAULT_RUNTIME_VOLUME_NAME}/policies/drift_policy.yml"
+        assert params["drift_policy_path"] == runtime_drift_policy_path(
+            "adb_dev",
+            "governed",
+            "test_dataset",
+            volume_name=DEFAULT_RUNTIME_VOLUME_NAME,
         )
-        assert (
-            params["benchmark_policy_path"]
-            == f"/Volumes/adb_dev/governed/{DEFAULT_RUNTIME_VOLUME_NAME}/policies/benchmark_policy.yml"
+        assert params["benchmark_policy_path"] == runtime_benchmark_policy_path(
+            "adb_dev",
+            "governed",
+            "test_dataset",
+            volume_name=DEFAULT_RUNTIME_VOLUME_NAME,
         )
 
     @mock.patch("driftsentinel.databricks.connect.jobs.submit_run")
@@ -466,9 +474,11 @@ class TestRunPolicyAutoResolution:
 
         params = mock_submit.call_args[1]["parameters"]
         assert params["drift_policy_path"] == "/explicit/drift.yml"
-        assert (
-            params["benchmark_policy_path"]
-            == f"/Volumes/adb_dev/governed/{DEFAULT_RUNTIME_VOLUME_NAME}/policies/benchmark_policy.yml"
+        assert params["benchmark_policy_path"] == runtime_benchmark_policy_path(
+            "adb_dev",
+            "governed",
+            "test_dataset",
+            volume_name=DEFAULT_RUNTIME_VOLUME_NAME,
         )
 
     @mock.patch("driftsentinel.databricks.connect.jobs.submit_run")
@@ -497,9 +507,11 @@ class TestRunPolicyAutoResolution:
         )
 
         params = mock_submit.call_args[1]["parameters"]
-        assert (
-            params["drift_policy_path"]
-            == f"/Volumes/adb_dev/governed/{DEFAULT_RUNTIME_VOLUME_NAME}/policies/drift_policy.yml"
+        assert params["drift_policy_path"] == runtime_drift_policy_path(
+            "adb_dev",
+            "governed",
+            "test_dataset",
+            volume_name=DEFAULT_RUNTIME_VOLUME_NAME,
         )
         assert params["benchmark_policy_path"] == "/explicit/bench.yml"
 
@@ -517,8 +529,8 @@ class TestRunPolicyAutoResolution:
         """Drift omitted and canonical file absent → ValueError with exact wording."""
         mock_get_ws.return_value = mock_ws
         mock_summary.return_value = bundle_summary_fixture
-        mock_ws.files.get_metadata.side_effect = Exception("not found")
-        mock_ws.files.get_status.side_effect = Exception("not found")
+        mock_ws.files.get_metadata.side_effect = FileNotFoundError("not found")
+        mock_ws.files.get_status.side_effect = FileNotFoundError("not found")
 
         with pytest.raises(ValueError) as excinfo:
             connect.run(
@@ -550,15 +562,20 @@ class TestRunPolicyAutoResolution:
         mock_summary.return_value = bundle_summary_fixture
         mock_submit.return_value = 1
 
-        canonical_drift = f"/Volumes/adb_dev/governed/{DEFAULT_RUNTIME_VOLUME_NAME}/policies/drift_policy.yml"
+        canonical_drift = runtime_drift_policy_path(
+            "adb_dev",
+            "governed",
+            "test_dataset",
+            volume_name=DEFAULT_RUNTIME_VOLUME_NAME,
+        )
 
         def _fake_get_metadata(path: str) -> mock.MagicMock:
             if path == canonical_drift:
                 return mock.MagicMock()
-            raise Exception("benchmark policy not uploaded")
+            raise FileNotFoundError("benchmark policy not uploaded")
 
         mock_ws.files.get_metadata.side_effect = _fake_get_metadata
-        mock_ws.files.get_status.side_effect = Exception("benchmark policy not uploaded")
+        mock_ws.files.get_status.side_effect = FileNotFoundError("benchmark policy not uploaded")
 
         connect.run(
             catalog="adb_dev",
@@ -570,6 +587,79 @@ class TestRunPolicyAutoResolution:
         params = mock_submit.call_args[1]["parameters"]
         assert params["drift_policy_path"] == canonical_drift
         assert "benchmark_policy_path" not in params
+
+    @mock.patch("driftsentinel.databricks.connect.jobs.submit_run")
+    @mock.patch("driftsentinel.databricks.connect.bundle.summary")
+    @mock.patch("driftsentinel.databricks.connect.client.get_workspace_client")
+    def test_drift_probe_propagates_non_missing_api_errors(
+        self,
+        mock_get_ws: mock.MagicMock,
+        mock_summary: mock.MagicMock,
+        mock_submit: mock.MagicMock,
+        bundle_summary_fixture: dict[str, Any],
+        mock_ws: mock.MagicMock,
+    ) -> None:
+        """Operational Files API errors must not be rewritten as missing drift policy."""
+        mock_get_ws.return_value = mock_ws
+        mock_summary.return_value = bundle_summary_fixture
+        mock_ws.files.get_metadata.side_effect = RuntimeError("files api unavailable")
+
+        with pytest.raises(RuntimeError, match="files api unavailable"):
+            connect.run(
+                catalog="adb_dev",
+                schema="governed",
+                volume_name=DEFAULT_RUNTIME_VOLUME_NAME,
+                dataset_id="test_dataset",
+            )
+
+        mock_submit.assert_not_called()
+
+    @mock.patch("driftsentinel.databricks.connect.jobs.submit_run")
+    @mock.patch("driftsentinel.databricks.connect.bundle.summary")
+    @mock.patch("driftsentinel.databricks.connect.client.get_workspace_client")
+    def test_benchmark_probe_propagates_non_missing_api_errors(
+        self,
+        mock_get_ws: mock.MagicMock,
+        mock_summary: mock.MagicMock,
+        mock_submit: mock.MagicMock,
+        bundle_summary_fixture: dict[str, Any],
+        mock_ws: mock.MagicMock,
+    ) -> None:
+        """Operational benchmark policy probe failures must not silently drop the benchmark stage."""
+        mock_get_ws.return_value = mock_ws
+        mock_summary.return_value = bundle_summary_fixture
+
+        canonical_drift = runtime_drift_policy_path(
+            "adb_dev",
+            "governed",
+            "test_dataset",
+            volume_name=DEFAULT_RUNTIME_VOLUME_NAME,
+        )
+        canonical_benchmark = runtime_benchmark_policy_path(
+            "adb_dev",
+            "governed",
+            "test_dataset",
+            volume_name=DEFAULT_RUNTIME_VOLUME_NAME,
+        )
+
+        def _fake_get_metadata(path: str) -> mock.MagicMock:
+            if path == canonical_drift:
+                return mock.MagicMock()
+            if path == canonical_benchmark:
+                raise RuntimeError("benchmark files api unavailable")
+            raise AssertionError(f"Unexpected path probe: {path}")
+
+        mock_ws.files.get_metadata.side_effect = _fake_get_metadata
+
+        with pytest.raises(RuntimeError, match="benchmark files api unavailable"):
+            connect.run(
+                catalog="adb_dev",
+                schema="governed",
+                volume_name=DEFAULT_RUNTIME_VOLUME_NAME,
+                dataset_id="test_dataset",
+            )
+
+        mock_submit.assert_not_called()
 
 
 # ---------------------------------------------------------------------------
