@@ -54,6 +54,7 @@ def _add_wait_args(parser: argparse.ArgumentParser) -> None:
 # Subcommand handlers
 # ---------------------------------------------------------------------------
 
+
 def _cmd_connect(args: argparse.Namespace) -> int:
     from driftsentinel.databricks.connect import connect
 
@@ -149,6 +150,7 @@ def _cmd_doctor(args: argparse.Namespace) -> int:
 # Parser construction
 # ---------------------------------------------------------------------------
 
+
 def build_parser() -> argparse.ArgumentParser:
     """Build the top-level argument parser."""
     parser = argparse.ArgumentParser(
@@ -175,8 +177,22 @@ def build_parser() -> argparse.ArgumentParser:
     p_run = db_sub.add_parser("run", help="Rerun an already-registered dataset")
     _add_common_args(p_run)
     _add_dataset_args(p_run)
-    p_run.add_argument("--drift-policy", default=None, help="Remote drift policy path override")
-    p_run.add_argument("--benchmark-policy", default=None, help="Remote benchmark policy path override")
+    p_run.add_argument(
+        "--drift-policy",
+        default=None,
+        help=(
+            "Remote drift policy path override "
+            "(defaults to the runtime-volume canonical location uploaded by 'connect')"
+        ),
+    )
+    p_run.add_argument(
+        "--benchmark-policy",
+        default=None,
+        help=(
+            "Remote benchmark policy path override "
+            "(defaults to the runtime-volume canonical location uploaded by 'connect')"
+        ),
+    )
     _add_wait_args(p_run)
     p_run.set_defaults(func=_cmd_run)
 

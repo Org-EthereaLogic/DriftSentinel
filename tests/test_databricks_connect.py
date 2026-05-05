@@ -282,10 +282,12 @@ class TestRun:
         bundle_summary_fixture: dict[str, Any],
         mock_ws: mock.MagicMock,
     ) -> None:
-        """Rerun pipeline returns dict with run_id and state."""
+        """Rerun pipeline returns dict with run_id and state when canonical policies exist."""
         mock_get_ws.return_value = mock_ws
         mock_summary.return_value = bundle_summary_fixture
         mock_submit.return_value = 789
+        # Both canonical policy files exist on the runtime volume.
+        mock_ws.files.get_metadata.return_value = mock.MagicMock()
 
         result = connect.run(
             catalog="adb_dev",
@@ -314,6 +316,7 @@ class TestRun:
         mock_get_ws.return_value = mock_ws
         mock_summary.return_value = bundle_summary_fixture
         mock_run_wait.return_value = mock_run_result
+        mock_ws.files.get_metadata.return_value = mock.MagicMock()
 
         result = connect.run(
             catalog="adb_dev",
@@ -340,7 +343,7 @@ class TestRun:
         mock_run_result: RunResult,
         mock_ws: mock.MagicMock,
     ) -> None:
-        """Rerun includes custom policy paths in job parameters."""
+        """Rerun includes operator-supplied policy paths in job parameters unchanged."""
         mock_get_ws.return_value = mock_ws
         mock_summary.return_value = bundle_summary_fixture
         mock_run_wait.return_value = mock_run_result
@@ -357,8 +360,216 @@ class TestRun:
 
         call_args = mock_run_wait.call_args
         params = call_args[1]["parameters"]
-        assert "drift_policy_path" in params
-        assert "benchmark_policy_path" in params
+        assert params["drift_policy_path"] == "/path/to/drift.yml"
+        assert params["benchmark_policy_path"] == "/path/to/bench.yml"
+        # Explicit overrides skip the existence check entirely.
+        mock_ws.files.get_metadata.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# DS-PATCH-033 — auto-resolve drift+benchmark policy paths from runtime volume
+# ---------------------------------------------------------------------------
+
+
+class TestRunPolicyAutoResolution:
+    """Issue #33: 'databricks run' auto-resolves canonical policy paths."""
+
+    @mock.patch("driftsentinel.databricks.connect.jobs.submit_run")
+    @mock.patch("driftsentinel.databricks.connect.bundle.summary")
+    @mock.patch("driftsentinel.databricks.connect.client.get_workspace_client")
+    def test_both_omitted_resolves_canonical_paths(
+        self,
+        mock_get_ws: mock.MagicMock,
+        mock_summary: mock.MagicMock,
+        mock_submit: mock.MagicMock,
+        bundle_summary_fixture: dict[str, Any],
+        mock_ws: mock.MagicMock,
+    ) -> None:
+        """Both flags omitted + files present → canonical runtime-volume paths."""
+        mock_get_ws.return_value = mock_ws
+        mock_summary.return_value = bundle_summary_fixture
+        mock_submit.return_value = 1
+        mock_ws.files.get_metadata.return_value = mock.MagicMock()
+
+        connect.run(
+            catalog="adb_dev",
+            schema="governed",
+            volume_name=DEFAULT_RUNTIME_VOLUME_NAME,
+            dataset_id="test_dataset",
+        )
+
+        params = mock_submit.call_args[1]["parameters"]
+        assert (
+            params["drift_policy_path"]
+            == f"/Volumes/adb_dev/governed/{DEFAULT_RUNTIME_VOLUME_NAME}/policies/drift_policy.yml"
+        )
+        assert (
+            params["benchmark_policy_path"]
+            == f"/Volumes/adb_dev/governed/{DEFAULT_RUNTIME_VOLUME_NAME}/policies/benchmark_policy.yml"
+        )
+
+    @mock.patch("driftsentinel.databricks.connect.jobs.submit_run")
+    @mock.patch("driftsentinel.databricks.connect.bundle.summary")
+    @mock.patch("driftsentinel.databricks.connect.client.get_workspace_client")
+    def test_explicit_overrides_skip_existence_check(
+        self,
+        mock_get_ws: mock.MagicMock,
+        mock_summary: mock.MagicMock,
+        mock_submit: mock.MagicMock,
+        bundle_summary_fixture: dict[str, Any],
+        mock_ws: mock.MagicMock,
+    ) -> None:
+        """Both flags explicit → operator paths win, existence check skipped."""
+        mock_get_ws.return_value = mock_ws
+        mock_summary.return_value = bundle_summary_fixture
+        mock_submit.return_value = 1
+
+        connect.run(
+            catalog="adb_dev",
+            schema="governed",
+            volume_name=DEFAULT_RUNTIME_VOLUME_NAME,
+            dataset_id="test_dataset",
+            drift_policy="/explicit/drift.yml",
+            benchmark_policy="/explicit/bench.yml",
+        )
+
+        params = mock_submit.call_args[1]["parameters"]
+        assert params["drift_policy_path"] == "/explicit/drift.yml"
+        assert params["benchmark_policy_path"] == "/explicit/bench.yml"
+        mock_ws.files.get_metadata.assert_not_called()
+        mock_ws.files.get_status.assert_not_called()
+
+    @mock.patch("driftsentinel.databricks.connect.jobs.submit_run")
+    @mock.patch("driftsentinel.databricks.connect.bundle.summary")
+    @mock.patch("driftsentinel.databricks.connect.client.get_workspace_client")
+    def test_mixed_explicit_drift_auto_benchmark(
+        self,
+        mock_get_ws: mock.MagicMock,
+        mock_summary: mock.MagicMock,
+        mock_submit: mock.MagicMock,
+        bundle_summary_fixture: dict[str, Any],
+        mock_ws: mock.MagicMock,
+    ) -> None:
+        """Explicit drift override + auto-resolved benchmark."""
+        mock_get_ws.return_value = mock_ws
+        mock_summary.return_value = bundle_summary_fixture
+        mock_submit.return_value = 1
+        mock_ws.files.get_metadata.return_value = mock.MagicMock()
+
+        connect.run(
+            catalog="adb_dev",
+            schema="governed",
+            volume_name=DEFAULT_RUNTIME_VOLUME_NAME,
+            dataset_id="test_dataset",
+            drift_policy="/explicit/drift.yml",
+        )
+
+        params = mock_submit.call_args[1]["parameters"]
+        assert params["drift_policy_path"] == "/explicit/drift.yml"
+        assert (
+            params["benchmark_policy_path"]
+            == f"/Volumes/adb_dev/governed/{DEFAULT_RUNTIME_VOLUME_NAME}/policies/benchmark_policy.yml"
+        )
+
+    @mock.patch("driftsentinel.databricks.connect.jobs.submit_run")
+    @mock.patch("driftsentinel.databricks.connect.bundle.summary")
+    @mock.patch("driftsentinel.databricks.connect.client.get_workspace_client")
+    def test_mixed_auto_drift_explicit_benchmark(
+        self,
+        mock_get_ws: mock.MagicMock,
+        mock_summary: mock.MagicMock,
+        mock_submit: mock.MagicMock,
+        bundle_summary_fixture: dict[str, Any],
+        mock_ws: mock.MagicMock,
+    ) -> None:
+        """Auto-resolved drift + explicit benchmark override."""
+        mock_get_ws.return_value = mock_ws
+        mock_summary.return_value = bundle_summary_fixture
+        mock_submit.return_value = 1
+        mock_ws.files.get_metadata.return_value = mock.MagicMock()
+
+        connect.run(
+            catalog="adb_dev",
+            schema="governed",
+            volume_name=DEFAULT_RUNTIME_VOLUME_NAME,
+            dataset_id="test_dataset",
+            benchmark_policy="/explicit/bench.yml",
+        )
+
+        params = mock_submit.call_args[1]["parameters"]
+        assert (
+            params["drift_policy_path"]
+            == f"/Volumes/adb_dev/governed/{DEFAULT_RUNTIME_VOLUME_NAME}/policies/drift_policy.yml"
+        )
+        assert params["benchmark_policy_path"] == "/explicit/bench.yml"
+
+    @mock.patch("driftsentinel.databricks.connect.jobs.submit_run")
+    @mock.patch("driftsentinel.databricks.connect.bundle.summary")
+    @mock.patch("driftsentinel.databricks.connect.client.get_workspace_client")
+    def test_drift_omitted_and_missing_raises_actionable_error(
+        self,
+        mock_get_ws: mock.MagicMock,
+        mock_summary: mock.MagicMock,
+        mock_submit: mock.MagicMock,
+        bundle_summary_fixture: dict[str, Any],
+        mock_ws: mock.MagicMock,
+    ) -> None:
+        """Drift omitted and canonical file absent → ValueError with exact wording."""
+        mock_get_ws.return_value = mock_ws
+        mock_summary.return_value = bundle_summary_fixture
+        mock_ws.files.get_metadata.side_effect = Exception("not found")
+        mock_ws.files.get_status.side_effect = Exception("not found")
+
+        with pytest.raises(ValueError) as excinfo:
+            connect.run(
+                catalog="adb_dev",
+                schema="governed",
+                volume_name=DEFAULT_RUNTIME_VOLUME_NAME,
+                dataset_id="my_dataset",
+            )
+
+        msg = str(excinfo.value)
+        assert "No drift policy registered for dataset 'my_dataset'." in msg
+        assert "driftsentinel databricks connect --drift-policy <path>" in msg
+        assert "--drift-policy" in msg
+        mock_submit.assert_not_called()
+
+    @mock.patch("driftsentinel.databricks.connect.jobs.submit_run")
+    @mock.patch("driftsentinel.databricks.connect.bundle.summary")
+    @mock.patch("driftsentinel.databricks.connect.client.get_workspace_client")
+    def test_benchmark_omitted_and_missing_is_omitted_gracefully(
+        self,
+        mock_get_ws: mock.MagicMock,
+        mock_summary: mock.MagicMock,
+        mock_submit: mock.MagicMock,
+        bundle_summary_fixture: dict[str, Any],
+        mock_ws: mock.MagicMock,
+    ) -> None:
+        """Benchmark omitted and canonical file absent → param omitted, no error."""
+        mock_get_ws.return_value = mock_ws
+        mock_summary.return_value = bundle_summary_fixture
+        mock_submit.return_value = 1
+
+        canonical_drift = f"/Volumes/adb_dev/governed/{DEFAULT_RUNTIME_VOLUME_NAME}/policies/drift_policy.yml"
+
+        def _fake_get_metadata(path: str) -> mock.MagicMock:
+            if path == canonical_drift:
+                return mock.MagicMock()
+            raise Exception("benchmark policy not uploaded")
+
+        mock_ws.files.get_metadata.side_effect = _fake_get_metadata
+        mock_ws.files.get_status.side_effect = Exception("benchmark policy not uploaded")
+
+        connect.run(
+            catalog="adb_dev",
+            schema="governed",
+            volume_name=DEFAULT_RUNTIME_VOLUME_NAME,
+            dataset_id="test_dataset",
+        )
+
+        params = mock_submit.call_args[1]["parameters"]
+        assert params["drift_policy_path"] == canonical_drift
+        assert "benchmark_policy_path" not in params
 
 
 # ---------------------------------------------------------------------------
