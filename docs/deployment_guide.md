@@ -63,6 +63,29 @@ databricks bundle deploy -p <profile> --target prod --var="catalog=my_catalog,sc
 bundle, including the app resource definition. It does not by itself create a
 Databricks App deployment from the uploaded source code.
 
+### Default Workspace Sync Exclusions
+
+`databricks.yml` ships a `sync.exclude` block that keeps local-only artifacts
+out of the workspace bundle path on every deploy:
+
+| Pattern | Reason |
+| --- | --- |
+| `data/` | Local dataset staging; files routinely exceed the 52428800-byte (50 MB) workspace per-file ceiling |
+| `evidence_pulled/`, `archive_exports/`, `orphaned_state_backup/` | Operator-side dumps; canonical evidence lives in the runtime volume |
+| `report/` | Local development surface; production evidence is written to the Unity Catalog runtime volume |
+| `.venv/` | Local virtualenv |
+| `**/__pycache__/`, `.pytest_cache/`, `.mypy_cache/`, `.ruff_cache/` | Tool caches |
+
+Without these exclusions, `databricks bundle deploy` (and `databricks apps
+deploy` downstream) fails with `File ... is larger than the maximum allowed
+file size of 52428800 bytes` whenever a local `data/` directory contains a
+file above the ceiling.
+
+If you stage other large or sensitive local files outside these paths, add
+them under `sync.exclude` in `databricks.yml`. See
+`specs/DS-PATCH-034_bundle_sync_exclude_defaults.md` for the canonical
+exclusion contract.
+
 ### Run (CLI — recommended)
 
 The Make wrapper and DriftSentinel CLI handle bundle deploy, file upload, and
