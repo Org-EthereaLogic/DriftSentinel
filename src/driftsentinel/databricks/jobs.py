@@ -42,10 +42,7 @@ def _resolve_job_id(
         jobs = bundle_summary.get("resources", {}).get("jobs", {})
         if job_key in jobs:
             return int(jobs[job_key]["id"])
-    raise ValueError(
-        f"Cannot resolve job ID for '{job_key}'. "
-        "Provide --job-id or ensure the bundle is deployed."
-    )
+    raise ValueError(f"Cannot resolve job ID for '{job_key}'. Provide --job-id or ensure the bundle is deployed.")
 
 
 def submit_run(
@@ -61,6 +58,17 @@ def submit_run(
     return run_id
 
 
+_TERMINAL_STATES = frozenset({"TERMINATED", "SKIPPED", "INTERNAL_ERROR"})
+
+
+def _life_cycle_str(state: Any) -> str:
+    """Return the life-cycle state as a plain string, defending against SDK enum vs str."""
+    if state is None or state.life_cycle_state is None:
+        return "UNKNOWN"
+    # Databricks SDK returns RunLifeCycleState enum; getattr handles plain-string mocks too.
+    return str(getattr(state.life_cycle_state, "value", state.life_cycle_state))
+
+
 def poll_run(
     client: Any,
     run_id: int,
@@ -70,23 +78,33 @@ def poll_run(
 ) -> RunResult:
     """Poll a run until it reaches a terminal state or times out."""
     deadline = time.time() + timeout_s
-    terminal = {"TERMINATED", "SKIPPED", "INTERNAL_ERROR"}
 
     while time.time() < deadline:
         run = client.jobs.get_run(run_id)
         state = run.state
-        life_cycle = state.life_cycle_state if state else "UNKNOWN"
+        life_cycle = _life_cycle_str(state)
 
-        if life_cycle in terminal:
-            result_state = state.result_state.value if state and state.result_state else "UNKNOWN"
+        if life_cycle in _TERMINAL_STATES:
+            result_state = (
+                str(getattr(state.result_state, "value", state.result_state))
+                if state and state.result_state
+                else "UNKNOWN"
+            )
             message = state.state_message if state and state.state_message else ""
             tasks_info: list[dict[str, Any]] = []
             if hasattr(run, "tasks") and run.tasks:
                 for t in run.tasks:
-                    tasks_info.append({
-                        "task_key": t.task_key,
-                        "state": t.state.result_state.value if t.state and t.state.result_state else "UNKNOWN",
-                    })
+                    task_state = (
+                        str(getattr(t.state.result_state, "value", t.state.result_state))
+                        if t.state and t.state.result_state
+                        else "UNKNOWN"
+                    )
+                    tasks_info.append(
+                        {
+                            "task_key": t.task_key,
+                            "state": task_state,
+                        }
+                    )
             return RunResult(
                 run_id=run_id,
                 state=life_cycle,

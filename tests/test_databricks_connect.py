@@ -633,9 +633,7 @@ class TestHelperFunctions:
         assert "FAIL" in captured.err
 
     @mock.patch("driftsentinel.databricks.connect.bundle.app_get")
-    def test_print_connect_summary(
-        self, mock_app_get: mock.MagicMock, capsys: pytest.CaptureFixture[str]
-    ) -> None:
+    def test_print_connect_summary(self, mock_app_get: mock.MagicMock, capsys: pytest.CaptureFixture[str]) -> None:
         """_print_connect_summary displays runtime info."""
         mock_app_get.return_value = {
             "url": "https://test.databricks.com/apps/driftsentinel",
@@ -653,3 +651,185 @@ class TestHelperFunctions:
         captured = capsys.readouterr()
         assert "DriftSentinel Connect Summary" in captured.err
         assert "Runtime volume" in captured.err
+
+
+# ---------------------------------------------------------------------------
+# poll_run early-exit on terminal states (regression for issue #38)
+# ---------------------------------------------------------------------------
+
+
+class _FakeEnum:
+    """Stand-in for the Databricks SDK's RunLifeCycleState/RunResultState enums.
+
+    The real SDK ships enum members whose ``.value`` is the canonical string
+    (e.g. ``RunLifeCycleState.TERMINATED.value == "TERMINATED"``). Issue #38
+    surfaced because ``poll_run`` was comparing the enum object itself to a
+    set of strings — that comparison silently returned False and the loop
+    polled until the deadline. This fake reproduces the failure mode.
+    """
+
+    def __init__(self, value: str) -> None:
+        self.value = value
+
+    def __str__(self) -> str:  # pragma: no cover - debugging aid only
+        return f"FakeEnum.{self.value}"
+
+
+def _make_run(*, life_cycle: Any, result_state: Any = None, message: str = "") -> mock.MagicMock:
+    """Build a mock SDK Run object with the specified life-cycle/result state."""
+    state = mock.MagicMock()
+    state.life_cycle_state = life_cycle
+    state.result_state = result_state
+    state.state_message = message
+    run = mock.MagicMock()
+    run.state = state
+    run.run_page_url = "https://test.databricks.com/jobs/999/runs/123"
+    run.tasks = []
+    return run
+
+
+class TestPollRunEarlyExit:
+    """Regression coverage for issue #38: poll_run must exit on terminal states.
+
+    Acceptance criteria (from the issue body):
+    - Returns immediately on TERMINATED / SKIPPED / INTERNAL_ERROR
+    - Returned RunResult carries the actual result_state
+    - JobRunError raised only on real timeouts (still polling at deadline)
+    - Regression: simulate a job flipping to terminal at iter N and assert exit
+    """
+
+    def test_terminated_success_returns_immediately(self) -> None:
+        """Job that terminated SUCCESS on the first poll exits in one iteration."""
+        from driftsentinel.databricks.jobs import poll_run
+
+        client = mock.MagicMock()
+        client.jobs.get_run.return_value = _make_run(
+            life_cycle=_FakeEnum("TERMINATED"),
+            result_state=_FakeEnum("SUCCESS"),
+            message="ok",
+        )
+        result = poll_run(client, run_id=1, poll_interval_s=0, timeout_s=60)
+
+        assert result.state == "TERMINATED"
+        assert result.result_state == "SUCCESS"
+        assert result.succeeded is True
+        assert client.jobs.get_run.call_count == 1
+
+    def test_terminated_failed_returns_immediately(self) -> None:
+        """Job that terminated FAILED exits with result_state propagated."""
+        from driftsentinel.databricks.jobs import poll_run
+
+        client = mock.MagicMock()
+        client.jobs.get_run.return_value = _make_run(
+            life_cycle=_FakeEnum("TERMINATED"),
+            result_state=_FakeEnum("FAILED"),
+            message="boom",
+        )
+        result = poll_run(client, run_id=2, poll_interval_s=0, timeout_s=60)
+
+        assert result.state == "TERMINATED"
+        assert result.result_state == "FAILED"
+        assert result.succeeded is False
+        assert result.message == "boom"
+
+    def test_internal_error_returns_immediately(self) -> None:
+        """INTERNAL_ERROR (the demo's iter-1 case) is treated as terminal."""
+        from driftsentinel.databricks.jobs import poll_run
+
+        client = mock.MagicMock()
+        client.jobs.get_run.return_value = _make_run(
+            life_cycle=_FakeEnum("INTERNAL_ERROR"),
+            result_state=_FakeEnum("FAILED"),
+        )
+        result = poll_run(client, run_id=3, poll_interval_s=0, timeout_s=60)
+
+        assert result.state == "INTERNAL_ERROR"
+        assert result.result_state == "FAILED"
+        assert client.jobs.get_run.call_count == 1
+
+    def test_skipped_returns_immediately(self) -> None:
+        """SKIPPED life-cycle is also terminal."""
+        from driftsentinel.databricks.jobs import poll_run
+
+        client = mock.MagicMock()
+        client.jobs.get_run.return_value = _make_run(
+            life_cycle=_FakeEnum("SKIPPED"),
+            result_state=_FakeEnum("SKIPPED"),
+        )
+        result = poll_run(client, run_id=4, poll_interval_s=0, timeout_s=60)
+
+        assert result.state == "SKIPPED"
+
+    def test_string_typed_state_still_works(self) -> None:
+        """Plain-string life_cycle_state (defensive path) also exits cleanly."""
+        from driftsentinel.databricks.jobs import poll_run
+
+        client = mock.MagicMock()
+        client.jobs.get_run.return_value = _make_run(
+            life_cycle="TERMINATED",
+            result_state="SUCCESS",
+        )
+        result = poll_run(client, run_id=5, poll_interval_s=0, timeout_s=60)
+
+        assert result.state == "TERMINATED"
+        assert result.result_state == "SUCCESS"
+
+    def test_running_then_terminated_exits_at_terminal_iteration(self) -> None:
+        """Job pending for 3 polls then TERMINATED on the 4th exits at iter 4, not deadline."""
+        from driftsentinel.databricks.jobs import poll_run
+
+        client = mock.MagicMock()
+        pending = _make_run(life_cycle=_FakeEnum("RUNNING"))
+        terminal = _make_run(
+            life_cycle=_FakeEnum("TERMINATED"),
+            result_state=_FakeEnum("SUCCESS"),
+        )
+        client.jobs.get_run.side_effect = [pending, pending, pending, terminal]
+
+        result = poll_run(client, run_id=6, poll_interval_s=0, timeout_s=60)
+
+        assert result.state == "TERMINATED"
+        assert result.result_state == "SUCCESS"
+        assert client.jobs.get_run.call_count == 4
+
+    def test_real_timeout_still_raises(self) -> None:
+        """A run that never terminates raises JobRunError once the deadline passes."""
+        from driftsentinel.databricks.jobs import JobRunError, poll_run
+
+        client = mock.MagicMock()
+        client.jobs.get_run.return_value = _make_run(life_cycle=_FakeEnum("RUNNING"))
+
+        with pytest.raises(JobRunError, match="timed out"):
+            poll_run(client, run_id=7, poll_interval_s=0, timeout_s=0)
+
+    def test_unknown_state_keeps_polling(self) -> None:
+        """A None life_cycle_state should not be mistaken for a terminal state."""
+        from driftsentinel.databricks.jobs import JobRunError, poll_run
+
+        client = mock.MagicMock()
+        client.jobs.get_run.return_value = _make_run(life_cycle=None)
+
+        # With timeout=0 this raises immediately rather than treating UNKNOWN as terminal.
+        with pytest.raises(JobRunError):
+            poll_run(client, run_id=8, poll_interval_s=0, timeout_s=0)
+
+    def test_task_state_propagates_via_enum(self) -> None:
+        """Task-level result_state enum values are also unwrapped."""
+        from driftsentinel.databricks.jobs import poll_run
+
+        client = mock.MagicMock()
+        run = _make_run(
+            life_cycle=_FakeEnum("TERMINATED"),
+            result_state=_FakeEnum("FAILED"),
+        )
+        task_state = mock.MagicMock()
+        task_state.result_state = _FakeEnum("FAILED")
+        task = mock.MagicMock()
+        task.task_key = "run_dataset_pipeline"
+        task.state = task_state
+        run.tasks = [task]
+        client.jobs.get_run.return_value = run
+
+        result = poll_run(client, run_id=9, poll_interval_s=0, timeout_s=60)
+
+        assert result.tasks == [{"task_key": "run_dataset_pipeline", "state": "FAILED"}]
