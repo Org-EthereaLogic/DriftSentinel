@@ -1,22 +1,26 @@
 # DriftSentinel Dataset Contract Template
 #
 # Copy this file and customize for each dataset you want to monitor.
+#
+# Placeholders ${CATALOG}, ${SCHEMA}, and ${VOLUME} are resolved at load time
+# when catalog=, schema=, or volume_name= are supplied to load_dataset_contract().
+# Omitting those arguments leaves the placeholders as literal strings.
 
 dataset:
   name: example_dataset
   description: Replace with your dataset description
-  catalog: example_catalog
-  schema: default
+  catalog: ${CATALOG}
+  schema: ${SCHEMA}
   table: example_table
   contract_version: "1.0.0"
 
 source:
   system: example_source
   format: csv  # csv, tsv, txt, json, excel, parquet, avro, orc, delta, table
-  landing_path: /Volumes/example_catalog/default/landing/example/
-  baseline_path: /Volumes/example_catalog/default/baseline/example/  # optional fallback for drift baseline
-  table_name: example_catalog.default.example_table  # optional for format: table; use a fully qualified catalog.schema.table name
-  baseline_table_name: example_catalog.default.example_baseline  # optional fallback for table-backed drift baselines; fully qualified catalog.schema.table
+  landing_path: /Volumes/${CATALOG}/${SCHEMA}/landing/example/
+  baseline_path: /Volumes/${CATALOG}/${SCHEMA}/baseline/example/  # optional fallback for drift baseline
+  table_name: ${CATALOG}.${SCHEMA}.example_table  # optional for format: table; use a fully qualified catalog.schema.table name
+  baseline_table_name: ${CATALOG}.${SCHEMA}.example_baseline  # optional fallback for table-backed drift baselines; fully qualified catalog.schema.table
   read_options: {}  # optional reader options, e.g. {compression: infer}, {sheet_name: Sheet1}, {columns: [id, amount], limit: 500000} for table reads
 
 contract:

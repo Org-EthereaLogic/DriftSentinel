@@ -22,6 +22,42 @@ from driftsentinel.drift.scoring import normalize_drift_method
 from driftsentinel.paths import resolve_trusted_file
 
 
+def _walk_and_sub(data: Any, subs: dict[str, str]) -> Any:
+    if isinstance(data, dict):
+        return {k: _walk_and_sub(v, subs) for k, v in data.items()}
+    if isinstance(data, list):
+        return [_walk_and_sub(item, subs) for item in data]
+    if isinstance(data, str):
+        for token, value in subs.items():
+            data = data.replace(token, value)
+        return data
+    return data
+
+
+def _substitute_placeholders(
+    data: Any,
+    *,
+    catalog: str | None,
+    schema: str | None,
+    volume_name: str | None,
+) -> Any:
+    """Recursively replace ${CATALOG}, ${SCHEMA}, ${VOLUME} tokens in string leaves.
+
+    Only replaces a token when the corresponding kwarg is not None.
+    Omitting all kwargs returns data unchanged (backward compatible).
+    """
+    subs: dict[str, str] = {}
+    if catalog is not None:
+        subs["${CATALOG}"] = catalog
+    if schema is not None:
+        subs["${SCHEMA}"] = schema
+    if volume_name is not None:
+        subs["${VOLUME}"] = volume_name
+    if not subs:
+        return data
+    return _walk_and_sub(data, subs)
+
+
 class ConfigError(Exception):
     """Raised when a configuration file is missing required fields."""
 
@@ -70,11 +106,21 @@ def _validate_dataset_contract(data: dict[str, Any], context: str) -> dict[str, 
     return data
 
 
-def load_dataset_contract(path: str | Path) -> dict[str, Any]:
+def load_dataset_contract(
+    path: str | Path,
+    *,
+    catalog: str | None = None,
+    schema: str | None = None,
+    volume_name: str | None = None,
+) -> dict[str, Any]:
     """Load a dataset contract YAML and validate required fields.
 
     Required top-level keys: dataset, contract.
     Required contract keys: required_columns, business_key, batch_identifier.
+
+    When catalog, schema, or volume_name are supplied, ${CATALOG}, ${SCHEMA},
+    and ${VOLUME} placeholders are substituted in all string values before
+    validation. Omitting them preserves placeholders unchanged.
     """
     p = resolve_trusted_file(
         path,
@@ -82,13 +128,21 @@ def load_dataset_contract(path: str | Path) -> dict[str, Any]:
         allowed_suffixes=(".yml", ".yaml"),
     )
     data = _load_yaml(p)
+    data = _substitute_placeholders(data, catalog=catalog, schema=schema, volume_name=volume_name)
     return _validate_dataset_contract(data, f"dataset contract ({p.name})")
 
 
-def load_packaged_dataset_contract(template_name: str = "dataset_contract.yml") -> dict[str, Any]:
+def load_packaged_dataset_contract(
+    template_name: str = "dataset_contract.yml",
+    *,
+    catalog: str | None = None,
+    schema: str | None = None,
+    volume_name: str | None = None,
+) -> dict[str, Any]:
     """Load the example dataset contract packaged with DriftSentinel."""
     template = _packaged_template(template_name)
     data = _load_yaml(template, source_name=template_name)
+    data = _substitute_placeholders(data, catalog=catalog, schema=schema, volume_name=volume_name)
     return _validate_dataset_contract(data, f"dataset contract ({template_name})")
 
 
@@ -104,18 +158,12 @@ def _validate_drift_policy(data: dict[str, Any], context: str) -> dict[str, Any]
         raise ConfigError(f"Drift policy monitored_columns must be a non-empty list ({context})")
     for index, item in enumerate(monitored_columns):
         if not isinstance(item, dict):
-            raise ConfigError(
-                f"Drift policy monitored_columns[{index}] must be a mapping ({context})"
-            )
+            raise ConfigError(f"Drift policy monitored_columns[{index}] must be a mapping ({context})")
         column_name = str(item.get("column_name", "")).strip()
         if not column_name:
-            raise ConfigError(
-                f"Drift policy monitored_columns[{index}] must define column_name ({context})"
-            )
+            raise ConfigError(f"Drift policy monitored_columns[{index}] must define column_name ({context})")
         if "method" not in item:
-            raise ConfigError(
-                f"Drift policy monitored_columns[{index}] must define method ({context})"
-            )
+            raise ConfigError(f"Drift policy monitored_columns[{index}] must define method ({context})")
         try:
             normalize_drift_method(item["method"])
         except ValueError as exc:
@@ -123,11 +171,21 @@ def _validate_drift_policy(data: dict[str, Any], context: str) -> dict[str, Any]
     return data
 
 
-def load_drift_policy(path: str | Path) -> dict[str, Any]:
+def load_drift_policy(
+    path: str | Path,
+    *,
+    catalog: str | None = None,
+    schema: str | None = None,
+    volume_name: str | None = None,
+) -> dict[str, Any]:
     """Load a drift policy YAML and validate required fields.
 
     Required top-level key: drift_policy.
     Required drift_policy keys: name, dataset, monitored_columns, gates.
+
+    When catalog, schema, or volume_name are supplied, ${CATALOG}, ${SCHEMA},
+    and ${VOLUME} placeholders are substituted in all string values before
+    validation.
     """
     p = resolve_trusted_file(
         path,
@@ -135,13 +193,21 @@ def load_drift_policy(path: str | Path) -> dict[str, Any]:
         allowed_suffixes=(".yml", ".yaml"),
     )
     data = _load_yaml(p)
+    data = _substitute_placeholders(data, catalog=catalog, schema=schema, volume_name=volume_name)
     return _validate_drift_policy(data, f"drift policy ({p.name})")
 
 
-def load_packaged_drift_policy(template_name: str = "drift_policy.yml") -> dict[str, Any]:
+def load_packaged_drift_policy(
+    template_name: str = "drift_policy.yml",
+    *,
+    catalog: str | None = None,
+    schema: str | None = None,
+    volume_name: str | None = None,
+) -> dict[str, Any]:
     """Load the example drift policy packaged with DriftSentinel."""
     template = _packaged_template(template_name)
     data = _load_yaml(template, source_name=template_name)
+    data = _substitute_placeholders(data, catalog=catalog, schema=schema, volume_name=volume_name)
     return _validate_drift_policy(data, f"drift policy ({template_name})")
 
 
@@ -155,11 +221,21 @@ def _validate_benchmark_policy(data: dict[str, Any], context: str) -> dict[str, 
     return data
 
 
-def load_benchmark_policy(path: str | Path) -> dict[str, Any]:
+def load_benchmark_policy(
+    path: str | Path,
+    *,
+    catalog: str | None = None,
+    schema: str | None = None,
+    volume_name: str | None = None,
+) -> dict[str, Any]:
     """Load a benchmark policy YAML and validate required fields.
 
     Required top-level key: benchmark_policy.
     Required benchmark_policy keys: name, dataset, seed, gates.
+
+    When catalog, schema, or volume_name are supplied, ${CATALOG}, ${SCHEMA},
+    and ${VOLUME} placeholders are substituted in all string values before
+    validation.
     """
     p = resolve_trusted_file(
         path,
@@ -167,13 +243,21 @@ def load_benchmark_policy(path: str | Path) -> dict[str, Any]:
         allowed_suffixes=(".yml", ".yaml"),
     )
     data = _load_yaml(p)
+    data = _substitute_placeholders(data, catalog=catalog, schema=schema, volume_name=volume_name)
     return _validate_benchmark_policy(data, f"benchmark policy ({p.name})")
 
 
-def load_packaged_benchmark_policy(template_name: str = "benchmark_policy.yml") -> dict[str, Any]:
+def load_packaged_benchmark_policy(
+    template_name: str = "benchmark_policy.yml",
+    *,
+    catalog: str | None = None,
+    schema: str | None = None,
+    volume_name: str | None = None,
+) -> dict[str, Any]:
     """Load the example benchmark policy packaged with DriftSentinel."""
     template = _packaged_template(template_name)
     data = _load_yaml(template, source_name=template_name)
+    data = _substitute_placeholders(data, catalog=catalog, schema=schema, volume_name=volume_name)
     return _validate_benchmark_policy(data, f"benchmark policy ({template_name})")
 
 
@@ -188,31 +272,25 @@ def normalize_benchmark_gates(policy: dict[str, Any]) -> list[dict[str, Any]]:
     """
     raw_gates = policy.get("benchmark_policy", {}).get("gates", [])
     if not isinstance(raw_gates, list):
-        raise ConfigError(
-            f"Expected 'gates' to be a list of gate definitions, "
-            f"got {type(raw_gates).__name__}"
-        )
+        raise ConfigError(f"Expected 'gates' to be a list of gate definitions, got {type(raw_gates).__name__}")
 
     normalized: list[dict[str, Any]] = []
     for i, gate in enumerate(raw_gates):
         if not isinstance(gate, dict):
-            raise ConfigError(
-                f"Gate at index {i} must be a mapping, got {type(gate).__name__}"
-            )
+            raise ConfigError(f"Gate at index {i} must be a mapping, got {type(gate).__name__}")
         missing = [k for k in _GATE_REQUIRED_KEYS if k not in gate]
         if missing:
-            raise ConfigError(
-                f"Gate at index {i} ({gate.get('name', '?')}) missing keys: "
-                f"{', '.join(missing)}"
-            )
-        normalized.append({
-            "name": gate["name"],
-            "type": gate["type"],
-            "operator": gate["operator"],
-            "threshold": float(gate["threshold"]),
-            "track": gate.get("track", ""),
-            "description": gate.get("description", ""),
-        })
+            raise ConfigError(f"Gate at index {i} ({gate.get('name', '?')}) missing keys: {', '.join(missing)}")
+        normalized.append(
+            {
+                "name": gate["name"],
+                "type": gate["type"],
+                "operator": gate["operator"],
+                "threshold": float(gate["threshold"]),
+                "track": gate.get("track", ""),
+                "description": gate.get("description", ""),
+            }
+        )
 
     return normalized
 
@@ -292,9 +370,7 @@ class DatasetRegistry:
         if contract_version is not None:
             key = (dataset_id, contract_version)
             if key not in self._entries:
-                raise RegistryError(
-                    f"Dataset '{dataset_id}' version '{contract_version}' is not registered."
-                )
+                raise RegistryError(f"Dataset '{dataset_id}' version '{contract_version}' is not registered.")
             return self._entries[key]
 
         matches = {k: v for k, v in self._entries.items() if k[0] == dataset_id}
@@ -305,10 +381,7 @@ class DatasetRegistry:
 
     def list_datasets(self) -> list[dict[str, str]]:
         """Return a list of registered dataset summaries."""
-        return [
-            {"dataset_id": did, "contract_version": ver}
-            for did, ver in sorted(self._entries.keys())
-        ]
+        return [{"dataset_id": did, "contract_version": ver} for did, ver in sorted(self._entries.keys())]
 
     def contains(self, dataset_id: str, contract_version: str | None = None) -> bool:
         """Check whether a dataset is registered."""
@@ -320,9 +393,7 @@ class DatasetRegistry:
         """Remove a registered dataset entry. Raises RegistryError if not found."""
         key = (dataset_id, contract_version)
         if key not in self._entries:
-            raise RegistryError(
-                f"Dataset '{dataset_id}' version '{contract_version}' is not registered."
-            )
+            raise RegistryError(f"Dataset '{dataset_id}' version '{contract_version}' is not registered.")
         del self._entries[key]
 
     def save(self, path: str | Path) -> Path:
@@ -381,18 +452,12 @@ def check_policy_compatibility(
 
     if not registry.contains(dataset, contract_version):
         if registry.contains(dataset):
-            registered = [
-                e["contract_version"]
-                for e in registry.list_datasets()
-                if e["dataset_id"] == dataset
-            ]
+            registered = [e["contract_version"] for e in registry.list_datasets() if e["dataset_id"] == dataset]
             raise RegistryError(
                 f"{policy_kind} references dataset '{dataset}' version '{contract_version}', "
                 f"but only versions {registered} are registered."
             )
-        raise RegistryError(
-            f"{policy_kind} references dataset '{dataset}' which is not registered."
-        )
+        raise RegistryError(f"{policy_kind} references dataset '{dataset}' which is not registered.")
 
     return {
         "dataset_id": dataset,

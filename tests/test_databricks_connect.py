@@ -481,28 +481,38 @@ class TestSync:
         mock_identity: WorkspaceIdentity,
         mock_ws: mock.MagicMock,
     ) -> None:
-        """Sync with custom policy and data paths."""
+        """Sync with custom policy and data paths resolves tokens before upload."""
+        from pathlib import Path
+
         mock_get_ws.return_value = mock_ws
         mock_resolve_id.return_value = mock_identity
         mock_sync_files.return_value = {}
 
-        connect.sync(
-            catalog="adb_dev",
-            schema="governed",
-            volume_name=DEFAULT_RUNTIME_VOLUME_NAME,
-            dataset_id="test_dataset",
-            registry="/custom/registry.json",
-            drift_policy="/custom/drift.yml",
-            benchmark_policy="/custom/bench.yml",
-            landing_path="/custom/landing",
-            baseline_path="/custom/baseline",
-        )
+        resolved_drift = Path("/resolved/drift.yml")
+        resolved_bench = Path("/resolved/bench.yml")
 
-        # Verify sync_files was called with all arguments
+        def fake_resolve(path: object, loader_fn: object, *, catalog: str, schema: str, volume_name: str) -> Path:
+            if "drift" in str(path):
+                return resolved_drift
+            return resolved_bench
+
+        with mock.patch("driftsentinel.databricks.connect._resolve_local_yaml", side_effect=fake_resolve):
+            connect.sync(
+                catalog="adb_dev",
+                schema="governed",
+                volume_name=DEFAULT_RUNTIME_VOLUME_NAME,
+                dataset_id="test_dataset",
+                registry="/custom/registry.json",
+                drift_policy="/custom/drift.yml",
+                benchmark_policy="/custom/bench.yml",
+                landing_path="/custom/landing",
+                baseline_path="/custom/baseline",
+            )
+
         call_args = mock_sync_files.call_args
         assert call_args[1]["registry_path"] == "/custom/registry.json"
-        assert call_args[1]["drift_policy_path"] == "/custom/drift.yml"
-        assert call_args[1]["benchmark_policy_path"] == "/custom/bench.yml"
+        assert call_args[1]["drift_policy_path"] == resolved_drift
+        assert call_args[1]["benchmark_policy_path"] == resolved_bench
 
 
 # ---------------------------------------------------------------------------

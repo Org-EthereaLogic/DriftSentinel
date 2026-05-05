@@ -1,6 +1,10 @@
 # DriftSentinel Drift Policy Template
 #
 # Copy this file and customize for each dataset's drift monitoring.
+#
+# Placeholders ${CATALOG}, ${SCHEMA}, and ${VOLUME} are resolved at load time
+# when catalog=, schema=, or volume_name= are supplied to load_drift_policy().
+# Omitting those arguments leaves the placeholders as literal strings.
 
 drift_policy:
   name: example_drift_policy
@@ -16,8 +20,8 @@ drift_policy:
 
   baseline:
     source: trusted_load
-    path: /Volumes/example_catalog/default/baseline/example/
-    table_name: example_catalog.default.example_baseline  # optional when format: table; use a fully qualified catalog.schema.table name
+    path: /Volumes/${CATALOG}/${SCHEMA}/baseline/example/
+    table_name: ${CATALOG}.${SCHEMA}.example_baseline  # optional when format: table; use a fully qualified catalog.schema.table name
     format: csv
     read_options: {}  # optional override for baseline-specific reader options
     min_rows: 100

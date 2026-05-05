@@ -7,9 +7,13 @@ from __future__ import annotations
 
 import json
 import sys
+import tempfile
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
+import yaml
+
+from driftsentinel.config.loader import load_benchmark_policy, load_drift_policy
 from driftsentinel.databricks import bundle, client, files, jobs
 from driftsentinel.runtime_paths import (
     DEFAULT_RUNTIME_VOLUME_NAME,
@@ -21,6 +25,25 @@ from driftsentinel.runtime_paths import (
 APP_NAME = "driftsentinel"
 APP_KEY = "driftsentinel_app"
 PIPELINE_JOB_KEY = "dataset_pipeline_job"
+
+
+def _resolve_local_yaml(
+    path: str | Path,
+    loader_fn: Callable[..., dict[str, Any]],
+    *,
+    catalog: str,
+    schema: str,
+    volume_name: str,
+) -> Path:
+    """Load a local YAML with token substitution, dump to a temp file, return its path.
+
+    The caller is responsible for deleting the temp file after use.
+    """
+    resolved = loader_fn(path, catalog=catalog, schema=schema, volume_name=volume_name)
+    tmp = tempfile.NamedTemporaryFile(suffix=".yml", mode="w", encoding="utf-8", delete=False)
+    yaml.safe_dump(resolved, tmp)
+    tmp.close()
+    return Path(tmp.name)
 
 
 def _print(msg: str) -> None:
@@ -57,6 +80,7 @@ def _build_job_parameters(
 # ---------------------------------------------------------------------------
 # connect — one-step bootstrap + upload + run
 # ---------------------------------------------------------------------------
+
 
 def connect(
     *,
@@ -101,18 +125,45 @@ def connect(
 
     # 5. Ensure volume layout + upload files
     _print("Syncing files to runtime volume...")
-    remote_paths = files.sync_files(
-        ws,
-        catalog=catalog,
-        schema=schema,
-        volume_name=volume_name,
-        dataset_id=dataset_id,
-        registry_path=registry,
-        drift_policy_path=drift_policy,
-        benchmark_policy_path=benchmark_policy,
-        landing_path=landing_path,
-        baseline_path=baseline_path,
+    resolved_drift = (
+        _resolve_local_yaml(
+            drift_policy,
+            load_drift_policy,
+            catalog=catalog,
+            schema=schema,
+            volume_name=volume_name,
+        )
+        if drift_policy is not None
+        else None
     )
+    resolved_benchmark = (
+        _resolve_local_yaml(
+            benchmark_policy,
+            load_benchmark_policy,
+            catalog=catalog,
+            schema=schema,
+            volume_name=volume_name,
+        )
+        if benchmark_policy is not None
+        else None
+    )
+    try:
+        remote_paths = files.sync_files(
+            ws,
+            catalog=catalog,
+            schema=schema,
+            volume_name=volume_name,
+            dataset_id=dataset_id,
+            registry_path=registry,
+            drift_policy_path=resolved_drift or drift_policy,
+            benchmark_policy_path=resolved_benchmark or benchmark_policy,
+            landing_path=landing_path,
+            baseline_path=baseline_path,
+        )
+    finally:
+        for tmp in (resolved_drift, resolved_benchmark):
+            if tmp is not None:
+                tmp.unlink(missing_ok=True)
     result["remote_paths"] = remote_paths
 
     # 6. Trigger pipeline job
@@ -193,6 +244,7 @@ def _print_connect_summary(
 # run — rerun an already-registered dataset
 # ---------------------------------------------------------------------------
 
+
 def run(
     *,
     catalog: str,
@@ -209,8 +261,11 @@ def run(
     """Rerun the dataset pipeline for an already-registered dataset."""
     ws = client.get_workspace_client(profile=profile)
     bsummary = bundle.summary(
-        profile=profile, target=target, catalog=catalog,
-        schema=schema, volume_name=volume_name,
+        profile=profile,
+        target=target,
+        catalog=catalog,
+        schema=schema,
+        volume_name=volume_name,
     )
     job_id = jobs._resolve_job_id(ws, bundle_summary=bsummary, job_key=PIPELINE_JOB_KEY)
 
@@ -228,7 +283,10 @@ def run(
 
     if wait:
         run_result = jobs.run_and_wait(
-            ws, job_id=job_id, parameters=params, timeout_s=timeout_s,
+            ws,
+            job_id=job_id,
+            parameters=params,
+            timeout_s=timeout_s,
         )
         verdict = "PASS" if run_result.succeeded else "FAIL"
         _print(f"  Verdict: {verdict} | Run URL: {run_result.run_page_url}")
@@ -248,6 +306,7 @@ def run(
 # ---------------------------------------------------------------------------
 # status — print app URL, job IDs, latest run state, runtime volume path
 # ---------------------------------------------------------------------------
+
 
 def status(
     *,
@@ -274,8 +333,11 @@ def status(
 
     try:
         bsummary = bundle.summary(
-            profile=profile, target=target, catalog=catalog,
-            schema=schema, volume_name=volume_name,
+            profile=profile,
+            target=target,
+            catalog=catalog,
+            schema=schema,
+            volume_name=volume_name,
         )
         job_ids: dict[str, str] = {}
         for key, val in bsummary.get("resources", {}).get("jobs", {}).items():
@@ -291,6 +353,7 @@ def status(
 # ---------------------------------------------------------------------------
 # sync — upload or refresh files without running
 # ---------------------------------------------------------------------------
+
 
 def sync(
     *,
@@ -312,18 +375,45 @@ def sync(
     _print(f"  Authenticated as {identity.user} on {identity.host}")
 
     _print("Syncing files to runtime volume...")
-    remote_paths = files.sync_files(
-        ws,
-        catalog=catalog,
-        schema=schema,
-        volume_name=volume_name,
-        dataset_id=dataset_id,
-        registry_path=registry,
-        drift_policy_path=drift_policy,
-        benchmark_policy_path=benchmark_policy,
-        landing_path=landing_path,
-        baseline_path=baseline_path,
+    resolved_drift = (
+        _resolve_local_yaml(
+            drift_policy,
+            load_drift_policy,
+            catalog=catalog,
+            schema=schema,
+            volume_name=volume_name,
+        )
+        if drift_policy is not None
+        else None
     )
+    resolved_benchmark = (
+        _resolve_local_yaml(
+            benchmark_policy,
+            load_benchmark_policy,
+            catalog=catalog,
+            schema=schema,
+            volume_name=volume_name,
+        )
+        if benchmark_policy is not None
+        else None
+    )
+    try:
+        remote_paths = files.sync_files(
+            ws,
+            catalog=catalog,
+            schema=schema,
+            volume_name=volume_name,
+            dataset_id=dataset_id,
+            registry_path=registry,
+            drift_policy_path=resolved_drift or drift_policy,
+            benchmark_policy_path=resolved_benchmark or benchmark_policy,
+            landing_path=landing_path,
+            baseline_path=baseline_path,
+        )
+    finally:
+        for tmp in (resolved_drift, resolved_benchmark):
+            if tmp is not None:
+                tmp.unlink(missing_ok=True)
     _print("Sync complete.")
     return remote_paths
 
@@ -331,6 +421,7 @@ def sync(
 # ---------------------------------------------------------------------------
 # doctor — verify auth, catalog, bundle, volume, resource IDs
 # ---------------------------------------------------------------------------
+
 
 def doctor(
     *,
@@ -370,8 +461,11 @@ def doctor(
     _print("Checking bundle...")
     try:
         bundle.validate(
-            profile=profile, target=target, catalog=catalog,
-            schema=schema, volume_name=volume_name,
+            profile=profile,
+            target=target,
+            catalog=catalog,
+            schema=schema,
+            volume_name=volume_name,
         )
         checks["bundle"] = {"status": "OK"}
         _print("  Bundle: OK")
@@ -394,8 +488,11 @@ def doctor(
     _print("Checking job resources...")
     try:
         bsummary = bundle.summary(
-            profile=profile, target=target, catalog=catalog,
-            schema=schema, volume_name=volume_name,
+            profile=profile,
+            target=target,
+            catalog=catalog,
+            schema=schema,
+            volume_name=volume_name,
         )
         job_ids: dict[str, str] = {}
         for key, val in bsummary.get("resources", {}).get("jobs", {}).items():

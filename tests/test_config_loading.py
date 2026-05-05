@@ -9,6 +9,7 @@ import yaml
 
 from driftsentinel.config.loader import (
     ConfigError,
+    _substitute_placeholders,
     load_benchmark_policy,
     load_dataset_contract,
     load_drift_policy,
@@ -39,7 +40,15 @@ def test_load_packaged_dataset_contract() -> None:
     data = load_packaged_dataset_contract()
     assert "dataset" in data
     assert "contract" in data
-    assert data["dataset"]["catalog"] == "example_catalog"
+    assert data["dataset"]["catalog"] == "${CATALOG}"
+
+
+def test_load_packaged_dataset_contract_with_catalog() -> None:
+    data = load_packaged_dataset_contract(catalog="my_catalog", schema="my_schema")
+    assert data["dataset"]["catalog"] == "my_catalog"
+    assert data["dataset"]["schema"] == "my_schema"
+    assert "my_catalog" in data["source"]["landing_path"]
+    assert "my_schema" in data["source"]["landing_path"]
 
 
 def test_load_dataset_contract_missing_dataset(tmp_path: Path) -> None:
@@ -164,9 +173,84 @@ def test_load_non_mapping_yaml(tmp_path: Path) -> None:
         load_dataset_contract(bad)
 
 
-def test_load_dataset_contract_rejects_untrusted_path(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+# --- Token substitution (${CATALOG}, ${SCHEMA}, ${VOLUME}) ---
+
+
+def test_substitute_placeholders_replaces_catalog_in_nested_string(tmp_path: Path) -> None:
+    p = tmp_path / "contract.yml"
+    p.write_text(
+        "dataset:\n  name: ds\n  catalog: ${CATALOG}\n"
+        "  schema: ${SCHEMA}\n"
+        "source:\n  landing_path: /Volumes/${CATALOG}/${SCHEMA}/landing/ds/\n"
+        "contract:\n  required_columns: []\n  business_key: [id]\n  batch_identifier: bid\n"
+    )
+    data = load_dataset_contract(p, catalog="prod", schema="analytics")
+    assert data["dataset"]["catalog"] == "prod"
+    assert data["dataset"]["schema"] == "analytics"
+    assert data["source"]["landing_path"] == "/Volumes/prod/analytics/landing/ds/"
+
+
+def test_substitute_placeholders_missing_kwarg_leaves_placeholder(tmp_path: Path) -> None:
+    p = tmp_path / "contract.yml"
+    p.write_text(
+        "dataset:\n  name: ds\n  catalog: ${CATALOG}\n"
+        "  schema: ${SCHEMA}\n"
+        "contract:\n  required_columns: []\n  business_key: [id]\n  batch_identifier: bid\n"
+    )
+    data = load_dataset_contract(p, catalog="prod")
+    assert data["dataset"]["catalog"] == "prod"
+    assert data["dataset"]["schema"] == "${SCHEMA}"
+
+
+def test_substitute_placeholders_no_kwargs_leaves_all_placeholders(tmp_path: Path) -> None:
+    p = tmp_path / "contract.yml"
+    p.write_text(
+        "dataset:\n  name: ds\n  catalog: ${CATALOG}\n"
+        "  schema: ${SCHEMA}\n"
+        "contract:\n  required_columns: []\n  business_key: [id]\n  batch_identifier: bid\n"
+    )
+    data = load_dataset_contract(p)
+    assert data["dataset"]["catalog"] == "${CATALOG}"
+    assert data["dataset"]["schema"] == "${SCHEMA}"
+
+
+def test_substitute_placeholders_volume_name(tmp_path: Path) -> None:
+    policy = tmp_path / "drift.yml"
+    policy.write_text(
+        "drift_policy:\n  name: p\n  dataset: ds\n  contract_version: '1.0.0'\n"
+        "  policy_version: '1.0.0'\n"
+        "  monitored_columns:\n    - column_name: amount\n      method: shannon_entropy\n"
+        "  baseline:\n    source: trusted_load\n"
+        "    path: /Volumes/${CATALOG}/${SCHEMA}/${VOLUME}/baseline/\n"
+        "    format: csv\n    min_rows: 10\n"
+        "  gates:\n    health_score_threshold: 0.7\n    max_columns_failed: 1\n"
+    )
+    data = load_drift_policy(policy, catalog="c", schema="s", volume_name="vol")
+    assert data["drift_policy"]["baseline"]["path"] == "/Volumes/c/s/vol/baseline/"
+
+
+def test_substitute_placeholders_no_double_substitution() -> None:
+    data = _substitute_placeholders(
+        {"key": "${CATALOG}_suffix"},
+        catalog="c",
+        schema=None,
+        volume_name=None,
+    )
+    assert data["key"] == "c_suffix"
+
+
+def test_substitute_placeholders_drift_policy_from_template() -> None:
+    data = load_packaged_drift_policy(catalog="my_catalog", schema="my_schema")
+    assert "my_catalog" in data["drift_policy"]["baseline"]["path"]
+    assert "my_schema" in data["drift_policy"]["baseline"]["path"]
+
+
+def test_substitute_placeholders_benchmark_policy_from_template() -> None:
+    data = load_packaged_benchmark_policy(catalog="my_catalog")
+    assert "benchmark_policy" in data
+
+
+def test_load_dataset_contract_rejects_untrusted_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         "driftsentinel.paths.trusted_roots",
         lambda extra_roots=(): (str(tmp_path / "_no_match_"),),
