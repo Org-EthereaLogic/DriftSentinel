@@ -112,6 +112,14 @@ def test_load_dataset_contract_rejects_negative_quarantine_max_ratio(tmp_path: P
         load_dataset_contract(bad)
 
 
+@pytest.mark.parametrize("value", [float("nan"), float("inf"), float("-inf")])
+def test_load_dataset_contract_rejects_non_finite_quarantine_max_ratio(tmp_path: Path, value: float) -> None:
+    bad = tmp_path / "bad.yml"
+    bad.write_text(yaml.dump(_quarantine_contract(value)))
+    with pytest.raises(ConfigError, match="quarantine_max_ratio.*finite"):
+        load_dataset_contract(bad)
+
+
 def test_load_dataset_contract_omits_quarantine_max_ratio_by_default(tmp_path: Path) -> None:
     good = tmp_path / "good.yml"
     good.write_text(

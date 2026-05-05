@@ -11,6 +11,7 @@ and policy-to-dataset compatibility checks.
 from __future__ import annotations
 
 import json
+import math
 from importlib import resources
 from importlib.resources.abc import Traversable
 from pathlib import Path
@@ -110,7 +111,7 @@ def _validate_quarantine_max_ratio(contract_section: dict[str, Any], context: st
     if isinstance(raw, bool) or not isinstance(raw, (int, float)):
         raise ConfigError(f"contract.quarantine_max_ratio must be a number in [0.0, 1.0] ({context}); got {raw!r}")
     value = float(raw)
-    if value != value or value in (float("inf"), float("-inf")):  # NaN or inf
+    if math.isnan(value) or math.isinf(value):
         raise ConfigError(
             f"contract.quarantine_max_ratio must be a finite number in [0.0, 1.0] ({context}); got {raw!r}"
         )
