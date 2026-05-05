@@ -65,6 +65,79 @@ def test_load_dataset_contract_missing_contract_keys(tmp_path: Path) -> None:
         load_dataset_contract(bad)
 
 
+def _quarantine_contract(value: object) -> dict[str, object]:
+    return {
+        "dataset": {"name": "ds"},
+        "contract": {
+            "required_columns": [],
+            "business_key": ["id"],
+            "batch_identifier": "batch_id",
+            "quarantine_max_ratio": value,
+        },
+    }
+
+
+def test_load_dataset_contract_accepts_valid_quarantine_max_ratio(tmp_path: Path) -> None:
+    good = tmp_path / "good.yml"
+    good.write_text(yaml.dump(_quarantine_contract(0.05)))
+    data = load_dataset_contract(good)
+    assert data["contract"]["quarantine_max_ratio"] == 0.05
+
+
+def test_load_dataset_contract_rejects_out_of_range_quarantine_max_ratio(tmp_path: Path) -> None:
+    bad = tmp_path / "bad.yml"
+    bad.write_text(yaml.dump(_quarantine_contract(1.5)))
+    with pytest.raises(ConfigError, match="quarantine_max_ratio.*\\[0\\.0, 1\\.0\\]"):
+        load_dataset_contract(bad)
+
+
+def test_load_dataset_contract_rejects_non_numeric_quarantine_max_ratio(tmp_path: Path) -> None:
+    bad = tmp_path / "bad.yml"
+    bad.write_text(yaml.dump(_quarantine_contract("five percent")))
+    with pytest.raises(ConfigError, match="quarantine_max_ratio"):
+        load_dataset_contract(bad)
+
+
+def test_load_dataset_contract_rejects_boolean_quarantine_max_ratio(tmp_path: Path) -> None:
+    bad = tmp_path / "bad.yml"
+    bad.write_text(yaml.dump(_quarantine_contract(True)))
+    with pytest.raises(ConfigError, match="quarantine_max_ratio"):
+        load_dataset_contract(bad)
+
+
+def test_load_dataset_contract_rejects_negative_quarantine_max_ratio(tmp_path: Path) -> None:
+    bad = tmp_path / "bad.yml"
+    bad.write_text(yaml.dump(_quarantine_contract(-0.01)))
+    with pytest.raises(ConfigError, match="quarantine_max_ratio.*\\[0\\.0, 1\\.0\\]"):
+        load_dataset_contract(bad)
+
+
+@pytest.mark.parametrize("value", [float("nan"), float("inf"), float("-inf")])
+def test_load_dataset_contract_rejects_non_finite_quarantine_max_ratio(tmp_path: Path, value: float) -> None:
+    bad = tmp_path / "bad.yml"
+    bad.write_text(yaml.dump(_quarantine_contract(value)))
+    with pytest.raises(ConfigError, match="quarantine_max_ratio.*finite"):
+        load_dataset_contract(bad)
+
+
+def test_load_dataset_contract_omits_quarantine_max_ratio_by_default(tmp_path: Path) -> None:
+    good = tmp_path / "good.yml"
+    good.write_text(
+        yaml.dump(
+            {
+                "dataset": {"name": "ds"},
+                "contract": {
+                    "required_columns": [],
+                    "business_key": ["id"],
+                    "batch_identifier": "batch_id",
+                },
+            }
+        )
+    )
+    data = load_dataset_contract(good)
+    assert "quarantine_max_ratio" not in data["contract"]
+
+
 # --- Drift policy ---
 
 

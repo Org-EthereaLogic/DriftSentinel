@@ -227,14 +227,59 @@ def _drift_gate_configs(drift_policy: dict[str, Any]) -> list[GateConfig]:
     return configs
 
 
+def _quarantine_max_ratio(contract: dict[str, Any]) -> float:
+    """Return the contract's quarantine_max_ratio with the documented default.
+
+    Loader validation (driftsentinel.config.loader._validate_quarantine_max_ratio)
+    enforces the [0.0, 1.0] range at boundary load time. Programmatic callers
+    that build contracts inline still pass through this read, so we coerce
+    None to 0.0 to preserve the documented default.
+    """
+    contract_section = contract.get("contract", {}) or {}
+    raw = contract_section.get("quarantine_max_ratio", 0.0)
+    if raw is None:
+        return 0.0
+    return float(raw)
+
+
+def _evaluate_with_tolerance(
+    contract: dict[str, Any],
+    frame: pd.DataFrame,
+) -> dict[str, Any]:
+    """Evaluate a frame against a contract and apply the quarantine ratio gate.
+
+    Returns the evaluation dict augmented with `quarantine_max_ratio` and
+    `tolerance_applied`. The decision fields (`schema_invalid`,
+    `over_threshold`) are exposed under private keys (`_schema_invalid`,
+    `_over_threshold`) so callers can branch on them without re-deriving.
+    """
+    evaluation = evaluate_dataframe_contract(frame, contract)
+    threshold = _quarantine_max_ratio(contract)
+    quarantine_ratio = float(evaluation.get("quarantine_ratio", 0.0))
+    quarantined = int(evaluation.get("quarantined", 0))
+
+    schema_invalid = not bool(evaluation["schema_valid"])
+    over_threshold = quarantined > 0 and quarantine_ratio > threshold
+    tolerance_applied = threshold > 0.0 and quarantined > 0 and not over_threshold and not schema_invalid
+
+    evaluation["quarantine_max_ratio"] = threshold
+    evaluation["tolerance_applied"] = tolerance_applied
+    evaluation["_schema_invalid"] = schema_invalid
+    evaluation["_over_threshold"] = over_threshold
+    return evaluation
+
+
 def _validate_dataset_readiness(
     contract: dict[str, Any],
     frame: pd.DataFrame,
     *,
     dataset_label: str,
 ) -> dict[str, Any]:
-    evaluation = evaluate_dataframe_contract(frame, contract)
-    if not evaluation["schema_valid"] or evaluation["quarantined"] > 0:
+    evaluation = _evaluate_with_tolerance(contract, frame)
+    schema_invalid = bool(evaluation.pop("_schema_invalid"))
+    over_threshold = bool(evaluation.pop("_over_threshold"))
+
+    if schema_invalid or over_threshold:
         missing_columns = list(evaluation.get("schema_missing_columns", []))
         violation_counts = evaluation.get("violation_counts", {})
         top_violations = ", ".join(
@@ -249,10 +294,12 @@ def _validate_dataset_readiness(
             details.append(f"missing_columns={missing_columns}")
         if top_violations:
             details.append(f"top_violations={top_violations}")
+        if over_threshold:
+            details.append(f"quarantine_ratio={float(evaluation['quarantine_ratio']):.4f}")
+            details.append(f"quarantine_max_ratio={float(evaluation['quarantine_max_ratio']):.4f}")
         raise ValueError(
             f"{dataset_label} does not satisfy the registered contract. "
-            f"Fix the {dataset_label.lower()} before running drift or benchmark. "
-            + "; ".join(details)
+            f"Fix the {dataset_label.lower()} before running drift or benchmark. " + "; ".join(details)
         )
     return evaluation
 
@@ -280,8 +327,10 @@ def run_dataset_intake(
 ) -> dict[str, Any]:
     """Run dataset-backed intake certification against a registered contract."""
     current = current_data or load_current_dataset(contract)
-    result = evaluate_dataframe_contract(current.frame, contract)
-    intake_verdict = "PASS" if result["schema_valid"] and result["quarantined"] == 0 else "FAIL"
+    result = _evaluate_with_tolerance(contract, current.frame)
+    schema_invalid = bool(result.pop("_schema_invalid"))
+    over_threshold = bool(result.pop("_over_threshold"))
+    intake_verdict = "FAIL" if (schema_invalid or over_threshold) else "PASS"
     payload = {
         **result,
         "overall_verdict": intake_verdict,
@@ -333,9 +382,7 @@ def run_dataset_drift(
 
     min_rows = int(drift_policy["drift_policy"].get("baseline", {}).get("min_rows", 0) or 0)
     if min_rows and len(baseline_loaded.frame) < min_rows:
-        raise ValueError(
-            f"Baseline dataset has {len(baseline_loaded.frame)} rows, below required minimum {min_rows}."
-        )
+        raise ValueError(f"Baseline dataset has {len(baseline_loaded.frame)} rows, below required minimum {min_rows}.")
 
     column_specs = _monitored_column_specs(drift_policy)
     monitored = [column_name for column_name, _ in column_specs]
@@ -397,9 +444,7 @@ def run_dataset_drift(
         "overall_verdict": overall.value,
         "schema_match": drift_result.schema_match,
         "monitored_columns": monitored,
-        "monitored_column_methods": {
-            column_name: method.value for column_name, method in methods.items()
-        },
+        "monitored_column_methods": {column_name: method.value for column_name, method in methods.items()},
         "current_source": _loaded_trace(current),
         "baseline_source": _loaded_trace(baseline_loaded),
         "provenance": provenance,
@@ -491,18 +536,13 @@ def run_dataset_pipeline(
 
     if drift_policy is None:
         raise ValueError(
-            "Dataset-backed pipeline execution requires a drift policy with monitored columns "
-            "and a baseline path."
+            "Dataset-backed pipeline execution requires a drift policy with monitored columns and a baseline path."
         )
 
-    drift_binding = check_policy_compatibility(
-        registry, drift_policy["drift_policy"], "Drift policy"
-    )
+    drift_binding = check_policy_compatibility(registry, drift_policy["drift_policy"], "Drift policy")
     bench_binding: dict[str, str] | None = None
     if benchmark_policy is not None:
-        bench_binding = check_policy_compatibility(
-            registry, benchmark_policy["benchmark_policy"], "Benchmark policy"
-        )
+        bench_binding = check_policy_compatibility(registry, benchmark_policy["benchmark_policy"], "Benchmark policy")
 
     current_loaded = load_current_dataset(contract)
     baseline_loaded = load_baseline_dataset(contract, drift_policy)

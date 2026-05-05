@@ -47,8 +47,12 @@ def test_negative_order_total_detected() -> None:
 
 def test_rescued_data_detected() -> None:
     row = {
-        "batch_id": "B", "order_id": "X", "customer_id": "Y",
-        "order_total": 10, "event_ts": _TS, "_rescued_data": "{}",
+        "batch_id": "B",
+        "order_id": "X",
+        "customer_id": "Y",
+        "order_total": 10,
+        "event_ts": _TS,
+        "_rescued_data": "{}",
     }
     violations = evaluate_row(row)
     names = [v.check_name for v in violations]
@@ -97,11 +101,13 @@ def test_batch_004_partial_failures() -> None:
 def test_evaluate_dataframe_contract_detects_duplicates_and_batch_gaps() -> None:
     import pandas as pd
 
-    df = pd.DataFrame([
-        {"id": 1, "batch_id": "B-1", "amount": 10.0},
-        {"id": 1, "batch_id": "B-1", "amount": 11.0},
-        {"id": 2, "batch_id": None, "amount": 12.0},
-    ])
+    df = pd.DataFrame(
+        [
+            {"id": 1, "batch_id": "B-1", "amount": 10.0},
+            {"id": 1, "batch_id": "B-1", "amount": 11.0},
+            {"id": 2, "batch_id": None, "amount": 12.0},
+        ]
+    )
     contract = {
         "contract": {
             "required_columns": [
@@ -119,6 +125,34 @@ def test_evaluate_dataframe_contract_detects_duplicates_and_batch_gaps() -> None
     assert result["duplicate_rows"] == 2
     assert result["violation_counts"]["business_key_unique"] == 2
     assert result["violation_counts"]["batch_identifier_not_null"] == 1
+
+
+def test_evaluate_dataframe_contract_quarantine_ratio_known_fraction() -> None:
+    import pandas as pd
+
+    rows = []
+    # 3 colliding business keys + 97 unique rows = 3 quarantined / 100 total = 0.03 ratio
+    for _ in range(3):
+        rows.append({"id": 1, "batch_id": "B-1", "amount": 0.0})
+    for index in range(97):
+        rows.append({"id": index + 2, "batch_id": "B-1", "amount": float(index)})
+    df = pd.DataFrame(rows)
+    contract = {
+        "contract": {
+            "required_columns": [
+                {"column_name": "id", "type": "long", "nullable": False},
+                {"column_name": "amount", "type": "double", "nullable": False},
+            ],
+            "business_key": ["id"],
+            "batch_identifier": "batch_id",
+        }
+    }
+
+    result = evaluate_dataframe_contract(df, contract)
+
+    assert result["total_rows"] == 100
+    assert result["quarantined"] == 3
+    assert result["quarantine_ratio"] == 0.03
 
 
 def test_evaluate_dataframe_contract_detects_missing_required_columns() -> None:

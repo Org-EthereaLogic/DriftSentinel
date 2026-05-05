@@ -3,7 +3,7 @@
 | Field | Value |
 | --- | --- |
 | Document ID | DS-TM-001 |
-| Version | 1.3 |
+| Version | 1.4 |
 | Status | Draft |
 | Author | Anthony Johnson |
 | Date | 2026-05-05 |
@@ -14,7 +14,7 @@
 | DS-FR-002 | DS-SR-009 | PRD, SRS, DS-PATCH-034, DS-PATCH-035 | databricks.yml (incl. sync.exclude defaults), resources/, bundle validation, tests/test_packaging.py, Makefile (TF_ENV-wrapped bundle/app/bootstrap targets), scripts/databricks_tf_env.sh, src/driftsentinel/databricks/tf_env.py, tests/test_databricks_tf_env.py |
 | DS-FR-003 | DS-SR-008 | PRD, SRS | notebooks, manual import path |
 | DS-FR-004 | DS-SR-005 | PRD, SRS | templates/, config loaders, registration notebook |
-| DS-FR-005 | DS-SR-002 | PRD, SDD | src/driftsentinel/intake/, quarantine outputs |
+| DS-FR-005 | DS-SR-002 | PRD, SDD, DS-PATCH-036 | src/driftsentinel/intake/, quarantine outputs, src/driftsentinel/orchestration/runner.py (quarantine_max_ratio gate), src/driftsentinel/config/loader.py (loader-boundary validation), templates/dataset_contract.yml, tests/test_orchestration.py::TestValidateDatasetReadiness, tests/test_dataset_orchestration.py::TestIntakeToleranceEvidence, tests/test_config_loading.py (quarantine_max_ratio cases), tests/test_intake.py (quarantine_ratio rounding) |
 | DS-FR-006 | DS-SR-003 | PRD, SDD | src/driftsentinel/drift/, gate-evaluation outputs |
 | DS-FR-007 | DS-SR-004 | PRD, SDD | src/driftsentinel/benchmark/, evidence bundle writer |
 | DS-FR-008 | DS-SR-008 | PRD, SRS | notebooks and evidence review surfaces |
@@ -36,6 +36,7 @@
 
 | Version | Date | Change |
 | --- | --- | --- |
+| 1.4 | 2026-05-05 | Linked DS-FR-005 / DS-SR-002 to DS-PATCH-036 (optional `quarantine_max_ratio` knob on dataset contracts; readiness gate raises only when `quarantine_ratio > quarantine_max_ratio`; intake evidence records `quarantine_max_ratio` and `tolerance_applied`; loader rejects out-of-range / non-numeric values) |
 | 1.3 | 2026-05-05 | Linked DS-FR-002 / DS-SR-009 to DS-PATCH-035 (auto-detect OpenTofu and pre-set `DATABRICKS_TF_EXEC_PATH` for the bundle/app/bootstrap surface; shell + Python helpers; env-propagation contract test) |
 | 1.2 | 2026-05-05 | Linked DS-FR-002 / DS-SR-009 to DS-PATCH-034 (default `sync.exclude` patterns and packaging test coverage) |
 | 1.1 | 2026-05-04 | Updated DS-FR-012 and DS-NFR-009 verification surfaces from Notion to GitHub Project (#8) following governance migration in commit 78bdf82 |
