@@ -9,6 +9,7 @@ from typing import Any
 from driftsentinel.runtime_paths import (
     DEFAULT_RUNTIME_VOLUME_NAME,
     runtime_benchmark_policy_path,
+    runtime_dataset_policies_dir,
     runtime_drift_policy_path,
     runtime_evidence_dir,
     runtime_registry_path,
@@ -46,6 +47,12 @@ def ensure_volume_layout(
     }
 
     if dataset_id:
+        paths["dataset_policies"] = runtime_dataset_policies_dir(
+            catalog,
+            schema,
+            dataset_id,
+            volume_name=volume_name,
+        )
         paths["landing"] = str(PurePosixPath(root) / landing_subdir / dataset_id)
         paths["baseline"] = str(PurePosixPath(root) / baseline_subdir / dataset_id)
 
@@ -53,6 +60,7 @@ def ensure_volume_layout(
         _ensure_dir(client, str(PurePosixPath(root) / subdir))
 
     if dataset_id:
+        _ensure_dir(client, paths["dataset_policies"])
         _ensure_dir(client, paths["landing"])
         _ensure_dir(client, paths["baseline"])
 
@@ -137,11 +145,11 @@ def sync_files(
         remote["registry"] = upload_file(client, registry_path, layout["registry"])
 
     if drift_policy_path:
-        dest = runtime_drift_policy_path(catalog, schema, volume_name=volume_name)
+        dest = runtime_drift_policy_path(catalog, schema, dataset_id, volume_name=volume_name)
         remote["drift_policy"] = upload_file(client, drift_policy_path, dest)
 
     if benchmark_policy_path:
-        dest = runtime_benchmark_policy_path(catalog, schema, volume_name=volume_name)
+        dest = runtime_benchmark_policy_path(catalog, schema, dataset_id, volume_name=volume_name)
         remote["benchmark_policy"] = upload_file(client, benchmark_policy_path, dest)
 
     if landing_path:

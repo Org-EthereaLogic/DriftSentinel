@@ -56,21 +56,43 @@ def runtime_policies_dir(
     return str(PurePosixPath(runtime_volume_root(catalog, schema, volume_name=volume_name)) / "policies")
 
 
+def runtime_dataset_policies_dir(
+    catalog: str,
+    schema: str,
+    dataset_id: str,
+    *,
+    volume_name: str = DEFAULT_RUNTIME_VOLUME_NAME,
+) -> str:
+    """Return the dataset-scoped policies directory inside the runtime volume."""
+    dataset = dataset_id.strip()
+    if not dataset:
+        raise ValueError("Dataset ID is required to compute the DriftSentinel policy path.")
+    return str(PurePosixPath(runtime_policies_dir(catalog, schema, volume_name=volume_name)) / dataset)
+
+
 def runtime_drift_policy_path(
     catalog: str,
     schema: str,
+    dataset_id: str,
     *,
     volume_name: str = DEFAULT_RUNTIME_VOLUME_NAME,
 ) -> str:
     """Return the canonical runtime-volume path for the drift policy YAML."""
-    return str(PurePosixPath(runtime_policies_dir(catalog, schema, volume_name=volume_name)) / "drift_policy.yml")
+    return str(
+        PurePosixPath(runtime_dataset_policies_dir(catalog, schema, dataset_id, volume_name=volume_name))
+        / "drift_policy.yml"
+    )
 
 
 def runtime_benchmark_policy_path(
     catalog: str,
     schema: str,
+    dataset_id: str,
     *,
     volume_name: str = DEFAULT_RUNTIME_VOLUME_NAME,
 ) -> str:
     """Return the canonical runtime-volume path for the benchmark policy YAML."""
-    return str(PurePosixPath(runtime_policies_dir(catalog, schema, volume_name=volume_name)) / "benchmark_policy.yml")
+    return str(
+        PurePosixPath(runtime_dataset_policies_dir(catalog, schema, dataset_id, volume_name=volume_name))
+        / "benchmark_policy.yml"
+    )

@@ -34,8 +34,6 @@ contain the expected files.
 
 ## 3. Non-Goals
 
-- Per-dataset multi-tenant policy isolation on the volume (separate issue —
-  current layout shares a single `policies/` directory across datasets).
 - Reading policy paths from the dataset contract or registry payload (the
   contract schema does not currently carry policy bindings; introducing that
   would change `DS-SDD-001 §Configuration`).
@@ -48,26 +46,28 @@ contain the expected files.
 
 `connect` already uploads policies under `/Volumes/<catalog>/<schema>/<volume>/policies/`
 but uses the **local file's basename** for the destination filename. The fix
-standardizes the on-volume basenames so `run` can resolve them deterministically:
+standardizes the on-volume basenames under a dataset-scoped subdirectory so
+`run` can resolve them deterministically without cross-dataset overwrites:
 
 | Input | Canonical remote path |
 | --- | --- |
-| `--drift-policy <local>.yml` | `<volume_root>/policies/drift_policy.yml` |
-| `--benchmark-policy <local>.yml` | `<volume_root>/policies/benchmark_policy.yml` |
+| `--drift-policy <local>.yml` | `<volume_root>/policies/<dataset_id>/drift_policy.yml` |
+| `--benchmark-policy <local>.yml` | `<volume_root>/policies/<dataset_id>/benchmark_policy.yml` |
 
-Local filename is irrelevant; the remote layout is fixed. This matches the
-language in the issue acceptance criteria.
+Local filename is irrelevant; the remote layout is fixed per dataset.
 
 ### 4.2 New runtime-path helpers
 
 Add to `src/driftsentinel/runtime_paths.py`:
 
 ```python
-def runtime_drift_policy_path(catalog, schema, *, volume_name=DEFAULT_RUNTIME_VOLUME_NAME) -> str
-def runtime_benchmark_policy_path(catalog, schema, *, volume_name=DEFAULT_RUNTIME_VOLUME_NAME) -> str
+def runtime_dataset_policies_dir(catalog, schema, dataset_id, *, volume_name=DEFAULT_RUNTIME_VOLUME_NAME) -> str
+def runtime_drift_policy_path(catalog, schema, dataset_id, *, volume_name=DEFAULT_RUNTIME_VOLUME_NAME) -> str
+def runtime_benchmark_policy_path(catalog, schema, dataset_id, *, volume_name=DEFAULT_RUNTIME_VOLUME_NAME) -> str
 ```
 
-Both return `<volume_root>/policies/{drift,benchmark}_policy.yml`.
+The directory helper returns `<volume_root>/policies/<dataset_id>`. The file
+helpers return `<volume_root>/policies/<dataset_id>/{drift,benchmark}_policy.yml`.
 
 ### 4.3 `connect` change — standardize upload basename
 
@@ -76,10 +76,10 @@ canonical filename instead of preserving local basename:
 
 ```python
 if drift_policy_path:
-    dest = runtime_drift_policy_path(catalog, schema, volume_name=volume_name)
+   dest = runtime_drift_policy_path(catalog, schema, dataset_id, volume_name=volume_name)
     remote["drift_policy"] = upload_file(client, drift_policy_path, dest)
 if benchmark_policy_path:
-    dest = runtime_benchmark_policy_path(catalog, schema, volume_name=volume_name)
+   dest = runtime_benchmark_policy_path(catalog, schema, dataset_id, volume_name=volume_name)
     remote["benchmark_policy"] = upload_file(client, benchmark_policy_path, dest)
 ```
 
@@ -88,9 +88,11 @@ if benchmark_policy_path:
 `src/driftsentinel/databricks/connect.py:run` resolves missing policy args:
 
 1. If `drift_policy is None`, default to
-   `runtime_drift_policy_path(catalog, schema, volume_name)`. Verify it exists
-   on the volume via `ws.files.get_metadata(...)` (or `get_status`). If not,
-   raise `ValueError` with the message:
+   `runtime_drift_policy_path(catalog, schema, dataset_id, volume_name)`.
+   Verify it exists on the volume via `ws.files.get_metadata(...)` (or
+   `get_status`). Treat only Databricks `NotFound` /
+   `ResourceDoesNotExist` failures as missing. If the file is absent, raise
+   `ValueError` with the message:
 
    > `No drift policy registered for dataset '<dataset_id>'. Run
    > 'driftsentinel databricks connect --drift-policy <path>' to register one,
@@ -99,7 +101,9 @@ if benchmark_policy_path:
 2. Same logic for `benchmark_policy`. The benchmark policy is **optional** at
    the orchestration layer; if the canonical file is absent and the operator
    did not pass `--benchmark-policy`, omit the parameter entirely (do not
-   fail). This preserves today's "intake + drift only" replay path.
+   fail). Non-missing Files API errors must propagate instead of silently
+   bypassing the benchmark stage. This preserves today's "intake + drift only"
+   replay path.
 
 3. Explicit `--drift-policy` / `--benchmark-policy` arguments always win and
    are passed through unchanged (no existence check — operator responsibility).
@@ -117,7 +121,7 @@ Same wording for `--benchmark-policy`.
 
 | File | Change |
 | --- | --- |
-| `src/driftsentinel/runtime_paths.py` | Add `runtime_drift_policy_path` + `runtime_benchmark_policy_path` |
+| `src/driftsentinel/runtime_paths.py` | Add dataset-scoped policy-path helpers |
 | `src/driftsentinel/databricks/files.py` | Use canonical destination filenames in `sync_files` |
 | `src/driftsentinel/databricks/connect.py` | Default + verify policy paths in `run`; reuse helpers |
 | `src/driftsentinel/cli.py` | Help text update for `--drift-policy` / `--benchmark-policy` on `run` |
@@ -142,11 +146,15 @@ Mock `WorkspaceClient`. Validate the four cases from the issue:
 5. **Benchmark omitted, file missing** — `benchmark_policy_path` is **not**
    added to job params (graceful omission, no exception).
 6. **`sync_files` canonical naming** — uploading `./local_filename.yml`
-   produces remote path `<volume_root>/policies/drift_policy.yml`.
+   produces remote path `<volume_root>/policies/<dataset_id>/drift_policy.yml`.
+7. **Operational probe failures propagate** — auth/network/permission errors
+   from the Files API do not get rewritten as missing policy files.
+8. **Dataset isolation** — two datasets resolve to distinct remote policy
+   paths under the shared runtime volume.
 
 ### 6.2 Required Local Checks
 
-```
+```bash
 uv run ruff check .
 uv run mypy src/driftsentinel tests
 uv run pytest -k "connect or files or runtime_paths"
@@ -155,7 +163,7 @@ uv run pytest
 
 ### 6.3 Manual Replay Smoke Test (post-merge, optional)
 
-```
+```bash
 uv run driftsentinel databricks connect --catalog <C> --dataset-id <D> \
   --drift-policy ./my_drift.yml --benchmark-policy ./my_bench.yml --wait
 uv run driftsentinel databricks run --catalog <C> --dataset-id <D> --wait
@@ -173,26 +181,28 @@ Second command must succeed without `--drift-policy`/`--benchmark-policy`.
 - [ ] Drift policy missing on volume raises `ValueError` with the exact
       actionable message specified in §4.4(1).
 - [ ] Benchmark policy missing on volume omits the parameter (graceful).
-- [ ] `connect` writes drift policy to `<volume>/policies/drift_policy.yml`
+- [ ] `connect` writes drift policy to
+   `<volume>/policies/<dataset_id>/drift_policy.yml`
       regardless of local filename.
 - [ ] `connect` writes benchmark policy to
-      `<volume>/policies/benchmark_policy.yml` regardless of local filename.
-- [ ] Unit tests cover all six cases in §6.1.
+   `<volume>/policies/<dataset_id>/benchmark_policy.yml` regardless of local filename.
+- [ ] Non-missing Files API failures propagate without being rewritten as
+   missing policy configuration.
+- [ ] Unit tests cover the cases in §6.1.
 - [ ] `make lint`, `make typecheck`, `make test` all pass.
 
 ## 8. Residual Risks
 
 - **Backwards compatibility for existing volumes.** Volumes deployed by
   `connect` versions ≤ `0.4.x` may contain the policy under the local-file
-  basename (e.g., `policies/my_drift.yml`). After this patch, `run` will look
-  for `drift_policy.yml` and may fail on those volumes. Mitigation: actionable
-  error message tells the operator to rerun `connect` to refresh the policy
-  under the canonical name. Document in PR notes; flag in
+   basename (e.g., `policies/my_drift.yml`). Volumes created by earlier branch
+   revisions may also use the shared canonical filename without a dataset
+   subdirectory. After this patch, `run` will look for
+   `policies/<dataset_id>/drift_policy.yml` and may fail on those volumes.
+   Mitigation: actionable error message tells the operator to rerun `connect`
+   to refresh the policy under the canonical dataset-scoped name. Document in
+   PR notes; flag in
   `docs/operations_guide.md` if the operator-facing impact is non-trivial.
-- **Cross-dataset overwrite.** Two datasets in the same workspace share
-  `policies/drift_policy.yml`. The second `connect` overwrites the first.
-  This is **pre-existing behavior**, not introduced by this patch. Tracked
-  separately as a multi-dataset isolation concern.
 
 ## 9. Traceability
 

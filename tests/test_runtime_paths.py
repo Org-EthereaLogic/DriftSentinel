@@ -7,6 +7,7 @@ import pytest
 from driftsentinel.runtime_paths import (
     DEFAULT_RUNTIME_VOLUME_NAME,
     runtime_benchmark_policy_path,
+    runtime_dataset_policies_dir,
     runtime_drift_policy_path,
     runtime_evidence_dir,
     runtime_policies_dir,
@@ -31,6 +32,16 @@ def test_runtime_paths_use_expected_shared_volume_layout() -> None:
 
 def test_canonical_policy_paths_are_under_policies_dir() -> None:
     root = runtime_volume_root("main", "governed")
+    dataset_id = "dataset_alpha"
     assert runtime_policies_dir("main", "governed") == f"{root}/policies"
-    assert runtime_drift_policy_path("main", "governed") == f"{root}/policies/drift_policy.yml"
-    assert runtime_benchmark_policy_path("main", "governed") == f"{root}/policies/benchmark_policy.yml"
+    assert runtime_dataset_policies_dir("main", "governed", dataset_id) == f"{root}/policies/{dataset_id}"
+    assert runtime_drift_policy_path("main", "governed", dataset_id) == f"{root}/policies/{dataset_id}/drift_policy.yml"
+    assert (
+        runtime_benchmark_policy_path("main", "governed", dataset_id)
+        == f"{root}/policies/{dataset_id}/benchmark_policy.yml"
+    )
+
+
+def test_dataset_policy_paths_require_dataset_id() -> None:
+    with pytest.raises(ValueError):
+        runtime_dataset_policies_dir("main", "governed", "")

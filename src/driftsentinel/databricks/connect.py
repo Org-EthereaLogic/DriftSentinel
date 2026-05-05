@@ -252,12 +252,33 @@ def _remote_file_exists(ws: Any, remote_path: str) -> bool:
     try:
         ws.files.get_metadata(remote_path)
         return True
-    except Exception:
+    except Exception as exc:
+        if not _is_remote_missing_file_error(exc):
+            raise
         try:
             ws.files.get_status(remote_path)
             return True
-        except Exception:
+        except Exception as status_exc:
+            if not _is_remote_missing_file_error(status_exc):
+                raise
             return False
+
+
+def _remote_missing_file_errors() -> tuple[type[BaseException], ...]:
+    """Return the error classes that mean a remote volume path is absent."""
+    try:
+        from databricks.sdk.errors import (  # type: ignore[import-not-found,import-untyped]
+            NotFound,
+            ResourceDoesNotExist,
+        )
+    except ImportError:
+        return (FileNotFoundError,)
+    return (FileNotFoundError, NotFound, ResourceDoesNotExist)
+
+
+def _is_remote_missing_file_error(exc: Exception) -> bool:
+    """Return True only for Databricks 'not found' failures."""
+    return isinstance(exc, _remote_missing_file_errors())
 
 
 def _resolve_drift_policy_for_run(
@@ -278,7 +299,7 @@ def _resolve_drift_policy_for_run(
     """
     if drift_policy:
         return drift_policy
-    canonical = runtime_drift_policy_path(catalog, schema, volume_name=volume_name)
+    canonical = runtime_drift_policy_path(catalog, schema, dataset_id, volume_name=volume_name)
     if _remote_file_exists(ws, canonical):
         return canonical
     raise ValueError(
@@ -294,6 +315,7 @@ def _resolve_benchmark_policy_for_run(
     catalog: str,
     schema: str,
     volume_name: str,
+    dataset_id: str,
     benchmark_policy: str | None,
 ) -> str | None:
     """Return the benchmark policy path or ``None`` when none is registered.
@@ -305,7 +327,7 @@ def _resolve_benchmark_policy_for_run(
     """
     if benchmark_policy:
         return benchmark_policy
-    canonical = runtime_benchmark_policy_path(catalog, schema, volume_name=volume_name)
+    canonical = runtime_benchmark_policy_path(catalog, schema, dataset_id, volume_name=volume_name)
     if _remote_file_exists(ws, canonical):
         return canonical
     return None
@@ -348,6 +370,7 @@ def run(
         catalog=catalog,
         schema=schema,
         volume_name=volume_name,
+        dataset_id=dataset_id,
         benchmark_policy=benchmark_policy,
     )
 
