@@ -246,11 +246,11 @@ def test_bundle_sync_excludes_default_artifacts() -> None:
     excludes = sync.get("exclude")
     assert isinstance(excludes, list), "'sync.exclude' must be a list"
     required_patterns = {
-        "data/",
-        "evidence_pulled/",
-        "archive_exports/",
-        "orphaned_state_backup/",
-        "report/",
+        "/data/",
+        "/evidence_pulled/",
+        "/archive_exports/",
+        "/orphaned_state_backup/",
+        "/report/",
         ".venv/",
         "**/__pycache__/",
         ".pytest_cache/",

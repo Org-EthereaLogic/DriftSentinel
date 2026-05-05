@@ -12,11 +12,11 @@ include:
 # evidence dumps routinely exceed this. See specs/DS-PATCH-034 for rationale.
 sync:
   exclude:
-    - data/
-    - evidence_pulled/
-    - archive_exports/
-    - orphaned_state_backup/
-    - report/
+    - /data/
+    - /evidence_pulled/
+    - /archive_exports/
+    - /orphaned_state_backup/
+    - /report/
     - .venv/
     - "**/__pycache__/"
     - .pytest_cache/
