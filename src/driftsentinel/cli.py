@@ -204,7 +204,7 @@ def _cmd_registry_list(args: argparse.Namespace) -> int:
         print(f"(empty registry: {registry_path})")
         return 0
 
-    width = max(len(e["dataset_id"]) for e in entries)
+    width = max(len("DATASET_ID"), max(len(e["dataset_id"]) for e in entries))
     print(f"{'DATASET_ID'.ljust(width)}  CONTRACT_VERSION")
     for entry in entries:
         print(f"{entry['dataset_id'].ljust(width)}  {entry['contract_version']}")
@@ -316,6 +316,13 @@ def build_parser() -> argparse.ArgumentParser:
 
     # driftsentinel registry ...
     reg_parser = top_sub.add_parser("registry", help="Manage the dataset registry JSON")
+    _add_registry_subparsers(reg_parser)
+
+    return parser
+
+
+def _add_registry_subparsers(reg_parser: argparse.ArgumentParser) -> None:
+    """Attach add/list/remove subcommands to the registry parser."""
     reg_sub = reg_parser.add_subparsers(dest="command", help="Registry command")
 
     p_reg_add = reg_sub.add_parser(
@@ -381,8 +388,6 @@ def build_parser() -> argparse.ArgumentParser:
         help=f"Path to registry.json (default: {DEFAULT_REGISTRY_PATH})",
     )
     p_reg_remove.set_defaults(func=_cmd_registry_remove)
-
-    return parser
 
 
 def main(argv: list[str] | None = None) -> int:
