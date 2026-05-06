@@ -71,6 +71,38 @@ def _app_api_args(profile: str | None) -> list[str]:
     return ["-p", profile] if profile else []
 
 
+def _mapping_entry(mapping: dict[str, Any], key: str) -> dict[str, Any]:
+    value = mapping.get(key)
+    return value if isinstance(value, dict) else {}
+
+
+def _summary_resources(summary: dict[str, Any]) -> dict[str, Any]:
+    return _mapping_entry(summary, "resources")
+
+
+def _summary_apps(summary: dict[str, Any]) -> dict[str, Any]:
+    return _mapping_entry(_summary_resources(summary), "apps")
+
+
+def _summary_jobs(summary: dict[str, Any]) -> dict[str, Any]:
+    return _mapping_entry(_summary_resources(summary), "jobs")
+
+
+def _summary_variables(summary: dict[str, Any]) -> dict[str, Any]:
+    return _mapping_entry(summary, "variables")
+
+
+def _summary_variable_value(summary: dict[str, Any], key: str, default: str) -> str:
+    value = _mapping_entry(_summary_variables(summary), key).get("value")
+    if value in (None, ""):
+        return default
+    return str(value)
+
+
+def _summary_app(summary: dict[str, Any], app_key: str) -> dict[str, Any]:
+    return _mapping_entry(_summary_apps(summary), app_key)
+
+
 def _app_resource_bindings(app: dict[str, Any]) -> list[dict[str, Any]]:
     resources = app.get("resources")
     if isinstance(resources, list):
@@ -142,6 +174,15 @@ def _resolve_resource_value(
     return _resolve_job_resource(resource, jobs_block)
 
 
+def _named_app_resources(app: dict[str, Any]) -> list[tuple[str, dict[str, Any]]]:
+    named_resources: list[tuple[str, dict[str, Any]]] = []
+    for resource in _app_resource_bindings(app):
+        name = resource.get("name")
+        if isinstance(name, str) and name:
+            named_resources.append((name, resource))
+    return named_resources
+
+
 def _resolve_app_resource_values(summary: dict[str, Any], app_key: str) -> dict[str, str]:
     """Map each app `resources[].name` to its concrete env value.
 
@@ -152,25 +193,16 @@ def _resolve_app_resource_values(summary: dict[str, Any], app_key: str) -> dict[
       `${resources.jobs.<key>.id}` reference, look it up under
       `summary.resources.jobs.<key>.id`.
     """
-    apps = summary.get("resources", {}).get("apps", {}) or {}
-    app = apps.get(app_key) or {}
-    app_resources = _app_resource_bindings(app)
-
-    variables = summary.get("variables") or {}
-    catalog = (variables.get("catalog") or {}).get("value", "") or ""
-    schema = (variables.get("schema") or {}).get("value", "") or "default"
-    volume_name = (variables.get("runtime_volume_name") or {}).get("value", "") or "driftsentinel_runtime"
-
-    jobs_block = summary.get("resources", {}).get("jobs", {}) or {}
+    app = _summary_app(summary, app_key)
+    catalog = _summary_variable_value(summary, "catalog", "")
+    schema = _summary_variable_value(summary, "schema", "default")
+    volume_name = _summary_variable_value(summary, "runtime_volume_name", "driftsentinel_runtime")
+    jobs_block = _summary_jobs(summary)
 
     resolutions: dict[str, str] = {}
-    for res in app_resources:
-        name = res.get("name")
-        if not name:
-            continue
-
+    for name, resource in _named_app_resources(app):
         resource_value = _resolve_resource_value(
-            res,
+            resource,
             catalog=catalog,
             schema=schema,
             volume_name=volume_name,
@@ -214,8 +246,7 @@ def _resolved_env_entries(config: dict[str, Any], resolutions: dict[str, str]) -
 
 def _build_app_yaml_content(summary: dict[str, Any], app_key: str) -> str | None:
     """Render an app.yml string from the bundle summary, or None if no command."""
-    apps = summary.get("resources", {}).get("apps", {}) or {}
-    app = apps.get(app_key) or {}
+    app = _summary_app(summary, app_key)
     config = app.get("config") or {}
     command = config.get("command")
     if not command:
@@ -386,6 +417,96 @@ def _build_apps_deploy_cmd(
     ]
 
 
+def _bundle_deploy_and_summary(
+    *,
+    profile: str | None,
+    target: str,
+    catalog: str,
+    env: dict[str, str] | None,
+) -> dict[str, Any]:
+    bundle_args = _bundle_flag_args(profile, target, catalog)
+    _run(["databricks", "bundle", "deploy", *bundle_args], env=env)
+    return _run_json(
+        ["databricks", "bundle", "summary", *bundle_args, "-o", "json"],
+        env=env,
+    )
+
+
+def _resolve_app_deploy_target(summary: dict[str, Any], app_key: str) -> tuple[str, str]:
+    app = _summary_app(summary, app_key)
+    if not app:
+        raise SystemExit(f"App resource '{app_key}' not found in bundle summary")
+
+    app_name = str(app.get("name") or "")
+    if not app_name:
+        raise SystemExit(f"App resource '{app_key}' is missing 'name' in bundle summary")
+
+    source_code_path = str(app.get("source_code_path") or "")
+    if not source_code_path:
+        raise SystemExit(f"App resource '{app_key}' is missing 'source_code_path' in bundle summary")
+
+    return app_name, source_code_path
+
+
+def _has_pending_source_deployment(state: dict[str, Any], source_code_path: str) -> bool:
+    pending = _mapping_entry(state, "pending_deployment")
+    return pending.get("source_code_path") == source_code_path
+
+
+def _start_app_and_wait_for_compute(
+    app_name: str,
+    app_api_args: list[str],
+    *,
+    env: dict[str, str] | None,
+) -> dict[str, Any]:
+    _run(["databricks", "apps", "start", app_name, *app_api_args], env=env)
+    return _wait_for_active_compute(app_name, app_api_args, env=env)
+
+
+def _deploy_source_code(
+    summary: dict[str, Any],
+    *,
+    app_key: str,
+    app_name: str,
+    source_code_path: str,
+    app_api_args: list[str],
+    env: dict[str, str] | None,
+) -> dict[str, Any]:
+    app_yaml = _build_app_yaml_content(summary, app_key)
+    if app_yaml is not None:
+        _upload_app_yaml(app_yaml, source_code_path, app_api_args, env=env)
+
+    deploy_cmd = _build_apps_deploy_cmd(app_name, source_code_path, app_api_args)
+    deploy_proc = _run_process(deploy_cmd, check=False, env=env)
+    if deploy_proc.returncode != 0 and "pending deployment in progress" not in (deploy_proc.stderr or ""):
+        raise subprocess.CalledProcessError(
+            deploy_proc.returncode,
+            deploy_cmd,
+            deploy_proc.stdout,
+            deploy_proc.stderr,
+        )
+
+    return _wait_for_deployment(
+        app_name,
+        app_api_args,
+        source_code_path=source_code_path,
+        env=env,
+    )
+
+
+def _require_running_app(app_state: dict[str, Any]) -> None:
+    deployment = _mapping_entry(app_state, "active_deployment").get("status", {})
+    app_status = _mapping_entry(app_state, "app_status")
+    if deployment.get("state") != "SUCCEEDED":
+        raise SystemExit(f"Active deployment did not succeed: {deployment.get('state')} {deployment.get('message')}")
+    if app_status.get("state") != "RUNNING":
+        raise SystemExit(f"App is not running: {app_status.get('state')} {app_status.get('message')}")
+
+
+def _print_app_url(app_state: dict[str, Any]) -> None:
+    print(f"App URL: {app_state['url']}")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--catalog", required=True)
@@ -400,71 +521,37 @@ def main() -> int:
         print(str(exc), file=sys.stderr)
         return 2
 
-    bundle_args = _bundle_flag_args(args.profile, args.target, args.catalog)
-
-    _run(["databricks", "bundle", "deploy", *bundle_args], env=env)
-
-    summary = _run_json(
-        ["databricks", "bundle", "summary", *bundle_args, "-o", "json"],
+    summary = _bundle_deploy_and_summary(
+        profile=args.profile,
+        target=args.target,
+        catalog=args.catalog,
         env=env,
     )
-
-    apps = summary.get("resources", {}).get("apps", {})
-    if args.app_key not in apps:
-        raise SystemExit(f"App resource '{args.app_key}' not found in bundle summary")
-    app = apps[args.app_key]
-    app_name = app["name"]
-    source_code_path = app.get("source_code_path") or ""
-    if not source_code_path:
-        raise SystemExit(f"App resource '{args.app_key}' is missing 'source_code_path' in bundle summary")
-
+    app_name, source_code_path = _resolve_app_deploy_target(summary, args.app_key)
     app_api_args = _app_api_args(args.profile)
 
-    _run(["databricks", "apps", "start", app_name, *app_api_args], env=env)
-    app_state = _wait_for_active_compute(app_name, app_api_args, env=env)
-
-    pending = app_state.get("pending_deployment", {})
-
-    if pending and pending.get("source_code_path") == source_code_path:
-        app_state = _wait_for_deployment(
-            app_name,
-            app_api_args,
-            source_code_path=source_code_path,
-            env=env,
+    app_state = _start_app_and_wait_for_compute(app_name, app_api_args, env=env)
+    if _has_pending_source_deployment(app_state, source_code_path):
+        _print_app_url(
+            _wait_for_deployment(
+                app_name,
+                app_api_args,
+                source_code_path=source_code_path,
+                env=env,
+            )
         )
-        print(f"App URL: {app_state['url']}")
         return 0
 
-    app_yaml = _build_app_yaml_content(summary, args.app_key)
-    if app_yaml is not None:
-        _upload_app_yaml(app_yaml, source_code_path, app_api_args, env=env)
-
-    deploy_cmd = _build_apps_deploy_cmd(app_name, source_code_path, app_api_args)
-    deploy_proc = _run_process(deploy_cmd, check=False, env=env)
-    if deploy_proc.returncode != 0:
-        conflict = "pending deployment in progress" in (deploy_proc.stderr or "")
-        if not conflict:
-            raise subprocess.CalledProcessError(
-                deploy_proc.returncode,
-                deploy_cmd,
-                deploy_proc.stdout,
-                deploy_proc.stderr,
-            )
-    app_state = _wait_for_deployment(
-        app_name,
-        app_api_args,
+    app_state = _deploy_source_code(
+        summary,
+        app_key=args.app_key,
+        app_name=app_name,
         source_code_path=source_code_path,
+        app_api_args=app_api_args,
         env=env,
     )
-
-    deployment = app_state.get("active_deployment", {}).get("status", {})
-    app_status = app_state.get("app_status", {})
-    if deployment.get("state") != "SUCCEEDED":
-        raise SystemExit(f"Active deployment did not succeed: {deployment.get('state')} {deployment.get('message')}")
-    if app_status.get("state") != "RUNNING":
-        raise SystemExit(f"App is not running: {app_status.get('state')} {app_status.get('message')}")
-
-    print(f"App URL: {app_state['url']}")
+    _require_running_app(app_state)
+    _print_app_url(app_state)
     return 0
 
 
