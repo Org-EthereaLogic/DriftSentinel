@@ -151,15 +151,13 @@ TASK 2.1 — Create a custom dataset contract
   python -c "from driftsentinel.config.loader import load_dataset_contract; print(load_dataset_contract('/tmp/meridian_project_costs.yml'))"
 - Screenshot the successful load output.
 
-TASK 2.2 — Register the dataset via Python
-- Run the following in a Python session:
-    from driftsentinel.config.loader import DatasetRegistry, load_dataset_contract
-    contract = load_dataset_contract("/tmp/meridian_project_costs.yml")
-    reg = DatasetRegistry()
-    did, ver = reg.register(contract)
-    reg.save("/tmp/driftsentinel_registry.json")
-    print(f"Registered: {did} v{ver}")
-- VERIFY: Output shows "Registered: meridian_project_costs v1.0.0"
+TASK 2.2 — Register the dataset via the CLI
+- Run the following from the repo root:
+    uv run driftsentinel registry add \
+      --contract /tmp/meridian_project_costs.yml \
+      --registry /tmp/driftsentinel_registry.json
+- VERIFY: Output ends with
+  "registered meridian_project_costs@1.0.0 in /tmp/driftsentinel_registry.json"
 - Screenshot.
 
 TASK 2.3 — Verify registration in the Gradio app
@@ -196,15 +194,24 @@ TASK 2.4 — Register a SECOND dataset (to test multi-dataset)
           nullable: false
       business_key: [employee_id, week_ending]
       batch_identifier: batch_id
-- Register it and save to the same registry path.
-- VERIFY: Registry now has 2 entries.
+- Register it into the same registry:
+    uv run driftsentinel registry add \
+      --contract /tmp/meridian_labor_hours.yml \
+      --registry /tmp/driftsentinel_registry.json
+- VERIFY: Registry now has 2 entries:
+    uv run driftsentinel registry list \
+      --registry /tmp/driftsentinel_registry.json
 - Click "Load Registry" in the Gradio app.
 - VERIFY: Two rows appear.
 - Screenshot.
 
 TASK 2.5 — Attempt duplicate registration (error path)
-- Try to register meridian_project_costs v1.0.0 again.
-- VERIFY: RegistryError is raised with a clear message about the collision.
+- Try to register meridian_project_costs v1.0.0 again:
+    uv run driftsentinel registry add \
+      --contract /tmp/meridian_project_costs.yml \
+      --registry /tmp/driftsentinel_registry.json
+- VERIFY: The CLI exits 1 with a stderr message containing
+  "already registered" and "--force".
 - Screenshot the error.
 
 TASK 2.6 — Run the local pipeline with evidence

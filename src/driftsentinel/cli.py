@@ -7,14 +7,20 @@ Usage::
     uv run driftsentinel databricks status --catalog adb_dev
     uv run driftsentinel databricks sync --dataset-id my_dataset --registry ./registry.json
     uv run driftsentinel databricks doctor --catalog adb_dev
+    uv run driftsentinel registry add --contract path/to/dataset_contract.yml
+    uv run driftsentinel registry list
+    uv run driftsentinel registry remove --dataset-id my_dataset --contract-version 1.0.0
 """
 
 from __future__ import annotations
 
 import argparse
 import sys
+from pathlib import Path
 
 from driftsentinel import __version__
+
+DEFAULT_REGISTRY_PATH = "data/registry.json"
 
 
 def _add_common_args(parser: argparse.ArgumentParser) -> None:
@@ -130,6 +136,101 @@ def _cmd_sync(args: argparse.Namespace) -> int:
     return 0
 
 
+def _load_or_new_registry(registry_path: Path) -> "DatasetRegistry":  # type: ignore[name-defined]  # noqa: F821
+    from driftsentinel.config.loader import DatasetRegistry
+
+    if registry_path.is_file():
+        return DatasetRegistry.load(registry_path)
+    return DatasetRegistry()
+
+
+def _cmd_registry_add(args: argparse.Namespace) -> int:
+    from driftsentinel.config.loader import (
+        RegistryError,
+        _dataset_identity,
+        load_dataset_contract,
+    )
+
+    contract_path = Path(args.contract)
+    registry_path = Path(args.registry)
+
+    contract = load_dataset_contract(
+        contract_path,
+        catalog=args.catalog,
+        schema=args.schema,
+        volume_name=args.volume_name,
+    )
+    dataset_id, contract_version = _dataset_identity(contract)
+
+    registry = _load_or_new_registry(registry_path)
+
+    if registry.contains(dataset_id, contract_version):
+        if not args.force:
+            print(
+                f"error: dataset '{dataset_id}' version '{contract_version}' is already "
+                f"registered in {registry_path}. Pass --force to replace it.",
+                file=sys.stderr,
+            )
+            return 1
+        registry.remove(dataset_id, contract_version)
+
+    try:
+        registry.register(contract)
+    except RegistryError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+
+    saved_path = registry.save(registry_path)
+    print(f"registered {dataset_id}@{contract_version} in {saved_path}")
+    return 0
+
+
+def _cmd_registry_list(args: argparse.Namespace) -> int:
+    from driftsentinel.config.loader import DatasetRegistry, RegistryError
+
+    registry_path = Path(args.registry)
+    if not registry_path.is_file():
+        print(f"error: registry file not found: {registry_path}", file=sys.stderr)
+        return 1
+
+    try:
+        registry = DatasetRegistry.load(registry_path)
+    except RegistryError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+
+    entries = registry.list_datasets()
+    if not entries:
+        print(f"(empty registry: {registry_path})")
+        return 0
+
+    width = max(len("DATASET_ID"), max(len(e["dataset_id"]) for e in entries))
+    print(f"{'DATASET_ID'.ljust(width)}  CONTRACT_VERSION")
+    for entry in entries:
+        print(f"{entry['dataset_id'].ljust(width)}  {entry['contract_version']}")
+    return 0
+
+
+def _cmd_registry_remove(args: argparse.Namespace) -> int:
+    from driftsentinel.config.loader import DatasetRegistry, RegistryError
+
+    registry_path = Path(args.registry)
+    if not registry_path.is_file():
+        print(f"error: registry file not found: {registry_path}", file=sys.stderr)
+        return 1
+
+    registry = DatasetRegistry.load(registry_path)
+    try:
+        registry.remove(args.dataset_id, args.contract_version)
+    except RegistryError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+
+    registry.save(registry_path)
+    print(f"removed {args.dataset_id}@{args.contract_version} from {registry_path}")
+    return 0
+
+
 def _cmd_doctor(args: argparse.Namespace) -> int:
     from driftsentinel.databricks.connect import doctor
 
@@ -213,7 +314,80 @@ def build_parser() -> argparse.ArgumentParser:
     _add_common_args(p_doctor)
     p_doctor.set_defaults(func=_cmd_doctor)
 
+    # driftsentinel registry ...
+    reg_parser = top_sub.add_parser("registry", help="Manage the dataset registry JSON")
+    _add_registry_subparsers(reg_parser)
+
     return parser
+
+
+def _add_registry_subparsers(reg_parser: argparse.ArgumentParser) -> None:
+    """Attach add/list/remove subcommands to the registry parser."""
+    reg_sub = reg_parser.add_subparsers(dest="command", help="Registry command")
+
+    p_reg_add = reg_sub.add_parser(
+        "add",
+        help="Register a dataset contract in the registry JSON",
+    )
+    p_reg_add.add_argument(
+        "--contract",
+        required=True,
+        help="Path to a dataset contract YAML",
+    )
+    p_reg_add.add_argument(
+        "--registry",
+        default=DEFAULT_REGISTRY_PATH,
+        help=f"Path to registry.json (default: {DEFAULT_REGISTRY_PATH})",
+    )
+    p_reg_add.add_argument(
+        "--catalog",
+        default=None,
+        help="Substitute ${CATALOG} in the contract before registering",
+    )
+    p_reg_add.add_argument(
+        "--schema",
+        default=None,
+        help="Substitute ${SCHEMA} in the contract before registering",
+    )
+    p_reg_add.add_argument(
+        "--volume-name",
+        default=None,
+        help="Substitute ${VOLUME} in the contract before registering",
+    )
+    p_reg_add.add_argument(
+        "--force",
+        action="store_true",
+        help="Replace an existing (dataset_id, contract_version) entry",
+    )
+    p_reg_add.set_defaults(func=_cmd_registry_add)
+
+    p_reg_list = reg_sub.add_parser(
+        "list",
+        help="List datasets registered in the registry JSON",
+    )
+    p_reg_list.add_argument(
+        "--registry",
+        default=DEFAULT_REGISTRY_PATH,
+        help=f"Path to registry.json (default: {DEFAULT_REGISTRY_PATH})",
+    )
+    p_reg_list.set_defaults(func=_cmd_registry_list)
+
+    p_reg_remove = reg_sub.add_parser(
+        "remove",
+        help="Remove a dataset contract entry from the registry JSON",
+    )
+    p_reg_remove.add_argument("--dataset-id", required=True, help="Registered dataset ID")
+    p_reg_remove.add_argument(
+        "--contract-version",
+        required=True,
+        help="Registered contract version (e.g. 1.0.0)",
+    )
+    p_reg_remove.add_argument(
+        "--registry",
+        default=DEFAULT_REGISTRY_PATH,
+        help=f"Path to registry.json (default: {DEFAULT_REGISTRY_PATH})",
+    )
+    p_reg_remove.set_defaults(func=_cmd_registry_remove)
 
 
 def main(argv: list[str] | None = None) -> int:
