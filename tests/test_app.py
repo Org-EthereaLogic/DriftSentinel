@@ -17,6 +17,7 @@ APP_DIR = ROOT / "app"
 APP_PY = APP_DIR / "app.py"
 APP_YAML = APP_DIR / "app.yaml"
 APP_REQS = APP_DIR / "requirements.txt"
+DEFAULT_DEPLOY_COMMAND = ("gradio", "app/app.py")
 
 
 # --- File structure ---
@@ -167,7 +168,8 @@ class TestAppHelpers:
 
         app = build_app()
         load_dependencies = [
-            dep for dep in app.config.get("dependencies", [])
+            dep
+            for dep in app.config.get("dependencies", [])
             if any(event == "load" for _, event in dep.get("targets", []))
         ]
 
@@ -185,20 +187,22 @@ class TestAppHelpers:
         from driftsentinel.config.loader import DatasetRegistry
 
         reg = DatasetRegistry()
-        reg.register({
-            "dataset": {
-                "name": "test_ds",
-                "contract_version": "1.0.0",
-                "catalog": "cat",
-                "schema": "sch",
-                "table": "tbl",
-            },
-            "contract": {
-                "required_columns": [{"column_name": "id", "type": "long", "nullable": False}],
-                "business_key": ["id"],
-                "batch_identifier": "batch_id",
-            },
-        })
+        reg.register(
+            {
+                "dataset": {
+                    "name": "test_ds",
+                    "contract_version": "1.0.0",
+                    "catalog": "cat",
+                    "schema": "sch",
+                    "table": "tbl",
+                },
+                "contract": {
+                    "required_columns": [{"column_name": "id", "type": "long", "nullable": False}],
+                    "business_key": ["id"],
+                    "batch_identifier": "batch_id",
+                },
+            }
+        )
         reg_path = tmp_path / "reg.json"
         reg.save(reg_path)
         rows = load_registry_table(str(reg_path))
@@ -207,9 +211,7 @@ class TestAppHelpers:
         assert rows[0][1] == "1.0.0"
         assert rows[0][2] == "cat"
 
-    def test_load_registry_table_rejects_untrusted_path(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_load_registry_table_rejects_untrusted_path(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         from app.app import load_registry_table
 
         monkeypatch.setattr(
@@ -230,9 +232,7 @@ class TestAppHelpers:
         assert len(rows) == 1
         assert "no artifacts" in rows[0][0]
 
-    def test_query_evidence_rejects_untrusted_dir(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_query_evidence_rejects_untrusted_dir(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         from app.app import query_evidence
 
         monkeypatch.setattr(
@@ -389,22 +389,26 @@ class TestAnalyticsHelpers:
     def test_timeline_data_preserves_event_level_context(self) -> None:
         from app.analytics import timeline_data
 
-        rows = timeline_data([
-            {
-                "dataset_id": "ds_a",
-                "execution_mode": "dataset_backed",
-                "generated_at": "2026-04-02T22:00:00+00:00",
-                "run_kind": "benchmark",
-                "verdict": "PASS",
-            }
-        ])
+        rows = timeline_data(
+            [
+                {
+                    "dataset_id": "ds_a",
+                    "execution_mode": "dataset_backed",
+                    "generated_at": "2026-04-02T22:00:00+00:00",
+                    "run_kind": "benchmark",
+                    "verdict": "PASS",
+                }
+            ]
+        )
 
-        assert rows == [[
-            "2026-04-02T22:00:00+00:00",
-            "benchmark",
-            "ds_a",
-            "PASS",
-        ]]
+        assert rows == [
+            [
+                "2026-04-02T22:00:00+00:00",
+                "benchmark",
+                "ds_a",
+                "PASS",
+            ]
+        ]
 
     def test_build_plotly_verdict_by_kind(self) -> None:
         from app.analytics import build_plotly_verdict_by_kind
@@ -419,13 +423,10 @@ class TestAnalyticsHelpers:
         assert fig is not None
         assert fig.layout.title.text == "Verdict by Run Kind"
 
-
     def test_build_plotly_health_trend(self) -> None:
         from app.analytics import build_plotly_health_trend
 
-        fig = build_plotly_health_trend([
-            ["2026-04-02T22:00:00+00:00", "benchmark", "ds_a", "PASS"]
-        ])
+        fig = build_plotly_health_trend([["2026-04-02T22:00:00+00:00", "benchmark", "ds_a", "PASS"]])
 
         assert fig is not None
         assert fig.layout.title.text == "Daily Health Trend (% PASS)"
@@ -450,9 +451,7 @@ class TestAppBundleResource:
         assert app_def["source_code_path"] == ".."
         volume_resource = app_def["resources"][0]["uc_securable"]
         assert volume_resource["securable_type"] == "VOLUME"
-        assert volume_resource["securable_full_name"] == (
-            "${var.catalog}.${var.schema}.${var.runtime_volume_name}"
-        )
+        assert volume_resource["securable_full_name"] == ("${var.catalog}.${var.schema}.${var.runtime_volume_name}")
         assert volume_resource["permission"] == "READ_VOLUME"
         job_resource = app_def["resources"][1]["job"]
         assert job_resource["id"] == "${resources.jobs.dataset_pipeline_job.id}"
@@ -462,3 +461,265 @@ class TestAppBundleResource:
         assert env["RUNTIME_VOLUME_PATH"]["value_from"] == "runtime_volume"
         assert env["DATASET_PIPELINE_JOB_ID"]["value_from"] == "dataset_pipeline_job"
         assert env["DRIFTSENTINEL_ALLOWED_PATH_ROOTS"]["value"] == ""
+
+
+# --- Deploy script (DS-PATCH-038) ---
+
+
+def _fixture_bundle_summary(
+    *,
+    catalog: str = "main",
+    schema: str = "default",
+    volume_name: str = "driftsentinel_runtime",
+    job_id: str = "987654321",
+    securable_full_name: str | None = None,
+    embedded_job_id: str | None = None,
+    command: list[str] | str | None = DEFAULT_DEPLOY_COMMAND,
+    extra_env: list[dict[str, object]] | None = None,
+) -> dict[str, object]:
+    full_name = securable_full_name if securable_full_name is not None else f"{catalog}.{schema}.{volume_name}"
+    embedded = embedded_job_id if embedded_job_id is not None else "${resources.jobs.dataset_pipeline_job.id}"
+    app_resource_bindings: list[dict] = [
+        {
+            "name": "runtime_volume",
+            "uc_securable": {
+                "securable_type": "VOLUME",
+                "securable_full_name": full_name,
+                "permission": "READ_VOLUME",
+            },
+        },
+        {
+            "name": "dataset_pipeline_job",
+            "job": {
+                "id": embedded,
+                "permission": "CAN_MANAGE_RUN",
+            },
+        },
+    ]
+    env_entries: list[dict] = [
+        {"name": "RUNTIME_VOLUME_PATH", "value_from": "runtime_volume"},
+        {"name": "DATASET_PIPELINE_JOB_ID", "value_from": "dataset_pipeline_job"},
+        {"name": "DRIFTSENTINEL_ALLOWED_PATH_ROOTS", "value": ""},
+    ]
+    if extra_env:
+        env_entries.extend(extra_env)
+    summary: dict[str, object] = {
+        "variables": {
+            "catalog": {"value": catalog},
+            "schema": {"value": schema},
+            "runtime_volume_name": {"value": volume_name},
+        },
+        "resources": {
+            "apps": {
+                "driftsentinel_app": {
+                    "name": "driftsentinel",
+                    "source_code_path": ("/Workspace/Users/op@example.com/.bundle/driftsentinel/dev/files"),
+                    "resources": app_resource_bindings,
+                    "config": {
+                        "env": env_entries,
+                    },
+                }
+            },
+            "jobs": {
+                "dataset_pipeline_job": {"id": job_id},
+            },
+        },
+    }
+    if command is not None:
+        configured_command: list[str] | str
+        if isinstance(command, str):
+            configured_command = command
+        else:
+            configured_command = list(command)
+        summary["resources"]["apps"]["driftsentinel_app"]["config"]["command"] = configured_command
+    return summary
+
+
+class TestDeployScriptCommandShape:
+    def test_apps_deploy_command_uses_source_code_path_and_no_bundle_flags(self) -> None:
+        from scripts.deploy_databricks_app import _build_apps_deploy_cmd
+
+        cmd = _build_apps_deploy_cmd(
+            "driftsentinel",
+            "/Workspace/Users/op/.bundle/driftsentinel/dev/files",
+            ["-p", "demo"],
+        )
+
+        assert cmd[:6] == [
+            "databricks",
+            "apps",
+            "deploy",
+            "driftsentinel",
+            "--source-code-path",
+            "/Workspace/Users/op/.bundle/driftsentinel/dev/files",
+        ]
+        assert "--target" not in cmd
+        assert not any(part.startswith("--var") for part in cmd)
+        assert cmd[-2:] == ["-p", "demo"]
+
+    def test_apps_deploy_command_omits_profile_when_unset(self) -> None:
+        from scripts.deploy_databricks_app import _build_apps_deploy_cmd
+
+        cmd = _build_apps_deploy_cmd("driftsentinel", "/Workspace/path/files", [])
+
+        assert cmd == [
+            "databricks",
+            "apps",
+            "deploy",
+            "driftsentinel",
+            "--source-code-path",
+            "/Workspace/path/files",
+        ]
+
+
+class TestDeployScriptAppYamlGeneration:
+    def test_returns_none_when_no_command(self) -> None:
+        from scripts.deploy_databricks_app import _build_app_yaml_content
+
+        summary = _fixture_bundle_summary(command=None)
+
+        assert _build_app_yaml_content(summary, "driftsentinel_app") is None
+
+    def test_resolves_volume_value_from_reference(self) -> None:
+        import yaml as _yaml
+
+        from scripts.deploy_databricks_app import _build_app_yaml_content
+
+        summary = _fixture_bundle_summary(catalog="main", schema="default", volume_name="driftsentinel_runtime")
+
+        content = _build_app_yaml_content(summary, "driftsentinel_app")
+        assert content is not None
+        data = _yaml.safe_load(content)
+        env = {item["name"]: item for item in data["env"]}
+        assert env["RUNTIME_VOLUME_PATH"] == {
+            "name": "RUNTIME_VOLUME_PATH",
+            "value": "/Volumes/main/default/driftsentinel_runtime",
+        }
+        assert "value_from" not in env["RUNTIME_VOLUME_PATH"]
+
+    def test_resolves_volume_from_variables_when_full_name_unresolved(self) -> None:
+        import yaml as _yaml
+
+        from scripts.deploy_databricks_app import _build_app_yaml_content
+
+        summary = _fixture_bundle_summary(
+            catalog="ent",
+            schema="prod",
+            volume_name="ds_runtime",
+            securable_full_name="${var.catalog}.${var.schema}.${var.runtime_volume_name}",
+        )
+
+        content = _build_app_yaml_content(summary, "driftsentinel_app")
+        assert content is not None
+        data = _yaml.safe_load(content)
+        env = {item["name"]: item for item in data["env"]}
+        assert env["RUNTIME_VOLUME_PATH"]["value"] == "/Volumes/ent/prod/ds_runtime"
+
+    def test_resolves_job_value_from_reference(self) -> None:
+        import yaml as _yaml
+
+        from scripts.deploy_databricks_app import _build_app_yaml_content
+
+        summary = _fixture_bundle_summary(job_id="42")
+
+        content = _build_app_yaml_content(summary, "driftsentinel_app")
+        assert content is not None
+        data = _yaml.safe_load(content)
+        env = {item["name"]: item for item in data["env"]}
+        assert env["DATASET_PIPELINE_JOB_ID"]["value"] == "42"
+
+    def test_resolves_job_id_when_embedded_id_already_concrete(self) -> None:
+        import yaml as _yaml
+
+        from scripts.deploy_databricks_app import _build_app_yaml_content
+
+        summary = _fixture_bundle_summary(embedded_job_id="11111", job_id="22222")
+
+        content = _build_app_yaml_content(summary, "driftsentinel_app")
+        assert content is not None
+        data = _yaml.safe_load(content)
+        env = {item["name"]: item for item in data["env"]}
+        # When the resource's own id is concrete, prefer it over the top-level
+        # jobs block lookup.
+        assert env["DATASET_PIPELINE_JOB_ID"]["value"] == "11111"
+
+    def test_passes_through_literal_value_entries(self) -> None:
+        import yaml as _yaml
+
+        from scripts.deploy_databricks_app import _build_app_yaml_content
+
+        summary = _fixture_bundle_summary()
+
+        content = _build_app_yaml_content(summary, "driftsentinel_app")
+        assert content is not None
+        data = _yaml.safe_load(content)
+        env = {item["name"]: item for item in data["env"]}
+        assert env["DRIFTSENTINEL_ALLOWED_PATH_ROOTS"] == {
+            "name": "DRIFTSENTINEL_ALLOWED_PATH_ROOTS",
+            "value": "",
+        }
+
+    def test_unknown_value_from_resolves_to_empty_string(self) -> None:
+        import yaml as _yaml
+
+        from scripts.deploy_databricks_app import _build_app_yaml_content
+
+        summary = _fixture_bundle_summary(extra_env=[{"name": "MYSTERY", "value_from": "ghost_resource"}])
+
+        content = _build_app_yaml_content(summary, "driftsentinel_app")
+        assert content is not None
+        data = _yaml.safe_load(content)
+        env = {item["name"]: item for item in data["env"]}
+        # Fail-soft: env var is preserved with empty string per DS-PATCH-038 §4.2.1.
+        assert env["MYSTERY"] == {"name": "MYSTERY", "value": ""}
+
+    def test_command_is_preserved_in_order(self) -> None:
+        import yaml as _yaml
+
+        from scripts.deploy_databricks_app import _build_app_yaml_content
+
+        summary = _fixture_bundle_summary(command=["gradio", "app/app.py"])
+
+        content = _build_app_yaml_content(summary, "driftsentinel_app")
+        assert content is not None
+        data = _yaml.safe_load(content)
+        assert data["command"] == ["gradio", "app/app.py"]
+
+    def test_string_command_is_wrapped_once(self) -> None:
+        import yaml as _yaml
+
+        from scripts.deploy_databricks_app import _build_app_yaml_content
+
+        summary = _fixture_bundle_summary(command="gradio app/app.py")
+
+        content = _build_app_yaml_content(summary, "driftsentinel_app")
+        assert content is not None
+        data = _yaml.safe_load(content)
+        assert data["command"] == ["gradio app/app.py"]
+
+
+class TestDeployScriptResourceResolution:
+    def test_volume_path_falls_back_when_full_name_blank(self) -> None:
+        from scripts.deploy_databricks_app import _resolve_app_resource_values
+
+        summary = _fixture_bundle_summary(securable_full_name="")
+
+        resolved = _resolve_app_resource_values(summary, "driftsentinel_app")
+
+        assert resolved["runtime_volume"] == "/Volumes/main/default/driftsentinel_runtime"
+
+    def test_returns_empty_mapping_when_app_missing(self) -> None:
+        from scripts.deploy_databricks_app import _resolve_app_resource_values
+
+        assert _resolve_app_resource_values({}, "driftsentinel_app") == {}
+
+    def test_reads_resource_bindings_from_app_root(self) -> None:
+        from scripts.deploy_databricks_app import _resolve_app_resource_values
+
+        summary = _fixture_bundle_summary()
+        summary["resources"]["apps"]["driftsentinel_app"]["config"].pop("resources", None)
+
+        resolved = _resolve_app_resource_values(summary, "driftsentinel_app")
+
+        assert resolved["runtime_volume"] == "/Volumes/main/default/driftsentinel_runtime"
+        assert resolved["dataset_pipeline_job"] == "987654321"

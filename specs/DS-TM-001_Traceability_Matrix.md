@@ -3,7 +3,7 @@
 | Field | Value |
 | --- | --- |
 | Document ID | DS-TM-001 |
-| Version | 1.5 |
+| Version | 1.6 |
 | Status | Draft |
 | Author | Anthony Johnson |
 | Date | 2026-05-05 |
@@ -11,7 +11,7 @@
 | PRD Requirement | SRS Requirement | Spec Surface | Verification Surface |
 | --- | --- | --- | --- |
 | DS-FR-001 | DS-SR-001 | PRD, SDD | repo taxonomy, CLAUDE.md, specs/ |
-| DS-FR-002 | DS-SR-009 | PRD, SRS, DS-PATCH-034, DS-PATCH-035 | databricks.yml (incl. sync.exclude defaults), resources/, bundle validation, tests/test_packaging.py, Makefile (TF_ENV-wrapped bundle/app/bootstrap targets), scripts/databricks_tf_env.sh, src/driftsentinel/databricks/tf_env.py, tests/test_databricks_tf_env.py |
+| DS-FR-002 | DS-SR-009 | PRD, SRS, DS-PATCH-034, DS-PATCH-035, DS-PATCH-038 | databricks.yml (incl. sync.exclude defaults), resources/, bundle validation, tests/test_packaging.py, Makefile (TF_ENV-wrapped bundle/app/bootstrap targets), scripts/databricks_tf_env.sh, src/driftsentinel/databricks/tf_env.py, tests/test_databricks_tf_env.py, scripts/deploy_databricks_app.py (`apps deploy <name> --source-code-path <path>` + auto-generated app.yml), tests/test_app.py::TestDeployScriptCommandShape, tests/test_app.py::TestDeployScriptAppYamlGeneration, tests/test_app.py::TestDeployScriptResourceResolution |
 | DS-FR-003 | DS-SR-008 | PRD, SRS | notebooks, manual import path |
 | DS-FR-004 | DS-SR-005 | PRD, SRS | templates/, config loaders, registration notebook |
 | DS-FR-005 | DS-SR-002 | PRD, SDD, DS-PATCH-036 | src/driftsentinel/intake/, quarantine outputs, src/driftsentinel/orchestration/runner.py (quarantine_max_ratio gate), src/driftsentinel/config/loader.py (loader-boundary validation), templates/dataset_contract.yml, tests/test_orchestration.py::TestValidateDatasetReadiness, tests/test_dataset_orchestration.py::TestIntakeToleranceEvidence, tests/test_config_loading.py (quarantine_max_ratio cases), tests/test_intake.py (quarantine_ratio rounding) |
@@ -36,6 +36,7 @@
 
 | Version | Date | Change |
 | --- | --- | --- |
+| 1.6 | 2026-05-05 | Linked DS-FR-002 / DS-SR-009 to DS-PATCH-038 (replace removed `--target/--var` on `databricks apps deploy` with `apps deploy <name> --source-code-path <path>`; auto-generate `app.yml` at the workspace source-code-path with env entries resolved against `value_from` references and bundle variables; documentation update in `docs/deployment_guide.md`; new `tests/test_app.py::TestDeployScriptCommandShape`, `TestDeployScriptAppYamlGeneration`, `TestDeployScriptResourceResolution`) |
 | 1.5 | 2026-05-05 | Linked DS-FR-007 / DS-SR-004 to DS-PATCH-037 (raise bundle-resource `n_rows` default from 1000 to 10000 in `resources/benchmark_job.yml` and `resources/dataset_pipeline_job.yml`; document the recall-floor at low N in `templates/benchmark_policy.yml`; add regression test in `tests/test_benchmark.py` asserting `quality_recall >= 0.80` at n=10000; note default change in `docs/deployment_guide.md`) |
 | 1.4 | 2026-05-05 | Linked DS-FR-005 / DS-SR-002 to DS-PATCH-036 (optional `quarantine_max_ratio` knob on dataset contracts; readiness gate raises only when `quarantine_ratio > quarantine_max_ratio`; intake evidence records `quarantine_max_ratio` and `tolerance_applied`; loader rejects out-of-range / non-numeric values) |
 | 1.3 | 2026-05-05 | Linked DS-FR-002 / DS-SR-009 to DS-PATCH-035 (auto-detect OpenTofu and pre-set `DATABRICKS_TF_EXEC_PATH` for the bundle/app/bootstrap surface; shell + Python helpers; env-propagation contract test) |
