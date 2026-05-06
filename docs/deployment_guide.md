@@ -302,15 +302,34 @@ make app-deploy CATALOG=my_catalog PROFILE=<profile>
 ```
 
 `make app-deploy` wraps the reliable sequence for this repository:
-`databricks bundle deploy`, `databricks apps start`, `databricks apps deploy`,
-and a final `databricks apps get` status check.
+`databricks bundle deploy`, `databricks bundle summary` (to resolve the app
+name and the deployed `source_code_path`), an auto-generated `app.yml`
+uploaded to the workspace `source_code_path`, then
+`databricks apps start` and `databricks apps deploy <name> --source-code-path
+<path>`, ending with a `databricks apps get` status check.
+
+Databricks CLI `v0.295.0+` does not accept `--target` or `--var` on
+`apps deploy`; the supported flags are the positional `<APP_NAME>` and
+`--source-code-path <workspace_path>`. The auto-generated `app.yml` carries
+the bundle resource's `command:` plus env entries resolved against the
+`catalog`, `schema`, and `runtime_volume_name` bundle variables (and any
+`value_from` resource references). See
+`specs/DS-PATCH-038_app_deploy_source_code_path.md` for the full design and
+the failure-mode contract.
 
 Raw CLI sequence:
 
 ```bash
 databricks bundle deploy -p <profile> --target dev --var="catalog=my_catalog"
+databricks bundle summary -p <profile> --target dev --var="catalog=my_catalog" -o json
+# inspect summary.resources.apps.driftsentinel_app.source_code_path
+databricks workspace import \
+  /Workspace/Users/<user>/.bundle/driftsentinel/dev/files/app.yml \
+  --file ./app.yml --format AUTO --overwrite -p <profile>
 databricks apps start driftsentinel -p <profile>
-databricks apps deploy -p <profile> --target dev --var="catalog=my_catalog"
+databricks apps deploy driftsentinel \
+  --source-code-path /Workspace/Users/<user>/.bundle/driftsentinel/dev/files \
+  -p <profile>
 databricks apps get driftsentinel -p <profile> -o json
 ```
 

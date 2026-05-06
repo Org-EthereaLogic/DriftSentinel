@@ -4,10 +4,14 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
+import tempfile
 import time
 from typing import Any, Callable
+
+import yaml
 
 from driftsentinel.databricks.tf_env import (
     TerraformBinaryMissingError,
@@ -45,6 +49,129 @@ def _bundle_flag_args(profile: str | None, target: str, catalog: str) -> list[st
 
 def _app_api_args(profile: str | None) -> list[str]:
     return ["-p", profile] if profile else []
+
+
+def _resolve_app_resource_values(summary: dict[str, Any], app_key: str) -> dict[str, str]:
+    """Map each app `config.resources[].name` to its concrete env value.
+
+    - VOLUME `uc_securable` -> `/Volumes/<catalog>/<schema>/<volume>` parsed
+      from `securable_full_name` when concrete, otherwise constructed from
+      `summary.variables.{catalog,schema,runtime_volume_name}`.
+    - `job` -> the resolved job `id`. When the embedded id is still a
+      `${resources.jobs.<key>.id}` reference, look it up under
+      `summary.resources.jobs.<key>.id`.
+    """
+    apps = summary.get("resources", {}).get("apps", {}) or {}
+    app = apps.get(app_key) or {}
+    config = app.get("config") or {}
+    app_resources = config.get("resources") or []
+
+    variables = summary.get("variables") or {}
+    catalog = (variables.get("catalog") or {}).get("value", "") or ""
+    schema = (variables.get("schema") or {}).get("value", "") or "default"
+    volume_name = (variables.get("runtime_volume_name") or {}).get("value", "") or "driftsentinel_runtime"
+
+    jobs_block = summary.get("resources", {}).get("jobs", {}) or {}
+
+    resolutions: dict[str, str] = {}
+    for res in app_resources:
+        name = res.get("name")
+        if not name:
+            continue
+
+        uc = res.get("uc_securable")
+        if isinstance(uc, dict) and uc.get("securable_type") == "VOLUME":
+            full = uc.get("securable_full_name") or ""
+            if not full or "${" in full:
+                full = f"{catalog}.{schema}.{volume_name}"
+            parts = full.split(".")
+            if len(parts) == 3 and all(parts):
+                resolutions[name] = f"/Volumes/{parts[0]}/{parts[1]}/{parts[2]}"
+            else:
+                resolutions[name] = ""
+            continue
+
+        job = res.get("job")
+        if isinstance(job, dict):
+            raw_id = job.get("id")
+            job_id = "" if raw_id is None else str(raw_id)
+            if job_id and not job_id.startswith("${"):
+                resolutions[name] = job_id
+            else:
+                # Reference shape: ${resources.jobs.<key>.id}
+                ref_key = ""
+                if "resources.jobs." in job_id:
+                    after = job_id.split("resources.jobs.", 1)[1]
+                    ref_key = after.split(".", 1)[0]
+                resolutions[name] = str((jobs_block.get(ref_key) or {}).get("id", "") or "")
+
+    return resolutions
+
+
+def _build_app_yaml_content(summary: dict[str, Any], app_key: str) -> str | None:
+    """Render an app.yml string from the bundle summary, or None if no command."""
+    apps = summary.get("resources", {}).get("apps", {}) or {}
+    app = apps.get(app_key) or {}
+    config = app.get("config") or {}
+    command = config.get("command")
+    if not command:
+        return None
+
+    resolutions = _resolve_app_resource_values(summary, app_key)
+    env_in = config.get("env") or []
+    env_out: list[dict[str, Any]] = []
+    for entry in env_in:
+        if not isinstance(entry, dict):
+            continue
+        name = entry.get("name")
+        if not name:
+            continue
+        if "value" in entry:
+            env_out.append({"name": name, "value": entry["value"]})
+        elif "value_from" in entry:
+            env_out.append({"name": name, "value": resolutions.get(entry["value_from"], "")})
+        else:
+            env_out.append({"name": name, "value": ""})
+
+    return yaml.safe_dump(
+        {"command": list(command), "env": env_out},
+        sort_keys=False,
+        default_flow_style=False,
+    )
+
+
+def _upload_app_yaml(
+    content: str,
+    source_code_path: str,
+    app_api_args: list[str],
+    *,
+    env: dict[str, str] | None,
+) -> None:
+    target = source_code_path.rstrip("/") + "/app.yml"
+    fd, local_path = tempfile.mkstemp(suffix=".yml", prefix="driftsentinel-app-")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(content)
+        _run(
+            [
+                "databricks",
+                "workspace",
+                "import",
+                target,
+                "--file",
+                local_path,
+                "--format",
+                "AUTO",
+                "--overwrite",
+                *app_api_args,
+            ],
+            env=env,
+        )
+    finally:
+        try:
+            os.unlink(local_path)
+        except OSError:
+            pass
 
 
 def _get_app_state(
@@ -154,6 +281,22 @@ def _wait_for_deployment(
     )
 
 
+def _build_apps_deploy_cmd(
+    app_name: str,
+    source_code_path: str,
+    app_api_args: list[str],
+) -> list[str]:
+    return [
+        "databricks",
+        "apps",
+        "deploy",
+        app_name,
+        "--source-code-path",
+        source_code_path,
+        *app_api_args,
+    ]
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--catalog", required=True)
@@ -184,7 +327,9 @@ def main() -> int:
         raise SystemExit(f"App resource '{args.app_key}' not found in bundle summary")
     app = apps[args.app_key]
     app_name = app["name"]
-    source_code_path = app["source_code_path"]
+    source_code_path = app.get("source_code_path") or ""
+    if not source_code_path:
+        raise SystemExit(f"App resource '{args.app_key}' is missing 'source_code_path' in bundle summary")
 
     app_api_args = _app_api_args(args.profile)
 
@@ -203,7 +348,11 @@ def main() -> int:
         print(f"App URL: {app_state['url']}")
         return 0
 
-    deploy_cmd = ["databricks", "apps", "deploy", *bundle_args]
+    app_yaml = _build_app_yaml_content(summary, args.app_key)
+    if app_yaml is not None:
+        _upload_app_yaml(app_yaml, source_code_path, app_api_args, env=env)
+
+    deploy_cmd = _build_apps_deploy_cmd(app_name, source_code_path, app_api_args)
     deploy_proc = _run(deploy_cmd, check=False, env=env)
     assert isinstance(deploy_proc, subprocess.CompletedProcess)
     if deploy_proc.returncode != 0:

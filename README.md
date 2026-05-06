@@ -254,8 +254,15 @@ Raw Databricks CLI path:
 databricks catalogs get my_catalog -p <profile>
 databricks bundle validate -p <profile> --target dev --var="catalog=my_catalog"
 databricks bundle deploy -p <profile> --target dev --var="catalog=my_catalog"
+databricks bundle summary -p <profile> --target dev --var="catalog=my_catalog" -o json
+# inspect summary.resources.apps.driftsentinel_app.source_code_path
+databricks workspace import \
+  /Workspace/Users/<user>/.bundle/driftsentinel/dev/files/app.yml \
+  --file ./app.yml --format AUTO --overwrite -p <profile>
 databricks apps start driftsentinel -p <profile>
-databricks apps deploy -p <profile> --target dev --var="catalog=my_catalog"
+databricks apps deploy driftsentinel \
+  --source-code-path /Workspace/Users/<user>/.bundle/driftsentinel/dev/files \
+  -p <profile>
 databricks apps get driftsentinel -p <profile> -o json
 ```
 
