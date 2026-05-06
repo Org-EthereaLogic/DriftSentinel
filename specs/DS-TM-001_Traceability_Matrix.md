@@ -3,7 +3,7 @@
 | Field | Value |
 | --- | --- |
 | Document ID | DS-TM-001 |
-| Version | 1.6 |
+| Version | 1.7 |
 | Status | Draft |
 | Author | Anthony Johnson |
 | Date | 2026-05-05 |
@@ -13,7 +13,7 @@
 | DS-FR-001 | DS-SR-001 | PRD, SDD | repo taxonomy, CLAUDE.md, specs/ |
 | DS-FR-002 | DS-SR-009 | PRD, SRS, DS-PATCH-034, DS-PATCH-035, DS-PATCH-038 | databricks.yml (incl. sync.exclude defaults), resources/, bundle validation, tests/test_packaging.py, Makefile (TF_ENV-wrapped bundle/app/bootstrap targets), scripts/databricks_tf_env.sh, src/driftsentinel/databricks/tf_env.py, tests/test_databricks_tf_env.py, scripts/deploy_databricks_app.py (`apps deploy <name> --source-code-path <path>` + auto-generated app.yml), tests/test_app.py::TestDeployScriptCommandShape, tests/test_app.py::TestDeployScriptAppYamlGeneration, tests/test_app.py::TestDeployScriptResourceResolution |
 | DS-FR-003 | DS-SR-008 | PRD, SRS | notebooks, manual import path |
-| DS-FR-004 | DS-SR-005 | PRD, SRS | templates/, config loaders, registration notebook |
+| DS-FR-004 | DS-SR-005 | PRD, SRS, DS-PATCH-039 | templates/, config loaders, registration notebook, src/driftsentinel/cli.py (`registry add/list/remove`), tests/test_cli.py::TestRegistryAddCommand, tests/test_cli.py::TestRegistryListCommand, tests/test_cli.py::TestRegistryRemoveCommand |
 | DS-FR-005 | DS-SR-002 | PRD, SDD, DS-PATCH-036 | src/driftsentinel/intake/, quarantine outputs, src/driftsentinel/orchestration/runner.py (quarantine_max_ratio gate), src/driftsentinel/config/loader.py (loader-boundary validation), templates/dataset_contract.yml, tests/test_orchestration.py::TestValidateDatasetReadiness, tests/test_dataset_orchestration.py::TestIntakeToleranceEvidence, tests/test_config_loading.py (quarantine_max_ratio cases), tests/test_intake.py (quarantine_ratio rounding) |
 | DS-FR-006 | DS-SR-003 | PRD, SDD | src/driftsentinel/drift/, gate-evaluation outputs |
 | DS-FR-007 | DS-SR-004 | PRD, SDD, DS-PATCH-037 | src/driftsentinel/benchmark/, evidence bundle writer, resources/benchmark_job.yml, resources/dataset_pipeline_job.yml (n_rows default = 10000), templates/benchmark_policy.yml (recall-floor comment), tests/test_benchmark.py::test_run_benchmark_at_default_n_rows_meets_recall_gate |
@@ -36,6 +36,7 @@
 
 | Version | Date | Change |
 | --- | --- | --- |
+| 1.7 | 2026-05-05 | Linked DS-FR-004 / DS-SR-005 to DS-PATCH-039 (`driftsentinel registry add/list/remove` CLI subcommands replacing the 5-line Python registration snippet; default `--registry data/registry.json`; collision exits 1 unless `--force`; `--catalog/--schema/--volume-name` flags thread through `load_dataset_contract` to reuse DS-PATCH-032 placeholder substitution; new `tests/test_cli.py::TestRegistryAddCommand`, `TestRegistryListCommand`, `TestRegistryRemoveCommand`; documentation updates in `docs/deployment_guide.md` and `docs/e2e_verification_prompt.md`) |
 | 1.6 | 2026-05-05 | Linked DS-FR-002 / DS-SR-009 to DS-PATCH-038 (replace removed `--target/--var` on `databricks apps deploy` with `apps deploy <name> --source-code-path <path>`; auto-generate `app.yml` at the workspace source-code-path with env entries resolved against `value_from` references and bundle variables; documentation update in `docs/deployment_guide.md`; new `tests/test_app.py::TestDeployScriptCommandShape`, `TestDeployScriptAppYamlGeneration`, `TestDeployScriptResourceResolution`) |
 | 1.5 | 2026-05-05 | Linked DS-FR-007 / DS-SR-004 to DS-PATCH-037 (raise bundle-resource `n_rows` default from 1000 to 10000 in `resources/benchmark_job.yml` and `resources/dataset_pipeline_job.yml`; document the recall-floor at low N in `templates/benchmark_policy.yml`; add regression test in `tests/test_benchmark.py` asserting `quality_recall >= 0.80` at n=10000; note default change in `docs/deployment_guide.md`) |
 | 1.4 | 2026-05-05 | Linked DS-FR-005 / DS-SR-002 to DS-PATCH-036 (optional `quarantine_max_ratio` knob on dataset contracts; readiness gate raises only when `quarantine_ratio > quarantine_max_ratio`; intake evidence records `quarantine_max_ratio` and `tolerance_applied`; loader rejects out-of-range / non-numeric values) |

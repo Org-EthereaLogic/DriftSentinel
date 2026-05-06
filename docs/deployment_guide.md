@@ -145,6 +145,37 @@ them under `sync.exclude` in `databricks.yml`. See
 `specs/DS-PATCH-034_bundle_sync_exclude_defaults.md` for the canonical
 exclusion contract.
 
+### Build the Registry
+
+Every dataset-backed run requires a `registry.json` mapping each `dataset_id`
+to its validated dataset contract. Build or update it with the
+`driftsentinel registry` subcommands:
+
+```bash
+# Register a contract (creates registry.json if it does not yet exist)
+uv run driftsentinel registry add \
+  --contract /path/to/dataset_contract.yml \
+  --registry /path/to/registry.json
+
+# Substitute ${CATALOG}/${SCHEMA}/${VOLUME} placeholders at register time
+uv run driftsentinel registry add \
+  --contract /path/to/dataset_contract.yml \
+  --registry /path/to/registry.json \
+  --catalog my_catalog --schema default --volume-name driftsentinel_runtime
+
+# Inspect what is currently registered
+uv run driftsentinel registry list --registry /path/to/registry.json
+
+# Remove an entry (use --force on `add` instead to replace in place)
+uv run driftsentinel registry remove \
+  --dataset-id my_dataset --contract-version 1.0.0 \
+  --registry /path/to/registry.json
+```
+
+`registry add` is idempotent against unchanged contracts: re-registering the
+same `(dataset_id, contract_version)` pair errors with exit 1 unless
+`--force` is supplied. The default `--registry` path is `data/registry.json`.
+
 ### Run (CLI — recommended)
 
 The Make wrapper and DriftSentinel CLI handle bundle deploy, file upload, and

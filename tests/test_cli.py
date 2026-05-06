@@ -158,6 +158,63 @@ class TestCLIParser:
             args = parser.parse_args(base)
             assert hasattr(args, "func"), f"{cmd} missing func default"
 
+    def test_registry_no_command_shows_help(self) -> None:
+        assert main(["registry"]) == 2
+
+    def test_registry_add_requires_contract(self) -> None:
+        with pytest.raises(SystemExit):
+            main(["registry", "add"])
+
+    def test_registry_remove_requires_dataset_and_version(self) -> None:
+        with pytest.raises(SystemExit):
+            main(["registry", "remove"])
+
+    def test_registry_add_parses_all_args(self) -> None:
+        parser = build_parser()
+        args = parser.parse_args(
+            [
+                "registry",
+                "add",
+                "--contract",
+                "./contract.yml",
+                "--registry",
+                "./reg.json",
+                "--catalog",
+                "adb_dev",
+                "--schema",
+                "governed",
+                "--volume-name",
+                "rt",
+                "--force",
+            ]
+        )
+        assert args.contract == "./contract.yml"
+        assert args.registry == "./reg.json"
+        assert args.catalog == "adb_dev"
+        assert args.schema == "governed"
+        assert args.volume_name == "rt"
+        assert args.force is True
+
+    def test_registry_list_uses_default_registry(self) -> None:
+        parser = build_parser()
+        args = parser.parse_args(["registry", "list"])
+        assert args.registry == "data/registry.json"
+
+    def test_registry_remove_parses_required_args(self) -> None:
+        parser = build_parser()
+        args = parser.parse_args(
+            [
+                "registry",
+                "remove",
+                "--dataset-id",
+                "ds",
+                "--contract-version",
+                "1.0.0",
+            ]
+        )
+        assert args.dataset_id == "ds"
+        assert args.contract_version == "1.0.0"
+
 
 # ---------------------------------------------------------------------------
 # WorkspaceIdentity tests
@@ -390,6 +447,268 @@ class TestConnectHelpers:
         assert params["dataset_id"] == "my_ds"
         assert "drift_policy_path" not in params
         assert "benchmark_policy_path" not in params
+
+
+# ---------------------------------------------------------------------------
+# Registry CLI behavior tests
+# ---------------------------------------------------------------------------
+
+
+def _write_contract(
+    path: Path,
+    *,
+    name: str = "demo_dataset",
+    version: str = "1.0.0",
+) -> Path:
+    path.write_text(
+        f"""
+dataset:
+  name: {name}
+  description: Demo
+  catalog: adb_dev
+  schema: default
+  table: t
+  contract_version: "{version}"
+source:
+  system: demo
+  format: csv
+  landing_path: /tmp/landing
+  baseline_path: /tmp/baseline
+contract:
+  required_columns:
+    - column_name: id
+      type: long
+      nullable: false
+  business_key: [id]
+  batch_identifier: batch_id
+""".lstrip(),
+        encoding="utf-8",
+    )
+    return path
+
+
+class TestRegistryAddCommand:
+    def test_creates_new_registry_when_missing(self, tmp_path: Path) -> None:
+        contract = _write_contract(tmp_path / "contract.yml")
+        registry = tmp_path / "registry.json"
+
+        rc = main(
+            [
+                "registry",
+                "add",
+                "--contract",
+                str(contract),
+                "--registry",
+                str(registry),
+            ]
+        )
+
+        assert rc == 0
+        assert registry.is_file()
+        data = json.loads(registry.read_text())
+        assert data["registry"][0]["dataset_id"] == "demo_dataset"
+        assert data["registry"][0]["contract_version"] == "1.0.0"
+
+    def test_appends_to_existing_registry(self, tmp_path: Path) -> None:
+        contract_a = _write_contract(tmp_path / "a.yml", name="alpha")
+        contract_b = _write_contract(tmp_path / "b.yml", name="beta")
+        registry = tmp_path / "registry.json"
+
+        assert main(["registry", "add", "--contract", str(contract_a), "--registry", str(registry)]) == 0
+        assert main(["registry", "add", "--contract", str(contract_b), "--registry", str(registry)]) == 0
+
+        data = json.loads(registry.read_text())
+        ids = sorted(e["dataset_id"] for e in data["registry"])
+        assert ids == ["alpha", "beta"]
+
+    def test_collision_without_force_returns_error(
+        self,
+        tmp_path: Path,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        contract = _write_contract(tmp_path / "contract.yml")
+        registry = tmp_path / "registry.json"
+
+        assert main(["registry", "add", "--contract", str(contract), "--registry", str(registry)]) == 0
+        rc = main(["registry", "add", "--contract", str(contract), "--registry", str(registry)])
+
+        assert rc == 1
+        err = capsys.readouterr().err
+        assert "already registered" in err
+        assert "--force" in err
+
+    def test_collision_with_force_replaces_entry(self, tmp_path: Path) -> None:
+        contract = _write_contract(tmp_path / "contract.yml")
+        registry = tmp_path / "registry.json"
+
+        assert main(["registry", "add", "--contract", str(contract), "--registry", str(registry)]) == 0
+        # Same identity, different description (forces replacement).
+        contract.write_text(contract.read_text().replace("Demo", "Updated"), encoding="utf-8")
+
+        rc = main(
+            [
+                "registry",
+                "add",
+                "--contract",
+                str(contract),
+                "--registry",
+                str(registry),
+                "--force",
+            ]
+        )
+
+        assert rc == 0
+        data = json.loads(registry.read_text())
+        assert data["registry"][0]["contract"]["dataset"]["description"] == "Updated"
+
+    def test_substitutes_placeholders_when_supplied(self, tmp_path: Path) -> None:
+        path = tmp_path / "contract.yml"
+        path.write_text(
+            """
+dataset:
+  name: ds
+  description: x
+  catalog: ${CATALOG}
+  schema: ${SCHEMA}
+  table: t
+  contract_version: "1.0.0"
+source:
+  system: s
+  format: csv
+  landing_path: /Volumes/${CATALOG}/${SCHEMA}/landing/
+  baseline_path: /Volumes/${CATALOG}/${SCHEMA}/baseline/
+contract:
+  required_columns:
+    - column_name: id
+      type: long
+      nullable: false
+  business_key: [id]
+  batch_identifier: batch_id
+""".lstrip(),
+            encoding="utf-8",
+        )
+        registry = tmp_path / "registry.json"
+
+        rc = main(
+            [
+                "registry",
+                "add",
+                "--contract",
+                str(path),
+                "--registry",
+                str(registry),
+                "--catalog",
+                "adb_dev",
+                "--schema",
+                "governed",
+            ]
+        )
+
+        assert rc == 0
+        contract = json.loads(registry.read_text())["registry"][0]["contract"]
+        assert contract["dataset"]["catalog"] == "adb_dev"
+        assert contract["dataset"]["schema"] == "governed"
+        assert "${CATALOG}" not in contract["source"]["landing_path"]
+
+
+class TestRegistryListCommand:
+    def test_missing_registry_returns_error(
+        self,
+        tmp_path: Path,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        rc = main(["registry", "list", "--registry", str(tmp_path / "missing.json")])
+        assert rc == 1
+        assert "not found" in capsys.readouterr().err
+
+    def test_lists_registered_datasets(
+        self,
+        tmp_path: Path,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        contract_a = _write_contract(tmp_path / "a.yml", name="alpha")
+        contract_b = _write_contract(tmp_path / "b.yml", name="beta", version="2.0.0")
+        registry = tmp_path / "registry.json"
+        main(["registry", "add", "--contract", str(contract_a), "--registry", str(registry)])
+        main(["registry", "add", "--contract", str(contract_b), "--registry", str(registry)])
+        capsys.readouterr()
+
+        rc = main(["registry", "list", "--registry", str(registry)])
+
+        assert rc == 0
+        out = capsys.readouterr().out
+        assert "DATASET_ID" in out
+        assert "alpha" in out and "1.0.0" in out
+        assert "beta" in out and "2.0.0" in out
+
+
+class TestRegistryRemoveCommand:
+    def test_removes_existing_entry(self, tmp_path: Path) -> None:
+        contract = _write_contract(tmp_path / "contract.yml")
+        registry = tmp_path / "registry.json"
+        main(["registry", "add", "--contract", str(contract), "--registry", str(registry)])
+
+        rc = main(
+            [
+                "registry",
+                "remove",
+                "--dataset-id",
+                "demo_dataset",
+                "--contract-version",
+                "1.0.0",
+                "--registry",
+                str(registry),
+            ]
+        )
+
+        assert rc == 0
+        data = json.loads(registry.read_text())
+        assert data["registry"] == []
+
+    def test_unknown_entry_returns_error(
+        self,
+        tmp_path: Path,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        contract = _write_contract(tmp_path / "contract.yml")
+        registry = tmp_path / "registry.json"
+        main(["registry", "add", "--contract", str(contract), "--registry", str(registry)])
+
+        rc = main(
+            [
+                "registry",
+                "remove",
+                "--dataset-id",
+                "demo_dataset",
+                "--contract-version",
+                "9.9.9",
+                "--registry",
+                str(registry),
+            ]
+        )
+
+        assert rc == 1
+        assert "not registered" in capsys.readouterr().err
+
+    def test_missing_registry_returns_error(
+        self,
+        tmp_path: Path,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        rc = main(
+            [
+                "registry",
+                "remove",
+                "--dataset-id",
+                "x",
+                "--contract-version",
+                "1.0.0",
+                "--registry",
+                str(tmp_path / "missing.json"),
+            ]
+        )
+        assert rc == 1
+        assert "not found" in capsys.readouterr().err
 
 
 # ---------------------------------------------------------------------------
