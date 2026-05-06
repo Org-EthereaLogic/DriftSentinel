@@ -1,21 +1,21 @@
 # DriftSentinel Dataset Contract — NYC TLC Yellow Taxi
 # Generated for the DEMO_RUNBOOK.md walkthrough.
-# Replace ${CATALOG} with your actual Unity Catalog name (e.g. "workspace" on Free Edition)
-# before uploading. The DriftSentinel CLI substitutes ${CATALOG} when invoked with --catalog.
+# The DriftSentinel CLI substitutes ${CATALOG}, ${SCHEMA}, and ${VOLUME} tokens
+# when invoked with --catalog, --schema, and --volume-name respectively.
 
 dataset:
   name: nyc_yellow_taxi
   description: NYC TLC Yellow Taxi monthly trip records — public dataset used to demo the full DriftSentinel control pipeline against real-world data.
   catalog: ${CATALOG}
-  schema: default
+  schema: ${SCHEMA}
   table: yellow_taxi_trips
   contract_version: "1.0.0"
 
 source:
   system: nyc_tlc_open_data
   format: parquet
-  landing_path: /Volumes/${CATALOG}/default/driftsentinel_runtime/landing/yellow_taxi/
-  baseline_path: /Volumes/${CATALOG}/default/driftsentinel_runtime/baseline/yellow_taxi/
+  landing_path: /Volumes/${CATALOG}/${SCHEMA}/${VOLUME}/landing/yellow_taxi/
+  baseline_path: /Volumes/${CATALOG}/${SCHEMA}/${VOLUME}/baseline/yellow_taxi/
   read_options: {}
 
 contract:

@@ -186,4 +186,5 @@ echo "[5/5] Run complete. Inspect evidence under:"
 echo "  /Volumes/${CATALOG}/${SCHEMA}/${VOLUME_NAME}/evidence/nyc_yellow_taxi/"
 echo
 echo "From a Databricks notebook or CLI:"
-echo "  databricks fs ls dbfs:/Volumes/${CATALOG}/${SCHEMA}/${VOLUME_NAME}/evidence/nyc_yellow_taxi/${PROFILE:+ -p ${PROFILE}}"
+PROFILE_FLAG="${PROFILE:+--profile ${PROFILE}}"
+echo "  databricks fs ls /Volumes/${CATALOG}/${SCHEMA}/${VOLUME_NAME}/evidence/nyc_yellow_taxi/ ${PROFILE_FLAG}"
