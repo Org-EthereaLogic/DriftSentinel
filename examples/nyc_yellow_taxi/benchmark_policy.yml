@@ -1,0 +1,88 @@
+# DriftSentinel Benchmark Policy — NYC TLC Yellow Taxi
+# Injects faults into a deterministic 10k sample of the trusted baseline and measures
+# whether the controls catch them. Gate set mirrors the shipped template — these are
+# the proven thresholds.
+
+benchmark_policy:
+  name: nyc_yellow_taxi_benchmark_policy
+  dataset: nyc_yellow_taxi
+  contract_version: "1.0.0"
+  policy_version: "1.0.0"
+  seed: 42
+
+  quality_faults:
+    - type: null_injection
+      columns: [fare_amount]
+      rate: 0.10
+    - type: duplicate_inflation
+      rate: 0.05
+    - type: type_corruption
+      columns: [tpep_pickup_datetime]
+
+  drift_patterns:
+    - type: sudden_shift
+      columns: [payment_type]
+    - type: gradual_decay
+      columns: [fare_amount]
+
+  gates:
+    - name: quality_recall
+      type: FAIL
+      operator: ">="
+      threshold: 0.80
+      track: quality
+      description: Challenger recall must meet minimum
+    - name: quality_precision
+      type: WARN
+      operator: ">="
+      threshold: 0.60
+      track: quality
+      description: Challenger precision target
+    - name: quality_f1
+      type: WARN
+      operator: ">="
+      threshold: 0.50
+      track: quality
+      description: Challenger F1 target
+    - name: quality_fpr
+      type: FAIL
+      operator: "<="
+      threshold: 0.10
+      track: quality
+      description: Challenger false positive rate ceiling
+    - name: challenger_beats_baseline_quality
+      type: FAIL
+      operator: ">="
+      threshold: 1.00
+      track: quality
+      description: Challenger recall must meet or exceed baseline
+    - name: sudden_drift_sensitivity
+      type: FAIL
+      operator: ">="
+      threshold: 1.00
+      track: drift
+      description: Sudden drift must be detected
+    - name: gradual_drift_sensitivity
+      type: WARN
+      operator: ">="
+      threshold: 0.50
+      track: drift
+      description: Gradual drift should be detected
+    - name: drift_fpr
+      type: FAIL
+      operator: "<="
+      threshold: 0.00
+      track: drift
+      description: No false positive on stable data
+    - name: new_category_sensitivity
+      type: WARN
+      operator: ">="
+      threshold: 1.00
+      track: drift
+      description: New category injection should be detected
+    - name: challenger_beats_baseline_drift
+      type: FAIL
+      operator: ">="
+      threshold: 1.00
+      track: drift
+      description: Challenger drift score must meet or exceed baseline

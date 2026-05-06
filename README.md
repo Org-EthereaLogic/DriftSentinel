@@ -186,6 +186,18 @@ make test   # runs the pytest suite
 > the [Terraform binary section in the deployment guide](docs/deployment_guide.md#terraform-binary)
 > for context (terraform 1.5.5 PGP signature expired upstream in 2025).
 
+### One-shot demo: NYC TLC Yellow Taxi
+
+Replay the full intake → drift → benchmark pipeline against real public data
+(NYC Yellow Taxi, Jan vs. Feb 2024) with one command:
+
+```bash
+make demo-nyc-taxi CATALOG=my_catalog PROFILE=<profile>
+```
+
+See [`examples/nyc_yellow_taxi/README.md`](examples/nyc_yellow_taxi/README.md)
+for what the script does, the manual replay, and the expected verdict.
+
 ### Databricks Bootstrap (wrapper)
 
 ```bash

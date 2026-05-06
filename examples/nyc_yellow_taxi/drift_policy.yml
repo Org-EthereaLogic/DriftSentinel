@@ -1,0 +1,33 @@
+# DriftSentinel Drift Policy — NYC TLC Yellow Taxi
+# Monitored columns chosen because real, measurable seasonal drift exists between months:
+#   - fare_amount, trip_distance: fare hikes + winter-vs-spring trip-length shift (numeric -> wasserstein)
+#   - payment_type, VendorID: low-cardinality categorical share shift (-> shannon_entropy)
+
+drift_policy:
+  name: nyc_yellow_taxi_drift_policy
+  dataset: nyc_yellow_taxi
+  contract_version: "1.0.0"
+  policy_version: "1.0.0"
+
+  monitored_columns:
+    - column_name: fare_amount
+      method: wasserstein
+    - column_name: trip_distance
+      method: wasserstein
+    - column_name: payment_type
+      method: shannon_entropy
+    - column_name: VendorID
+      method: shannon_entropy
+
+  baseline:
+    source: trusted_load
+    path: /Volumes/${CATALOG}/default/driftsentinel_runtime/baseline/yellow_taxi/
+    format: parquet
+    read_options: {}
+    min_rows: 100000
+
+  gates:
+    health_score_threshold: 0.70
+    max_columns_failed: 2
+
+  verdict_on_fail: block
