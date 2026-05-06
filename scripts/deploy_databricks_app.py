@@ -35,9 +35,29 @@ def _run(
     if check and proc.returncode != 0:
         raise subprocess.CalledProcessError(proc.returncode, cmd, proc.stdout, proc.stderr)
     if capture_json:
-        assert proc.stdout
+        if not proc.stdout:
+            raise SystemExit(f"Command returned no JSON output: {' '.join(cmd)}")
         return json.loads(proc.stdout)
     return proc
+
+
+def _run_json(cmd: list[str], *, env: dict[str, str] | None = None) -> dict[str, Any]:
+    result = _run(cmd, capture_json=True, env=env)
+    if not isinstance(result, dict):
+        raise SystemExit(f"Command did not return a JSON object: {' '.join(cmd)}")
+    return result
+
+
+def _run_process(
+    cmd: list[str],
+    *,
+    check: bool = True,
+    env: dict[str, str] | None = None,
+) -> subprocess.CompletedProcess[str]:
+    result = _run(cmd, check=check, env=env)
+    if not isinstance(result, subprocess.CompletedProcess):
+        raise SystemExit(f"Command did not return a process result: {' '.join(cmd)}")
+    return result
 
 
 def _bundle_flag_args(profile: str | None, target: str, catalog: str) -> list[str]:
@@ -51,8 +71,79 @@ def _app_api_args(profile: str | None) -> list[str]:
     return ["-p", profile] if profile else []
 
 
+def _app_resource_bindings(app: dict[str, Any]) -> list[dict[str, Any]]:
+    resources = app.get("resources")
+    if isinstance(resources, list):
+        return [resource for resource in resources if isinstance(resource, dict)]
+
+    config = app.get("config") or {}
+    config_resources = config.get("resources")
+    if isinstance(config_resources, list):
+        return [resource for resource in config_resources if isinstance(resource, dict)]
+
+    return []
+
+
+def _resolve_volume_resource(
+    resource: dict[str, Any],
+    *,
+    catalog: str,
+    schema: str,
+    volume_name: str,
+) -> str | None:
+    uc = resource.get("uc_securable")
+    if not isinstance(uc, dict) or uc.get("securable_type") != "VOLUME":
+        return None
+
+    full_name = uc.get("securable_full_name") or ""
+    if not full_name or "${" in full_name:
+        full_name = f"{catalog}.{schema}.{volume_name}"
+
+    parts = full_name.split(".")
+    if len(parts) != 3 or not all(parts):
+        return ""
+
+    return f"/Volumes/{parts[0]}/{parts[1]}/{parts[2]}"
+
+
+def _resolve_job_resource(resource: dict[str, Any], jobs_block: dict[str, Any]) -> str | None:
+    job = resource.get("job")
+    if not isinstance(job, dict):
+        return None
+
+    raw_id = job.get("id")
+    job_id = "" if raw_id is None else str(raw_id)
+    if job_id and not job_id.startswith("${"):
+        return job_id
+
+    ref_key = ""
+    if "resources.jobs." in job_id:
+        after = job_id.split("resources.jobs.", 1)[1]
+        ref_key = after.split(".", 1)[0]
+    return str((jobs_block.get(ref_key) or {}).get("id", "") or "")
+
+
+def _resolve_resource_value(
+    resource: dict[str, Any],
+    *,
+    catalog: str,
+    schema: str,
+    volume_name: str,
+    jobs_block: dict[str, Any],
+) -> str | None:
+    volume_value = _resolve_volume_resource(
+        resource,
+        catalog=catalog,
+        schema=schema,
+        volume_name=volume_name,
+    )
+    if volume_value is not None:
+        return volume_value
+    return _resolve_job_resource(resource, jobs_block)
+
+
 def _resolve_app_resource_values(summary: dict[str, Any], app_key: str) -> dict[str, str]:
-    """Map each app `config.resources[].name` to its concrete env value.
+    """Map each app `resources[].name` to its concrete env value.
 
     - VOLUME `uc_securable` -> `/Volumes/<catalog>/<schema>/<volume>` parsed
       from `securable_full_name` when concrete, otherwise constructed from
@@ -63,8 +154,7 @@ def _resolve_app_resource_values(summary: dict[str, Any], app_key: str) -> dict[
     """
     apps = summary.get("resources", {}).get("apps", {}) or {}
     app = apps.get(app_key) or {}
-    config = app.get("config") or {}
-    app_resources = config.get("resources") or []
+    app_resources = _app_resource_bindings(app)
 
     variables = summary.get("variables") or {}
     catalog = (variables.get("catalog") or {}).get("value", "") or ""
@@ -79,33 +169,47 @@ def _resolve_app_resource_values(summary: dict[str, Any], app_key: str) -> dict[
         if not name:
             continue
 
-        uc = res.get("uc_securable")
-        if isinstance(uc, dict) and uc.get("securable_type") == "VOLUME":
-            full = uc.get("securable_full_name") or ""
-            if not full or "${" in full:
-                full = f"{catalog}.{schema}.{volume_name}"
-            parts = full.split(".")
-            if len(parts) == 3 and all(parts):
-                resolutions[name] = f"/Volumes/{parts[0]}/{parts[1]}/{parts[2]}"
-            else:
-                resolutions[name] = ""
-            continue
-
-        job = res.get("job")
-        if isinstance(job, dict):
-            raw_id = job.get("id")
-            job_id = "" if raw_id is None else str(raw_id)
-            if job_id and not job_id.startswith("${"):
-                resolutions[name] = job_id
-            else:
-                # Reference shape: ${resources.jobs.<key>.id}
-                ref_key = ""
-                if "resources.jobs." in job_id:
-                    after = job_id.split("resources.jobs.", 1)[1]
-                    ref_key = after.split(".", 1)[0]
-                resolutions[name] = str((jobs_block.get(ref_key) or {}).get("id", "") or "")
+        resource_value = _resolve_resource_value(
+            res,
+            catalog=catalog,
+            schema=schema,
+            volume_name=volume_name,
+            jobs_block=jobs_block,
+        )
+        if resource_value is not None:
+            resolutions[name] = resource_value
 
     return resolutions
+
+
+def _normalize_command(command: Any) -> list[str]:
+    if isinstance(command, str):
+        return [command]
+    return [str(part) for part in command]
+
+
+def _resolve_env_entry(entry: Any, resolutions: dict[str, str]) -> dict[str, Any] | None:
+    if not isinstance(entry, dict):
+        return None
+
+    name = entry.get("name")
+    if not name:
+        return None
+
+    if "value" in entry:
+        return {"name": name, "value": entry["value"]}
+    if "value_from" in entry:
+        return {"name": name, "value": resolutions.get(entry["value_from"], "")}
+    return {"name": name, "value": ""}
+
+
+def _resolved_env_entries(config: dict[str, Any], resolutions: dict[str, str]) -> list[dict[str, Any]]:
+    env_out: list[dict[str, Any]] = []
+    for entry in config.get("env") or []:
+        resolved = _resolve_env_entry(entry, resolutions)
+        if resolved is not None:
+            env_out.append(resolved)
+    return env_out
 
 
 def _build_app_yaml_content(summary: dict[str, Any], app_key: str) -> str | None:
@@ -118,23 +222,10 @@ def _build_app_yaml_content(summary: dict[str, Any], app_key: str) -> str | None
         return None
 
     resolutions = _resolve_app_resource_values(summary, app_key)
-    env_in = config.get("env") or []
-    env_out: list[dict[str, Any]] = []
-    for entry in env_in:
-        if not isinstance(entry, dict):
-            continue
-        name = entry.get("name")
-        if not name:
-            continue
-        if "value" in entry:
-            env_out.append({"name": name, "value": entry["value"]})
-        elif "value_from" in entry:
-            env_out.append({"name": name, "value": resolutions.get(entry["value_from"], "")})
-        else:
-            env_out.append({"name": name, "value": ""})
+    env_out = _resolved_env_entries(config, resolutions)
 
     return yaml.safe_dump(
-        {"command": list(command), "env": env_out},
+        {"command": _normalize_command(command), "env": env_out},
         sort_keys=False,
         default_flow_style=False,
     )
@@ -171,6 +262,7 @@ def _upload_app_yaml(
         try:
             os.unlink(local_path)
         except OSError:
+            # Best-effort cleanup: ignore temp-file removal failures here.
             pass
 
 
@@ -180,13 +272,10 @@ def _get_app_state(
     *,
     env: dict[str, str] | None = None,
 ) -> dict[str, Any]:
-    state = _run(
+    return _run_json(
         ["databricks", "apps", "get", app_name, *app_api_args, "-o", "json"],
-        capture_json=True,
         env=env,
     )
-    assert isinstance(state, dict)
-    return state
 
 
 def _wait_for_app_state(
@@ -315,12 +404,10 @@ def main() -> int:
 
     _run(["databricks", "bundle", "deploy", *bundle_args], env=env)
 
-    summary = _run(
+    summary = _run_json(
         ["databricks", "bundle", "summary", *bundle_args, "-o", "json"],
-        capture_json=True,
         env=env,
     )
-    assert summary is not None
 
     apps = summary.get("resources", {}).get("apps", {})
     if args.app_key not in apps:
@@ -353,8 +440,7 @@ def main() -> int:
         _upload_app_yaml(app_yaml, source_code_path, app_api_args, env=env)
 
     deploy_cmd = _build_apps_deploy_cmd(app_name, source_code_path, app_api_args)
-    deploy_proc = _run(deploy_cmd, check=False, env=env)
-    assert isinstance(deploy_proc, subprocess.CompletedProcess)
+    deploy_proc = _run_process(deploy_cmd, check=False, env=env)
     if deploy_proc.returncode != 0:
         conflict = "pending deployment in progress" in (deploy_proc.stderr or "")
         if not conflict:

@@ -17,6 +17,7 @@ APP_DIR = ROOT / "app"
 APP_PY = APP_DIR / "app.py"
 APP_YAML = APP_DIR / "app.yaml"
 APP_REQS = APP_DIR / "requirements.txt"
+DEFAULT_DEPLOY_COMMAND = ("gradio", "app/app.py")
 
 
 # --- File structure ---
@@ -473,11 +474,28 @@ def _fixture_bundle_summary(
     job_id: str = "987654321",
     securable_full_name: str | None = None,
     embedded_job_id: str | None = None,
-    command: list[str] | None = ["gradio", "app/app.py"],
-    extra_env: list[dict] | None = None,
-) -> dict:
+    command: list[str] | str | None = DEFAULT_DEPLOY_COMMAND,
+    extra_env: list[dict[str, object]] | None = None,
+) -> dict[str, object]:
     full_name = securable_full_name if securable_full_name is not None else f"{catalog}.{schema}.{volume_name}"
     embedded = embedded_job_id if embedded_job_id is not None else "${resources.jobs.dataset_pipeline_job.id}"
+    app_resource_bindings: list[dict] = [
+        {
+            "name": "runtime_volume",
+            "uc_securable": {
+                "securable_type": "VOLUME",
+                "securable_full_name": full_name,
+                "permission": "READ_VOLUME",
+            },
+        },
+        {
+            "name": "dataset_pipeline_job",
+            "job": {
+                "id": embedded,
+                "permission": "CAN_MANAGE_RUN",
+            },
+        },
+    ]
     env_entries: list[dict] = [
         {"name": "RUNTIME_VOLUME_PATH", "value_from": "runtime_volume"},
         {"name": "DATASET_PIPELINE_JOB_ID", "value_from": "dataset_pipeline_job"},
@@ -485,7 +503,7 @@ def _fixture_bundle_summary(
     ]
     if extra_env:
         env_entries.extend(extra_env)
-    summary: dict = {
+    summary: dict[str, object] = {
         "variables": {
             "catalog": {"value": catalog},
             "schema": {"value": schema},
@@ -496,25 +514,9 @@ def _fixture_bundle_summary(
                 "driftsentinel_app": {
                     "name": "driftsentinel",
                     "source_code_path": ("/Workspace/Users/op@example.com/.bundle/driftsentinel/dev/files"),
+                    "resources": app_resource_bindings,
                     "config": {
                         "env": env_entries,
-                        "resources": [
-                            {
-                                "name": "runtime_volume",
-                                "uc_securable": {
-                                    "securable_type": "VOLUME",
-                                    "securable_full_name": full_name,
-                                    "permission": "READ_VOLUME",
-                                },
-                            },
-                            {
-                                "name": "dataset_pipeline_job",
-                                "job": {
-                                    "id": embedded,
-                                    "permission": "CAN_MANAGE_RUN",
-                                },
-                            },
-                        ],
                     },
                 }
             },
@@ -524,7 +526,12 @@ def _fixture_bundle_summary(
         },
     }
     if command is not None:
-        summary["resources"]["apps"]["driftsentinel_app"]["config"]["command"] = list(command)
+        configured_command: list[str] | str
+        if isinstance(command, str):
+            configured_command = command
+        else:
+            configured_command = list(command)
+        summary["resources"]["apps"]["driftsentinel_app"]["config"]["command"] = configured_command
     return summary
 
 
@@ -678,6 +685,18 @@ class TestDeployScriptAppYamlGeneration:
         data = _yaml.safe_load(content)
         assert data["command"] == ["gradio", "app/app.py"]
 
+    def test_string_command_is_wrapped_once(self) -> None:
+        import yaml as _yaml
+
+        from scripts.deploy_databricks_app import _build_app_yaml_content
+
+        summary = _fixture_bundle_summary(command="gradio app/app.py")
+
+        content = _build_app_yaml_content(summary, "driftsentinel_app")
+        assert content is not None
+        data = _yaml.safe_load(content)
+        assert data["command"] == ["gradio app/app.py"]
+
 
 class TestDeployScriptResourceResolution:
     def test_volume_path_falls_back_when_full_name_blank(self) -> None:
@@ -693,3 +712,14 @@ class TestDeployScriptResourceResolution:
         from scripts.deploy_databricks_app import _resolve_app_resource_values
 
         assert _resolve_app_resource_values({}, "driftsentinel_app") == {}
+
+    def test_reads_resource_bindings_from_app_root(self) -> None:
+        from scripts.deploy_databricks_app import _resolve_app_resource_values
+
+        summary = _fixture_bundle_summary()
+        summary["resources"]["apps"]["driftsentinel_app"]["config"].pop("resources", None)
+
+        resolved = _resolve_app_resource_values(summary, "driftsentinel_app")
+
+        assert resolved["runtime_volume"] == "/Volumes/main/default/driftsentinel_runtime"
+        assert resolved["dataset_pipeline_job"] == "987654321"
