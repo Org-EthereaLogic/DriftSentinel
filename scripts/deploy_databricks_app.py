@@ -183,6 +183,37 @@ def _named_app_resources(app: dict[str, Any]) -> list[tuple[str, dict[str, Any]]
     return named_resources
 
 
+def _resource_resolution_context(summary: dict[str, Any]) -> tuple[str, str, str, dict[str, Any]]:
+    return (
+        _summary_variable_value(summary, "catalog", ""),
+        _summary_variable_value(summary, "schema", "default"),
+        _summary_variable_value(summary, "runtime_volume_name", "driftsentinel_runtime"),
+        _summary_jobs(summary),
+    )
+
+
+def _resolved_named_resource_items(
+    app: dict[str, Any],
+    *,
+    catalog: str,
+    schema: str,
+    volume_name: str,
+    jobs_block: dict[str, Any],
+) -> list[tuple[str, str]]:
+    resolved_items: list[tuple[str, str]] = []
+    for name, resource in _named_app_resources(app):
+        resource_value = _resolve_resource_value(
+            resource,
+            catalog=catalog,
+            schema=schema,
+            volume_name=volume_name,
+            jobs_block=jobs_block,
+        )
+        if resource_value is not None:
+            resolved_items.append((name, resource_value))
+    return resolved_items
+
+
 def _resolve_app_resource_values(summary: dict[str, Any], app_key: str) -> dict[str, str]:
     """Map each app `resources[].name` to its concrete env value.
 
@@ -194,24 +225,16 @@ def _resolve_app_resource_values(summary: dict[str, Any], app_key: str) -> dict[
       `summary.resources.jobs.<key>.id`.
     """
     app = _summary_app(summary, app_key)
-    catalog = _summary_variable_value(summary, "catalog", "")
-    schema = _summary_variable_value(summary, "schema", "default")
-    volume_name = _summary_variable_value(summary, "runtime_volume_name", "driftsentinel_runtime")
-    jobs_block = _summary_jobs(summary)
-
-    resolutions: dict[str, str] = {}
-    for name, resource in _named_app_resources(app):
-        resource_value = _resolve_resource_value(
-            resource,
+    catalog, schema, volume_name, jobs_block = _resource_resolution_context(summary)
+    return dict(
+        _resolved_named_resource_items(
+            app,
             catalog=catalog,
             schema=schema,
             volume_name=volume_name,
             jobs_block=jobs_block,
         )
-        if resource_value is not None:
-            resolutions[name] = resource_value
-
-    return resolutions
+    )
 
 
 def _normalize_command(command: Any) -> list[str]:
