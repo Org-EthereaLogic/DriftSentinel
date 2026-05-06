@@ -1,0 +1,57 @@
+# DriftSentinel Dataset Contract — NYC TLC Yellow Taxi
+# Generated for the DEMO_RUNBOOK.md walkthrough.
+# Replace ${CATALOG} with your actual Unity Catalog name (e.g. "workspace" on Free Edition)
+# before uploading. The DriftSentinel CLI substitutes ${CATALOG} when invoked with --catalog.
+
+dataset:
+  name: nyc_yellow_taxi
+  description: NYC TLC Yellow Taxi monthly trip records — public dataset used to demo the full DriftSentinel control pipeline against real-world data.
+  catalog: ${CATALOG}
+  schema: default
+  table: yellow_taxi_trips
+  contract_version: "1.0.0"
+
+source:
+  system: nyc_tlc_open_data
+  format: parquet
+  landing_path: /Volumes/${CATALOG}/default/driftsentinel_runtime/landing/yellow_taxi/
+  baseline_path: /Volumes/${CATALOG}/default/driftsentinel_runtime/baseline/yellow_taxi/
+  read_options: {}
+
+contract:
+  required_columns:
+    - column_name: VendorID
+      type: long
+      nullable: false
+    - column_name: tpep_pickup_datetime
+      type: timestamp
+      nullable: false
+    - column_name: tpep_dropoff_datetime
+      type: timestamp
+      nullable: false
+    - column_name: passenger_count
+      type: double
+      nullable: true
+    - column_name: trip_distance
+      type: double
+      nullable: false
+    - column_name: PULocationID
+      type: long
+      nullable: false
+    - column_name: DOLocationID
+      type: long
+      nullable: false
+    - column_name: payment_type
+      type: long
+      nullable: false
+    - column_name: fare_amount
+      type: double
+      nullable: false
+    - column_name: tip_amount
+      type: double
+      nullable: false
+    - column_name: total_amount
+      type: double
+      nullable: false
+  business_key: [VendorID, tpep_pickup_datetime, tpep_dropoff_datetime, PULocationID, DOLocationID, fare_amount, total_amount, trip_distance]
+  batch_identifier: tpep_pickup_datetime

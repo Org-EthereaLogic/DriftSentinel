@@ -557,6 +557,41 @@ def test_notebooks_delegate_to_package_code() -> None:
         assert "def list_evidence" not in text, f"{name} re-implements list_evidence instead of importing"
 
 
+def test_nyc_taxi_example_ships_required_files() -> None:
+    example_dir = ROOT / "examples" / "nyc_yellow_taxi"
+    expected = {
+        "dataset_contract.yml",
+        "drift_policy.yml",
+        "benchmark_policy.yml",
+        "README.md",
+    }
+    actual = {p.name for p in example_dir.iterdir() if p.is_file()}
+    missing = expected - actual
+    assert not missing, f"examples/nyc_yellow_taxi/ is missing required files: {sorted(missing)}"
+
+    contract = yaml.safe_load((example_dir / "dataset_contract.yml").read_text(encoding="utf-8"))
+    assert contract["dataset"]["name"] == "nyc_yellow_taxi"
+    assert contract["contract"]["batch_identifier"] == "tpep_pickup_datetime"
+    assert len(contract["contract"]["business_key"]) == 8
+
+
+def test_nyc_taxi_demo_script_is_executable_and_wired() -> None:
+    script = ROOT / "scripts" / "run_nyc_taxi_demo.sh"
+    assert script.is_file(), "scripts/run_nyc_taxi_demo.sh is missing"
+    mode = script.stat().st_mode
+    assert mode & 0o111, "scripts/run_nyc_taxi_demo.sh must be executable"
+
+    text = script.read_text(encoding="utf-8")
+    assert text.startswith("#!/usr/bin/env bash"), "demo script must declare a bash shebang"
+    assert "driftsentinel registry add" in text
+    assert "driftsentinel databricks connect" in text
+    assert "--wait" in text
+
+    makefile_text = MAKEFILE.read_text(encoding="utf-8")
+    assert "demo-nyc-taxi:" in makefile_text
+    assert "scripts/run_nyc_taxi_demo.sh" in makefile_text
+
+
 def test_built_wheel_includes_packaged_templates(tmp_path: Path) -> None:
     subprocess.run(
         ["uv", "build", "--wheel", "--out-dir", str(tmp_path)],

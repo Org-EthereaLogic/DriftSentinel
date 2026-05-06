@@ -3,7 +3,7 @@
 | Field | Value |
 | --- | --- |
 | Document ID | DS-TM-001 |
-| Version | 1.7 |
+| Version | 1.8 |
 | Status | Draft |
 | Author | Anthony Johnson |
 | Date | 2026-05-05 |
@@ -19,7 +19,7 @@
 | DS-FR-007 | DS-SR-004 | PRD, SDD, DS-PATCH-037 | src/driftsentinel/benchmark/, evidence bundle writer, resources/benchmark_job.yml, resources/dataset_pipeline_job.yml (n_rows default = 10000), templates/benchmark_policy.yml (recall-floor comment), tests/test_benchmark.py::test_run_benchmark_at_default_n_rows_meets_recall_gate |
 | DS-FR-008 | DS-SR-008 | PRD, SRS | notebooks and evidence review surfaces |
 | DS-FR-009 | DS-SR-006 | PRD, TP | bundle deploy checks and manual import validation |
-| DS-FR-010 | DS-SR-007, DS-SR-010 | PRD, TP | deterministic demo paths and integration tests |
+| DS-FR-010 | DS-SR-007, DS-SR-010 | PRD, TP, DS-PATCH-040 | deterministic demo paths and integration tests, examples/nyc_yellow_taxi/ (contract + drift + benchmark + README), scripts/run_nyc_taxi_demo.sh, Makefile (`demo-nyc-taxi` target), tests/test_packaging.py::test_nyc_taxi_example_ships_required_files, tests/test_packaging.py::test_nyc_taxi_demo_script_is_executable_and_wired |
 | DS-FR-011 | DS-SR-011 | PRD, SRS, SCMP | .codacy/, codecov.yaml, .snyk, secret-name docs |
 | DS-FR-012 | DS-SR-012 | PRD, SRS, SCMP | docs/github_project_sync.md, /sync command |
 | DS-NFR-001 | DS-SNFR-002, DS-SNFR-006 | PRD, SRS, TP | report/, benchmark evidence |
@@ -36,6 +36,7 @@
 
 | Version | Date | Change |
 | --- | --- | --- |
+| 1.8 | 2026-05-05 | Linked DS-FR-010 / DS-SR-007 to DS-PATCH-040 (in-repo NYC TLC Yellow Taxi demo example: `examples/nyc_yellow_taxi/{dataset_contract,drift_policy,benchmark_policy}.yml` + `README.md`; `scripts/run_nyc_taxi_demo.sh` one-shot replay covering download, 8-col dedup, `registry add --force`, and `databricks connect --wait`; `make demo-nyc-taxi` target; new `tests/test_packaging.py::test_nyc_taxi_example_ships_required_files`, `test_nyc_taxi_demo_script_is_executable_and_wired`; root README Quickstart pointer) |
 | 1.7 | 2026-05-05 | Linked DS-FR-004 / DS-SR-005 to DS-PATCH-039 (`driftsentinel registry add/list/remove` CLI subcommands replacing the 5-line Python registration snippet; default `--registry data/registry.json`; collision exits 1 unless `--force`; `--catalog/--schema/--volume-name` flags thread through `load_dataset_contract` to reuse DS-PATCH-032 placeholder substitution; new `tests/test_cli.py::TestRegistryAddCommand`, `TestRegistryListCommand`, `TestRegistryRemoveCommand`; documentation updates in `docs/deployment_guide.md` and `docs/e2e_verification_prompt.md`) |
 | 1.6 | 2026-05-05 | Linked DS-FR-002 / DS-SR-009 to DS-PATCH-038 (replace removed `--target/--var` on `databricks apps deploy` with `apps deploy <name> --source-code-path <path>`; auto-generate `app.yml` at the workspace source-code-path with env entries resolved against `value_from` references and bundle variables; documentation update in `docs/deployment_guide.md`; new `tests/test_app.py::TestDeployScriptCommandShape`, `TestDeployScriptAppYamlGeneration`, `TestDeployScriptResourceResolution`) |
 | 1.5 | 2026-05-05 | Linked DS-FR-007 / DS-SR-004 to DS-PATCH-037 (raise bundle-resource `n_rows` default from 1000 to 10000 in `resources/benchmark_job.yml` and `resources/dataset_pipeline_job.yml`; document the recall-floor at low N in `templates/benchmark_policy.yml`; add regression test in `tests/test_benchmark.py` asserting `quality_recall >= 0.80` at n=10000; note default change in `docs/deployment_guide.md`) |

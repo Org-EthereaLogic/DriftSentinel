@@ -9,7 +9,8 @@ PROFILE_ARG := $(if $(PROFILE),-p $(PROFILE),)
 TF_ENV := . scripts/databricks_tf_env.sh
 
 .PHONY: help sync hooks-install lint typecheck test coverage \
-	bundle-catalog-check bundle-validate bundle-deploy app-deploy bootstrap
+	bundle-catalog-check bundle-validate bundle-deploy app-deploy bootstrap \
+	demo-nyc-taxi
 
 help:
 	@echo "DriftSentinel — Make targets"
@@ -32,6 +33,8 @@ help:
 	@echo "  app-deploy             Deploy DriftSentinel App (CATALOG=, [PROFILE=])"
 	@echo "  bootstrap              Dataset-backed Databricks connect flow"
 	@echo "                         (DATASET_ID=, DRIFT_POLICY=, CATALOG=, [...])"
+	@echo "  demo-nyc-taxi          One-shot NYC TLC Yellow Taxi demo replay"
+	@echo "                         (CATALOG=, [PROFILE=])"
 
 sync:
 	$(UV) sync --all-groups
@@ -62,6 +65,11 @@ bundle-deploy:
 
 app-deploy:
 	@$(TF_ENV) && $(UV) run python scripts/deploy_databricks_app.py $(if $(PROFILE),--profile $(PROFILE),) --target dev --catalog "$${BUNDLE_VAR_catalog:-$${CATALOG:?Set CATALOG or BUNDLE_VAR_catalog}}"
+
+demo-nyc-taxi:
+	@scripts/run_nyc_taxi_demo.sh \
+		--catalog "$${BUNDLE_VAR_catalog:-$${CATALOG:?Set CATALOG or BUNDLE_VAR_catalog}}" \
+		$(if $(PROFILE),--profile $(PROFILE),)
 
 bootstrap:
 	@test -n "$(DATASET_ID)" || (echo "Set DATASET_ID=<registered_dataset>" >&2; exit 2)
